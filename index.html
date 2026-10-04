@@ -402,6 +402,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 
   <!-- HISTORY -->
   <div id="tab-hist" class="hidden">
+    <div class="viewbar hidden" data-viewbar></div>
     <div class="toolbar">
       <button class="btn" id="btnCsv">CSVを書き出す</button>
       <button class="btn" id="btnJson">JSONを書き出す</button>
@@ -576,6 +577,7 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
   </div>
 
   <div id="pf-tab-hist" class="hidden">
+    <div class="viewbar hidden" data-viewbar></div>
     <div class="toolbar">
       <button class="btn" id="pf-btnCsv">CSVを書き出す</button>
       <button class="btn" id="pf-btnJson">JSONを書き出す</button>
@@ -1844,9 +1846,9 @@ function vhHTML(h){
 }
 function renderHist(){
   const body=document.getElementById('histBody');
-  if(!Store.hands.length){ body.innerHTML='<div class="empty">プレーしたハンドがここに新しい順で並びます。</div>'; return; }
-  const list=Store.hands.slice(-80).reverse();
-  body.innerHTML=`<p class="sub" style="color:var(--muted);font-size:12px">直近80ハンドを表示（全${Store.hands.length}ハンドは書き出しで取得できます）。* が自分のアクション。</p><div class="hlist">${list.map(h=>`
+  if(!statsHands().length){ body.innerHTML='<div class="empty">プレーしたハンドがここに新しい順で並びます。</div>'; return; }
+  const list=statsHands().slice(-80).reverse();
+  body.innerHTML=`<p class="sub" style="color:var(--muted);font-size:12px">直近80ハンドを表示（全${statsHands().length}ハンドは書き出しで取得できます）。* が自分のアクション。</p><div class="hlist">${list.map(h=>`
     <details class="hitem"><summary><span class="id">#${h.id}</span><span class="p">${h.pos}</span><span class="mini">${miniCards(h.hc)}</span><span class="mini" style="color:var(--muted)">${h.board?miniCards(h.board):'—'}</span><span class="net ${h.net>=0?'pos-c':'neg-c'}">${fmt(h.net)}</span></summary>
     <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb</div>${vhHTML(h)}</details>`).join('')}</div>`;
 }
@@ -1961,7 +1963,7 @@ function loadXLSX(){
 }
 function buildXLSX(X,noLog){
   const cols=noLog?CSV_COLS.filter(c=>c!=='log'):CSV_COLS;
-  const data=[cols].concat(Store.hands.map(h=>rowValues(h,cols)));
+  const data=[cols].concat(statsHands().map(h=>rowValues(h,cols)));
   const ws=X.utils.aoa_to_sheet(data);
   ws['!cols']=cols.map(c=>({wch:c==='log'?60:c==='t'?19:c==='pf'||c==='ptype'||c==='fh'?12:8}));
   const doc=[['列名','項目','説明']].concat(cols.map(c=>[c,(COL_DOC[c]||['',''])[0],(COL_DOC[c]||['',''])[1]]));
@@ -1970,11 +1972,11 @@ function buildXLSX(X,noLog){
   return X.write(wb,{type:'base64',bookType:'xlsx'});
 }
 async function exportSheet(){
-  if(GS.busy||!Store.hands.length) return;
+  if(GS.busy||!statsHands().length) return;
   GS.busy=true; const btn=document.getElementById('btnSheet'); btn.disabled=true; btn.textContent='出力中…';
   gsShow('Googleドライブにスプレッドシートを作成しています…');
   try{
-    const n=Store.hands.length, d=new Date();
+    const n=statsHands().length, d=new Date();
     const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     const title=`6-Max Lab ハンド記録（${stamp}・${n}ハンド）`;
     let dropped=false, input=null, noDoc=false;
@@ -2091,7 +2093,8 @@ async function renderAdmin(){
   body.querySelectorAll('.uact [data-w]').forEach(b=>b.onclick=()=>AdminView.open(rows[+b.dataset.i],b.dataset.w));
   document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); AdminView.close(); renderAdmin(); };
 }
-/* admin: show a member's "分析" tabs (ring / preflop) with their data instead of your own, until "自分の分析に戻る" */
+/* admin: show a member's "分析" and "履歴" tabs (ring / preflop, incl. their CSV/JSON exports) with their data
+   instead of your own, until "自分の記録に戻る" */
 const AdminView={active:false,name:'',hands:[],recs:[],
   open(row,where){
     Object.assign(this,{active:true,name:row.name,hands:row.hands,recs:row.recs}); renderViewBars();
@@ -2100,15 +2103,19 @@ const AdminView={active:false,name:'',hands:[],recs:[],
     window.scrollTo(0,0);
   },
   close(){ if(!this.active) return; Object.assign(this,{active:false,name:'',hands:[],recs:[]}); renderViewBars();
-    if(curTab==='stats') renderStats(); if(window.PF&&window.PF.refreshStats) window.PF.refreshStats(); }
+    if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(window.PF&&window.PF.refreshStats) window.PF.refreshStats(); }
 };
 window.AdminView=AdminView;
 function renderViewBars(){
   document.querySelectorAll('[data-viewbar]').forEach(el=>{ el.classList.toggle('hidden',!AdminView.active);
-    el.innerHTML=AdminView.active?`<span>管理者表示：<b>${escHtml(AdminView.name)}</b> さんの分析を表示中</span><button class="btn" data-back>自分の分析に戻る</button>`:'';
+    el.innerHTML=AdminView.active?`<span>管理者表示：<b>${escHtml(AdminView.name)}</b> さんの記録（分析・履歴）を表示中</span><button class="btn" data-back>自分の記録に戻る</button>`:'';
     const b=el.querySelector('[data-back]'); if(b) b.onclick=()=>AdminView.close(); });
+  // "delete all records" would wipe your own data, not the member's: hide it while viewing someone else
+  ['btnReset','pf-btnReset'].forEach(id=>{ const b=document.getElementById(id); if(b) b.classList.toggle('hidden',AdminView.active); });
 }
 const statsHands=()=>AdminView.active?AdminView.hands:Store.hands;
+// export file-name suffix while viewing a member (e.g. 6max_hands_ほりぃ.csv)
+function viewTag(){ return AdminView.active?'_'+AdminView.name.replace(/[\\/:*?"<>|\s]+/g,'_'):''; }
 document.getElementById('adminUnlock').onclick=()=>{
   const v=document.getElementById('adminPass').value;
   if(v===ADMIN_PASSCODE){ sessionStorage.setItem('sixmaxlab_admin_ok','1'); document.getElementById('adminErr').textContent=''; document.getElementById('adminPass').value=''; renderAdmin(); }
@@ -2139,8 +2146,8 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 document.getElementById('fPos').onchange=renderStats;
 document.getElementById('fRange').onchange=renderStats;
 document.getElementById('fBot').onchange=renderStats;
-document.getElementById('btnCsv').onclick=()=>{ if(Store.hands.length) saveFile('6max_hands.csv',toCSV()); };
-document.getElementById('btnJson').onclick=()=>{ if(Store.hands.length) saveFile('6max_hands.json',JSON.stringify(Store.hands,null,1)); };
+document.getElementById('btnCsv').onclick=()=>{ if(statsHands().length) saveFile('6max_hands'+viewTag()+'.csv',toCSV(false,statsHands())); };
+document.getElementById('btnJson').onclick=()=>{ if(statsHands().length) saveFile('6max_hands'+viewTag()+'.json',JSON.stringify(statsHands(),null,1)); };
 let resetArmed=false;
 document.getElementById('btnReset').onclick=async e=>{
   const b=e.currentTarget;
@@ -2912,7 +2919,7 @@ function refreshAfterRangeChange(){ renderPosChecks(); renderFarInfo(); if(curTa
    ========================================================= */
 function renderHist(){
   const b=document.getElementById('pf-histBody');
-  const combined=combinedRecs();
+  const combined=statsRecs();
   if(!combined.length){ b.innerHTML='<div class="empty">記録はまだありません。</div>'; return; }
   const list=combined.slice(-300).reverse(); const base=combined.length;
   b.innerHTML=`<p class="sub" style="font-size:12px;color:var(--muted)">直近${list.length}件（全${base}件、テーブルでの実戦分を含む）。判定は現在のレンジ表で再計算しています。</p><div class="hlist">`+list.map((r,i)=>{ const j=rejudge(r); const [gc,gl]=GRADE[j.g]; const src=r.src==='game'?'<span class="help" style="margin-left:4px">実戦</span>':'';
@@ -2983,8 +2990,8 @@ function fillStatPos(){ const m=document.getElementById('pf-fMode').value, sel=d
 document.getElementById('pf-fMode').value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
 document.getElementById('pf-fPos').value=MODE_POS[document.getElementById('pf-fMode').value].includes(lsGet('pflab_fpos'))?lsGet('pflab_fpos'):''; document.getElementById('pf-fRange').value=lsGet('pflab_frange')||'0';
 ['pf-fMode','pf-fPos','pf-fRange'].forEach(id=>document.getElementById(id).onchange=()=>{ if(id==='pf-fMode'){ lsSet('pflab_fmode',document.getElementById('pf-fMode').value); fillStatPos(); } lsSet('pflab_fpos',document.getElementById('pf-fPos').value); lsSet('pflab_frange',document.getElementById('pf-fRange').value); renderStats(); });
-document.getElementById('pf-btnCsv').onclick=()=>{ if(combinedRecs().length) saveFile('preflop_answers.csv',toCSV()); };
-document.getElementById('pf-btnJson').onclick=()=>{ if(combinedRecs().length) saveFile('preflop_answers.json',JSON.stringify({records:combinedRecs(),ranges:Ranges.data},null,1)); };
+document.getElementById('pf-btnCsv').onclick=()=>{ const r=statsRecs(); if(r.length) saveFile('preflop_answers'+viewTag()+'.csv',toCSV(r)); };
+document.getElementById('pf-btnJson').onclick=()=>{ if(statsRecs().length) saveFile('preflop_answers'+viewTag()+'.json',JSON.stringify({records:statsRecs(),ranges:Ranges.data},null,1)); };
 let resetArmed=false;
 document.getElementById('pf-btnReset').onclick=async e=>{ const b=e.currentTarget;
   if(!resetArmed){ resetArmed=true; b.textContent='もう一度押すと全記録を削除します'; setTimeout(()=>{resetArmed=false;b.textContent='記録をすべて削除';},4000); return; }
@@ -3003,7 +3010,7 @@ async function pfBoot(){
   applyTab();
 }
 window.PF={ boot: pfBoot, onShow: function(){ renderSession(); },
-  refreshStats: function(){ if(curTab==='stats') renderStats(); },   // admin view switched back to own data
+  refreshStats: function(){ if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); },   // admin view switched back to own data
   recsCSV: (recs,pre)=>toCSV(recs,pre) };   // admin: everyone's answers as one CSV
 
 })();
