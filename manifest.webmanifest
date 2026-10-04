@@ -1,0 +1,13 @@
+{
+  "name": "6-Max Lab",
+  "short_name": "6-Max Lab",
+  "description": "NLH 6人テーブルのプレー記録・収支分析・プリフロ練習",
+  "start_url": "/",
+  "background_color": "#1E4045",
+  "theme_color": "#1E4045",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
