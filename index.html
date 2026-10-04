@@ -307,7 +307,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .tabs button{flex:1 1 0;padding:6px 2px;font-size:14px}
   .subtabs{margin-bottom:6px;padding:2px}
   .subtabs button{flex:1 1 auto;padding:5px 4px;font-size:13px;white-space:nowrap}
-  .tablebox{aspect-ratio:1/0.9}
+  .tablebox{aspect-ratio:1/0.9;margin-top:14px}
   .felt{inset:12% 6% 11% 6%;border-width:8px;border-radius:44%/46%}
   .seat{width:76px}
   .seat .cards{height:38px;margin-bottom:-7px}
@@ -1585,7 +1585,7 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
    Rendering: table
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
-const SEAT_XY_M=[[50,87],[12,63],[16,24],[50,13],[84,24],[88,63]];   // phone: pulled in so the seats stay on screen
+const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
 window.addEventListener("resize",()=>{ if(S.players.length) render(); });
 if(!matchMedia("(max-width:600px)").matches) document.getElementById("optBox").open=true;   // settings start folded on phones
@@ -2440,7 +2440,7 @@ function freqBar(e){
    Practice
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
-const SEAT_XY_M=[[50,87],[12,63],[16,24],[50,13],[84,24],[88,63]];   // phone: pulled in so the seats stay on screen
+const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
 window.addEventListener("resize",()=>{ if(P.cur) renderTable(); });
 const P={mode:lsGet('pflab_mode')||'open',cur:null,answered:false,size:+(lsGet('pflab_size')||2.5),t0:0,session:{n:0,ok:0,j:0},timer:null,last:null};
