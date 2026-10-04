@@ -875,7 +875,8 @@ function setupHand(){
   // beginner mode carries stacks over between hands (a busted player re-buys for 200点); normal mode always starts at 100bb
   const carry=isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
   S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
-  document.getElementById('advice').classList.add('hidden');
+  const adv=document.getElementById('advice');   // advice from a fast-folded hand stays up through the next hand
+  if(S.keepAdvice){ S.keepAdvice=false; if(!adv.dataset.prev){ adv.dataset.prev='1'; adv.innerHTML='<small>前のハンド：</small>'+adv.innerHTML; } } else { adv.classList.add('hidden'); delete adv.dataset.prev; }
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const sb=(S.button+1)%6, bb=(S.button+2)%6;
@@ -905,7 +906,7 @@ function autoFoldHero(p){
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
 async function playHand(){
-  S.running=true; S.autoFolded=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので200点で再スタート':'');
+  S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので200点で再スタート':'');
   for(let st=0;st<4;st++){
     if(st>0){
       if(active().length<=1) break;
@@ -917,7 +918,7 @@ async function playHand(){
   }
   collectBets();
   if(active().length>1){
-    while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded?0:isBeginner()?1300:700); }
+    while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
   settle(); S.done=true; const rec=buildRecord(); await Store.add(rec);
@@ -930,7 +931,7 @@ async function playHand(){
   const wtxt=S.showdown?S.winners.map(i=>(i===0?'あなた':S.players[i].name)+'（'+handName(i)+'）').join('・')+'の勝ち｜':'';
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜'+wtxt+'あなた '+txt):('あなた '+txt));
   renderControls();
-  if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
+  if(S.autoFolded||S.fastFold){ S.keepAdvice=S.fastFold&&!document.getElementById('advice').classList.contains('hidden'); await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
   if(document.getElementById('optAuto').checked){ const slow=isBeginner()?1.6:1; await sleep(((S.showdown||S.heroSaw[1])?2600:1500)*slow); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); }
 }
 function dealBoard(){
@@ -969,7 +970,7 @@ async function bettingRound(){
     render();
   }
 }
-function delay(){if(S.autoFolded) return 0; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
+function delay(){if(S.autoFolded||S.fastFold) return 0; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
 
 function sanitize(seat,dec){
   const p=S.players[seat], toCall=S.currentBet-p.bet;
@@ -1010,6 +1011,7 @@ function applyAction(seat,dec){
     if(st>0) p.postAggr++;
   }
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
+  if(p.isHero&&dec.act==='fold'&&st===0&&isBeginner()) S.fastFold=true;   // beginner: a preflop fold skips straight to the next hand
   if(isBeginner()) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
@@ -1023,7 +1025,7 @@ function openAdvice(act){
   let t='';
   if(act==='raise'&&f===0) t=`<b>ミス：</b>${pos}の ${hand} は均衡のオープンレンジに入っていません（オープン頻度 0%）。<br>正しいアクション：<b>フォールド</b>`;
   else if(act==='fold'&&f>=1) t=`<b>ミス：</b>${pos}の ${hand} は均衡では毎回オープンするハンドです（オープン頻度 100%）。<br>正しいアクション：<b>オープン（レイズ）</b>`;
-  const el=document.getElementById('advice'); el.innerHTML=t; el.classList.toggle('hidden',!t);
+  const el=document.getElementById('advice'); el.innerHTML=t; delete el.dataset.prev; el.classList.toggle('hidden',!t);
 }
 
 /* =========================================================
