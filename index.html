@@ -57,15 +57,15 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 .msg{color:#E8E4D8;font-size:13px;min-height:20px;margin-top:2px}
 .seat{position:absolute;transform:translate(-50%,-50%);width:112px;text-align:center;transition:opacity .2s}
 .seat .cards{display:flex;justify-content:center;gap:3px;height:52px;margin-bottom:-8px;position:relative;z-index:1}
-.seat .plate{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 6px 4px;line-height:1.25}
+.seat .plate{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 6px 4px;line-height:1.25}
 .seat.hero .plate{border-color:var(--brass);border-width:2px}
 .seat.acting .plate{box-shadow:0 0 0 3px var(--brass)}
 .seat.folded{opacity:.42}
 .seat .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seat .stk{font-family:var(--num);font-size:16px;font-weight:600}
-.seat .pos{position:absolute;z-index:2;top:-9px;left:-6px;background:var(--ink);color:var(--bg);font-family:var(--num);font-size:12px;font-weight:600;padding:0 5px;border-radius:5px;letter-spacing:.03em}
+.seat .pos{display:inline-block;vertical-align:1px;margin-right:4px;background:var(--ink);color:var(--bg);font-family:var(--num);font-size:12px;font-weight:600;line-height:16px;padding:0 5px;border-radius:5px;letter-spacing:.03em}   /* position tag, left of the name (clear of the cards) */
 .seat .act{font-size:11px;color:var(--muted);min-height:15px;white-space:nowrap}
-.dealer{position:absolute;z-index:2;top:-9px;right:-6px;width:20px;height:20px;border-radius:50%;background:#F5F1E6;color:#222;font-family:var(--num);font-weight:700;font-size:12px;line-height:20px;border:1px solid #999}
+.dealer{display:inline-block;vertical-align:1px;margin-right:4px;width:16px;height:16px;border-radius:50%;background:#F5F1E6;color:#222;font-family:var(--num);font-weight:700;font-size:11px;line-height:15px;border:1px solid #999;text-align:center}
 .betchip{position:absolute;transform:translate(-50%,-50%);background:rgba(0,0,0,.38);color:#F7E7B8;font-family:var(--num);font-weight:600;font-size:15px;padding:1px 8px;border-radius:12px;white-space:nowrap}
 .card{width:38px;height:52px;border-radius:5px;background:var(--card);color:var(--s0);display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--num);font-weight:700;font-size:21px;line-height:.95;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .card i{font-style:normal;font-size:16px}
@@ -314,7 +314,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .card{width:27px;height:38px;font-size:16px}.card i{font-size:12px}
   .seat .plate{padding:7px 3px 2px;border-radius:8px}
   .seat .nm{font-size:11px}.seat .stk{font-size:14px}.seat .act{font-size:10px;min-height:13px}
-  .seat .pos{font-size:11px;top:-8px;left:-4px}
+  .seat .pos{font-size:10px;line-height:14px;padding:0 3px;margin-right:2px}
   .board{min-height:46px;gap:3px}
   .board .card{width:32px;height:44px;font-size:18px}.board .card i{font-size:14px}
   .pot{font-size:17px;margin-top:3px}.msg{font-size:12px}
@@ -340,7 +340,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .seat .hr{font-size:10px;padding:0 5px}
   .res{padding:2px 8px}.res b{font-size:11px}.res span{font-size:13px}
   .res.me{padding:3px 10px;border-width:1px}.res.me b{font-size:12px}.res.me span{font-size:16px}
-  .dealer{width:16px;height:16px;line-height:16px;font-size:10px;top:-8px;right:-4px}
+  .dealer{width:13px;height:13px;line-height:12px;font-size:9px;margin-right:2px}
 }
 @media (max-width:600px){
   .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1645,7 +1645,7 @@ function render(){
     // phones, beginner mode: once the hand is over the action line shows the win/lose result instead
     const res=beg&&ph&&handLive&&S.done?resultOf(p,i):null;
     if(res) act=`<span class="resline ${res.cls}">${res.label} ${res.amt}</span>`;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&(!beg||ph)?'<span class="dealer">D</span>':''}<div class="nm">${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&(!beg||ph)?'<span class="dealer">D</span>':''}${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
     box.appendChild(el);
     // the felt in front of the seat (phones: fixed spots that stay clear of the plates and the board)
     const [bx,by]=ph?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
@@ -2586,7 +2586,7 @@ function renderTable(heroAct){
     if(v3&&hero){ bet=openSize(sp.hero); if(!heroAct) act='オープン '+bet; }
     if(vil){ bet=+(Ranges.get('vs3bet',c.pos)||{}).vs||0; act='3ベット '+bet; }
     pot+=bet;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}<div class="nm">${hero?'あなた':'&nbsp;'}</div><div class="stk">${v3?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${v3?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
     box.appendChild(el);
     if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
   }
