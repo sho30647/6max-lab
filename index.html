@@ -497,7 +497,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
           </div>
           <div class="checks">
             <label><input type="checkbox" id="pf-optAuto" checked> 正解なら自動で次へ</label>
-            <label><input type="checkbox" id="pf-optUseLog" checked> テーブルでの実戦プレーも分析に含める</label>
+            <label><input type="checkbox" id="pf-optStopMix"> 混合戦略は正解でも止める</label>
             <select id="pf-autoSpeed" aria-label="自動で次へ進む速さ"><option value="150">最速（0.15秒）</option><option value="400">速い（0.4秒）</option><option value="800">普通（0.8秒）</option><option value="1500">ゆっくり（1.5秒）</option></select>
           </div>
           <p class="help">PCではキーボードでも操作できます：F＝フォールド、C＝コール、R＝レイズ（vs3betでは4ベット）、A＝オールイン（vs3betのみ）、1〜7＝サイズ、スペース＝次へ</p>
@@ -2500,7 +2500,8 @@ const cfg={pos:new Set(JSON.parse(lsGet('pflab_pos')||'null')||MODE_POS.open),de
   sizeOn:lsGet('pflab_sizeon')===null?DEF.sizeOn:lsGet('pflab_sizeon')==='1',
   speed:lsGet('pflab_speed')===null?DEF.speed:+lsGet('pflab_speed'),
   farD:lsGet('pflab_fard')===null?DEF.farD:+lsGet('pflab_fard'),
-  useGameLog:lsGet('pflab_uselog')===null?DEF.useGameLog:lsGet('pflab_uselog')==='1'};
+  useGameLog:true,   // table-play decisions are always part of the analysis
+  stopMix:lsGet('pflab_stopmix')==='1'};
 
 function gameLogOpenRecords(hands){
   try{
@@ -2625,7 +2626,9 @@ function answer(a){
   P.session.n++; if(g!=='na'){ P.session.j++; if((g==='ok'||g==='mix')&&z!==false) P.session.ok++; }
   renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&P.mode==='vs3bet'&&e.has?`4ベット ${e.size}`:a==='J'?'オールイン 100':ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
   setMsg(GRADE[g][1]+(z===false?'（サイズ違い）':''));
-  if(document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false) P.timer=setTimeout(deal,cfg.speed);
+  // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
+  const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
+  if(document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)) P.timer=setTimeout(deal,cfg.speed);
 }
 function renderFeedback(rec,e){
   const fb=document.getElementById('pf-fb'); fb.classList.remove('hidden');
@@ -2696,7 +2699,7 @@ function renderStats(){
   h+=insightHTML(m,fp,A,byPos,byPK);
   // position table
   const posList=MODE_POS[m].filter(p=>byPos[p]);
-  h+=`<section class="block"><h2>${m==='vs3bet'?'スポット別':'ポジション別'}</h2><p class="sub">${m==='vs3bet'?'参加率（4ベット＋コール＋オールイン、UTGのオープンレンジ内）':'オープン率'}は「レンジ表の幅」に、回答済みハンドでのズレを組み合わせて推定。バーの灰色がレンジ、金線があなた。</p><div class="tscroll"><table class="t"><thead><tr><th>${m==='vs3bet'?'スポット':'ポジション'}</th><th>回答</th><th>正解率</th><th>サイズ</th><th>広すぎ</th><th>狭すぎ</th><th>種類違い</th><th>${m==='vs3bet'?'参加率':'オープン率'} レンジ→あなた</th><th>比較</th><th>判断</th></tr></thead><tbody>`;
+  h+=`<section class="block"><h2>${m==='vs3bet'?'スポット別':'ポジション別'}</h2><p class="sub">${m==='vs3bet'?'参加率（4ベット＋コール＋オールイン、オープンレンジ内）':'オープン率'}は「レンジ表の幅」に、回答済みハンドでのズレを組み合わせて推定。バーの灰色がレンジ、金線があなた。</p><div class="tscroll"><table class="t"><thead><tr><th>${m==='vs3bet'?'スポット':'ポジション'}</th><th>回答</th><th>正解率</th><th>サイズ</th><th>広すぎ</th><th>狭すぎ</th><th>種類違い</th><th>${m==='vs3bet'?'参加率':'オープン率'} レンジ→あなた</th><th>比較</th><th>判断</th></tr></thead><tbody>`;
   const srcPK=fp?allAgg.byPK:byPK;
   posList.forEach(p=>{ const o=byPos[p]; const w=Ranges.has(m,p)?widthCompare(m,p,srcPK):null;
     h+=`<tr><td>${posLabel(p)}</td><td class="${o.n<30?'few':''}">${o.n}</td><td>${pct(acc(o))}</td><td>${o.szJ?pct(o.szOk/o.szJ,0):'—'}</td><td>${o.over}</td><td>${o.under}</td><td>${o.wrongType}</td>
@@ -2840,7 +2843,7 @@ function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rN
 function rangeSumText(m,p){
   const R=Ranges.get(m,p); if(!R||!Object.keys(R.h).length) return '未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
   const w=Ranges.width(m,p), v3=m==='vs3bet', base=rangeBase(m,p);
-  return `${rName(m)} <b>${pct(w.r)}</b>　${v3?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?'UTGのオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
+  return `${rName(m)} <b>${pct(w.r)}</b>　${v3?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?heroOf(p)+'のオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
 }
 function rangeCells(m,p,selSet){
   const R=Ranges.get(m,p)||{h:{}}, v3=m==='vs3bet';
@@ -3010,18 +3013,18 @@ document.getElementById('pf-optSize').checked=cfg.sizeOn;
 document.getElementById('pf-optSize').onchange=e=>{ cfg.sizeOn=e.target.checked; lsSet('pflab_sizeon',cfg.sizeOn?'1':'0'); renderChips(); };
 document.getElementById('pf-autoSpeed').value=String(cfg.speed);
 document.getElementById('pf-autoSpeed').onchange=e=>{ cfg.speed=+e.target.value; lsSet('pflab_speed',cfg.speed); };
-document.getElementById('pf-optUseLog').checked=cfg.useGameLog;
-document.getElementById('pf-optUseLog').onchange=e=>{ cfg.useGameLog=e.target.checked; lsSet('pflab_uselog',cfg.useGameLog?'1':'0'); if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); };
 document.getElementById('pf-optFar').checked=cfg.far; document.getElementById('pf-farD').value=String(cfg.farD);
 document.getElementById('pf-optFar').onchange=e=>{ cfg.far=e.target.checked; lsSet('pflab_far',cfg.far?'1':'0'); renderFarInfo(); };
 document.getElementById('pf-farD').onchange=e=>{ cfg.farD=+e.target.value; lsSet('pflab_fard',cfg.farD); renderFarInfo(); };
 function renderFarInfo(){ const el=document.getElementById('pf-farInfo');
-  if(P.mode==='vs3bet'){ el.textContent='vs3betでは、UTGのオープンレンジに入るハンドだけを（オープン頻度に応じた割合で）出題します'; return; }
+  if(P.mode==='vs3bet'){ el.textContent='vs3betでは、自分（オープンした側）のオープンレンジに入るハンドだけを（オープン頻度に応じた割合で）出題します'; return; }
   const parts=MODE_POS[P.mode].filter(p=>Ranges.has(P.mode,p)).map(p=>{ const f=farSet(P.mode,p,cfg.farD); let c=0; f.forEach(k=>c+=combos(k)); return `${p} ${f.size}種（${pct(c/1326,0)}）`; });
   el.textContent=cfg.far?('除外されるハンド：'+parts.join('／')):'オフ：実戦どおり、明らかなフォールドも出題します'; }
 document.getElementById('pf-dealMode').onchange=e=>{ cfg.deal=e.target.value; lsSet('pflab_deal',cfg.deal); };
 document.getElementById('pf-optAuto').checked=lsGet('pflab_auto')!=='0';
 document.getElementById('pf-optAuto').onchange=e=>lsSet('pflab_auto',e.target.checked?'1':'0');
+document.getElementById("pf-optStopMix").checked=cfg.stopMix;
+document.getElementById("pf-optStopMix").onchange=e=>{ cfg.stopMix=e.target.checked; lsSet("pflab_stopmix",cfg.stopMix?"1":"0"); };
 document.addEventListener('keydown',e=>{
   if(curTab!=='play'||document.getElementById('tab-pf').classList.contains('hidden')||e.target.closest('input,select,textarea')) return; const k=e.key.toLowerCase();
   if(k==='f') answer('F'); else if(k==='c') answer('C'); else if(k==='r') answer('R'); else if(k==='a') answer('J');
