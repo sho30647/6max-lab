@@ -240,6 +240,22 @@ svg.chart{width:100%;height:auto;display:block}
 .rtools button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700}
 .rtools button[aria-pressed="true"]{outline:2px solid var(--ink)}
 .rtools input{width:70px;font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.esave{position:sticky;top:6px;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:12px}
+.esave #pf-eStatus{font-size:13px;color:var(--muted);margin-right:auto}
+.esave.dirty{border-color:var(--brass);box-shadow:0 0 0 2px var(--brass)}
+.esave.dirty #pf-eStatus{color:var(--ink);font-weight:700}
+.esizes{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.esizes input{width:80px;font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.egrid{user-select:none;touch-action:manipulation}
+.egrid button.picked{outline:3px solid var(--brass);outline-offset:-2px;z-index:1;position:relative}
+.emix{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.esel{font-size:13px;color:var(--muted);margin-bottom:8px}
+.einputs{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:14px}
+.einputs label{display:flex;align-items:center;gap:5px}
+.einputs i{display:inline-block;width:12px;height:12px;border-radius:3px}
+.einputs input{width:64px;font:inherit;font-family:var(--num);font-size:16px;padding:5px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:right}
+.efold{color:var(--muted)}.efold b{font-family:var(--num);font-size:16px;color:var(--ink)}
+.efold.bad b{color:var(--loss)}
 .rsum{font-size:13px;color:var(--muted);margin:8px 0}
 .rsum b{font-family:var(--num);font-size:17px;color:var(--ink)}
 textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospace;font-size:12px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)}
@@ -361,6 +377,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <button role="tab" aria-selected="false" data-tab="stats">分析</button>
       <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
       <button role="tab" aria-selected="false" data-tab="range">レンジ表</button>
+      <button role="tab" aria-selected="false" data-tab="redit">レンジ表編集（管理者）</button>
     </div>
     <div id="pf-tab-play">
     <div class="modes" id="pf-modes">
@@ -433,36 +450,80 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 
   <div id="pf-tab-range" class="hidden">
     <div class="filters">
-      <select id="pf-rMode" aria-label="モード"><option value="open">オープン</option><option value="vsOpen" disabled>vsオープン（準備中）</option><option value="vs3bet">vs3bet</option></select>
+      <select id="pf-rMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
       <select id="pf-rPos" aria-label="ポジション"></select>
     </div>
     <section class="block">
       <h2 id="pf-rTitle">レンジ表</h2>
-      <p class="sub">マスをタップすると頻度を表示。修正するときだけ「レンジを編集する」を押してください（誤タップでレンジが変わらないよう、通常は閲覧専用）。</p>
-      <div class="toolbar"><button class="btn" id="pf-rEdit">レンジを編集する</button></div>
-      <div class="rtools editUI hidden" id="pf-rtools">
-        <button data-p="r1" aria-pressed="true"><span class="ld" style="background:var(--win)"></span>レイズ</button>
-        <button data-p="r5"><span class="ld" style="background:linear-gradient(90deg,var(--win) 50%,#7C8790 50%)"></span>レイズ50%</button>
-        <button data-p="c1"><span class="ld" style="background:var(--sd)"></span>コール</button>
-        <button data-p="j1" class="jamUI"><span class="ld" style="background:var(--jam)"></span>オールイン</button>
-        <button data-p="f"><span class="ld" style="background:var(--surface2);border:1px solid var(--line)"></span>フォールド</button>
-        <label class="help">サイズ <input type="number" id="pf-rSize" step="0.1" min="1.5" max="100"> bb</label>
-      </div>
+      <p class="sub">マスをタップすると、そのハンドの頻度を表示します。</p>
       <div class="grid13" id="pf-rGrid"></div>
       <div class="cellinfo" id="pf-rInfo">&nbsp;</div>
+      <div class="legend" id="pf-rLegend"></div>
       <p class="rsum" id="pf-rSum"></p>
-      <div class="toolbar editUI hidden"><button class="btn" id="pf-rClear">このポジションを空にする</button></div>
     </section>
-    <section class="block">
-      <h2>テキストで一括入力</h2>
-      <p class="sub">1行＝1ポジション。貼り付けて「読み込む」を押すと、書かれたポジションだけ上書きします。</p>
-      <textarea class="imp" id="pf-rText" spellcheck="false" placeholder="UTG 2.5: 77+, A9s+, KTs+, QTs+, JTs, AJo+, KQo, A5s:0.5
-BTN 2.5: 22+, A2s+, K5s+, ...
-SB 3: 55+, A2s+, K9o:c, ..."></textarea>
-      <div class="toolbar" style="margin-top:8px"><button class="btn main" id="pf-rImport">読み込む</button><button class="btn" id="pf-rExport">現在のレンジを書き出す</button></div>
-      <p class="help">書式：<code>77+</code> ペア以上／<code>A2s+</code> キッカー以上／<code>K9s-KJs</code> 範囲／<code>AK</code> スーテッドとオフスート両方／<code>A5s:0.5</code> レイズ50%／<code>K9o:c</code> コール（リンプ）100%／<code>Q8s:r0.5c0.5</code> レイズとコール半々。書かれていないハンドはフォールド扱い。</p>
-      <p class="help" id="pf-rMsg"></p>
+  </div>
+
+  <!-- RANGE EDITOR (admin only) -->
+  <div id="pf-tab-redit" class="hidden">
+    <section class="block" id="pf-eGate">
+      <h2>レンジ表編集（管理者専用）</h2>
+      <p class="sub">レンジ表を編集するには管理者パスコードを入力してください。保存した内容は全プレイヤーのレンジ表に反映されます。</p>
+      <div class="row">
+        <input type="password" id="pf-ePass" placeholder="パスコード" style="flex:1;min-width:160px;font:inherit;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)">
+        <button class="btn main" id="pf-eUnlock">編集を始める</button>
+      </div>
+      <p class="help" id="pf-eErr" style="color:var(--loss)"></p>
     </section>
+    <div id="pf-eBody" class="hidden">
+      <div class="filters">
+        <select id="pf-eMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
+        <select id="pf-ePos" aria-label="ポジション"></select>
+        <button class="btn" id="pf-eLock" style="margin-left:auto">管理者モードを終了</button>
+      </div>
+      <div class="esave" id="pf-eSaveBar">
+        <span id="pf-eStatus"></span>
+        <button class="btn" id="pf-eDiscard">変更を破棄</button>
+        <button class="btn main" id="pf-eSave">保存して全員に反映</button>
+      </div>
+      <section class="block">
+        <h2 id="pf-eTitle">レンジ表編集</h2>
+        <p class="sub">マスをタップ（PCはドラッグも可）して選び、下の欄に各アクションの頻度（%）を入れて「選んだマスに適用」を押します。フォールドは残りの%です。</p>
+        <div class="esizes">
+          <label class="help"><span id="pf-eSizeLbl">レイズサイズ</span> <input type="number" id="pf-eSize" step="0.1" min="1.5" max="100"> bb</label>
+          <label class="help jamUI"><span>相手の3ベット</span> <input type="number" id="pf-eVs" step="0.5" min="2" max="100"> bb</label>
+        </div>
+        <div class="grid13 egrid" id="pf-eGrid"></div>
+        <div class="emix">
+          <div class="esel" id="pf-eSel">マスが選ばれていません</div>
+          <div class="einputs">
+            <label><i style="background:var(--win)"></i><span id="pf-eRLbl">レイズ</span><input type="number" id="pf-eR" min="0" max="100" step="1" value="0">%</label>
+            <label class="jamUI"><i style="background:var(--jam)"></i>オールイン<input type="number" id="pf-eJ" min="0" max="100" step="1" value="0">%</label>
+            <label><i style="background:var(--sd)"></i>コール<input type="number" id="pf-eC" min="0" max="100" step="1" value="0">%</label>
+            <span class="efold">フォールド <b id="pf-eF">100</b>%</span>
+          </div>
+          <div class="freqbar" id="pf-ePreview"></div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn main" id="pf-eApply">選んだマスに適用</button>
+            <button class="btn" data-preset="r">100% <span class="rname">レイズ</span></button>
+            <button class="btn jamUI" data-preset="j">100% オールイン</button>
+            <button class="btn" data-preset="c">100% コール</button>
+            <button class="btn" data-preset="f">フォールド</button>
+            <button class="btn" id="pf-eClearSel">選択を解除</button>
+          </div>
+        </div>
+        <p class="rsum" id="pf-eSum"></p>
+        <div class="toolbar"><button class="btn" id="pf-eReset">このスポットを初期値に戻す</button></div>
+      </section>
+      <section class="block">
+        <h2>テキストで一括入力</h2>
+        <p class="sub">1行＝1スポット。貼り付けて「読み込む」を押すと、書かれたスポットだけ上書きします（保存するまで全員には反映されません）。</p>
+        <textarea class="imp" id="pf-eText" spellcheck="false" placeholder="UTG 2: 77+, A9s+, KTs+, A5s:0.5
+UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
+        <div class="toolbar" style="margin-top:8px"><button class="btn main" id="pf-eImport">読み込む</button><button class="btn" id="pf-eExport">現在のレンジを書き出す</button></div>
+        <p class="help">書式：<code>77+</code> ペア以上／<code>A2s+</code> キッカー以上／<code>K9s-KJs</code> 範囲／<code>AK</code> スーテッドとオフスート両方／<code>A5s:0.5</code> レイズ50%／<code>K9o:c</code> コール100%／<code>Q8s:r0.3c0.2j0.5</code> レイズ30%・コール20%・オールイン50%。書かれていないハンドはフォールド扱い。</p>
+        <p class="help" id="pf-eMsg"></p>
+      </section>
+    </div>
   </div>
 
   <div id="pf-tab-hist" class="hidden">
@@ -1027,11 +1088,16 @@ function applyAction(seat,dec){
 }
 /* beginner mode: flag an unopened-pot open/fold that is clearly outside the equilibrium open chart (the hand keeps going) */
 function openAdvice(act){
-  const p=S.players[0], pos=posOf(0), ch=CH.open[pos]; if(!ch) return;
-  const k=classKey(p.hole[0],p.hole[1]), f=freqOf(ch.r,k), hand=k.length===2?k:k.slice(0,2)+(k[2]==='s'?'（スーテッド）':'（オフスート）');
+  const p=S.players[0], pos=posOf(0);
+  const k=classKey(p.hole[0],p.hole[1]), hand=k.length===2?k:k.slice(0,2)+(k[2]==='s'?'（スーテッド）':'（オフスート）');
+  // the shared (admin-edited) open chart from the preflop trainer; the built-in bot chart only as a fallback
+  const e=window.PFRanges?window.PFRanges.exp('open',pos,k):{has:false};
+  let play, raise;
+  if(e.has){ play=e.r+e.c+(e.j||0); raise=e.r; }
+  else { const ch=CH.open[pos]; if(!ch) return; play=raise=freqOf(ch.r,k); }
   let t='';
-  if(act==='raise'&&f===0) t=`<b>ミス：</b>${pos}の ${hand} は均衡のオープンレンジに入っていません（オープン頻度 0%）。<br>正しいアクション：<b>フォールド</b>`;
-  else if(act==='fold'&&f>=1) t=`<b>ミス：</b>${pos}の ${hand} は均衡では毎回オープンするハンドです（オープン頻度 100%）。<br>正しいアクション：<b>オープン（レイズ）</b>`;
+  if(act==='raise'&&play===0) t=`<b>ミス：</b>${pos}の ${hand} は均衡のオープンレンジに入っていません（オープン頻度 0%）。<br>正しいアクション：<b>フォールド</b>`;
+  else if(act==='fold'&&raise>=1) t=`<b>ミス：</b>${pos}の ${hand} は均衡では毎回オープンするハンドです（オープン頻度 100%）。<br>正しいアクション：<b>オープン（レイズ）</b>`;
   const el=document.getElementById('advice'); el.innerHTML=t; el.classList.toggle('hidden',!t);
 }
 
@@ -2011,10 +2077,11 @@ const DEFAULT_RANGES={
 };
 const Ranges={
   data:null,
-  load(saved){
-    const d=JSON.parse(JSON.stringify(DEFAULT_RANGES));
-    if(saved&&(+saved.v||1)<DEFAULT_RANGES.v) saved=null; // older saved tables are replaced by the new defaults
-    if(saved){ for(const m of ['open','vsOpen','vs3bet']){ const sm=saved[m]||{}; for(const p in sm){ const x=sm[p]; if(x&&x.h&&Object.keys(x.h).length){ d[m][p]={...(d[m][p]||{}),size:+x.size||((d[m][p]||{}).size)||2.5,h:x.h}; } else if(x&&d[m][p]&&x.size){ d[m][p].size=+x.size; } } } }
+  // Ranges are shared by every player: built-in defaults overlaid with the admin's saved table (SharedRanges).
+  // (The per-user table that Store.init passes in is no longer used.)
+  load(){
+    const d=JSON.parse(JSON.stringify(DEFAULT_RANGES)), saved=SharedRanges.data;
+    if(saved){ for(const m of ['open','vsOpen','vs3bet']){ const sm=saved[m]||{}; for(const p in sm){ const x=sm[p]; if(x&&x.h&&Object.keys(x.h).length){ d[m][p]={...(d[m][p]||{}),...(x.vs?{vs:+x.vs}:{}),size:+x.size||((d[m][p]||{}).size)||2.5,h:x.h}; } else if(x&&d[m][p]&&x.size){ d[m][p].size=+x.size; } } } }
     this.data=d;
   },
   get(m,p){ return (this.data[m]||{})[p]||null; },
@@ -2031,6 +2098,30 @@ const Ranges={
 const heroOf=p=>String(p).split('vs')[0];
 function dealWeight(m,p,k){ if(m!=='vs3bet') return 1; return Ranges.exp('open',heroOf(p),k).r||0; }
 function rangeBase(m,p){ if(m!=='vs3bet') return 1326; let s=0; CLASSES.forEach(k=>s+=combos(k)*dealWeight(m,p,k)); return s||1; }
+/* The admin-edited range table, shared by all players: Firestore doc shared/ranges (when Firebase is available),
+   cached in this browser so the game starts with the last known table even offline. */
+const SHARED_DOC='shared/ranges', LS_SHARED='pflab_shared_ranges';
+async function sharedDb(){ if(typeof FirebaseGate==='undefined') return null; try{ const c=await FirebaseGate.ready(); return c&&c.db||null; }catch(e){ return null; } }
+const SharedRanges={data:null,updated:0,
+  readCache(){ try{ const x=JSON.parse(lsGet(LS_SHARED)||'null'); if(x&&x.data){ this.data=x.data; this.updated=+x.updated||0; } }catch(e){} },
+  writeCache(){ lsSet(LS_SHARED,JSON.stringify({data:this.data,updated:this.updated})); },
+  async fetch(){ // newest table from the cloud; returns true when it changed
+    const db=await sharedDb(); if(!db) return false;
+    try{ const s=await db.doc(SHARED_DOC).get(); if(!s.exists) return false; const x=s.data();
+      if(!x||!x.data||(+x.updated||0)<=this.updated) return false;
+      this.data=JSON.parse(JSON.stringify(x.data)); this.updated=+x.updated||0; this.writeCache(); return true;
+    }catch(e){ console.warn('shared ranges',e); return false; }
+  },
+  async save(table){ // admin only (gated in the UI by the passcode)
+    const u=Date.now(), data=JSON.parse(JSON.stringify(table)); delete data._u;
+    this.data=data; this.updated=u; this.writeCache();
+    const db=await sharedDb(); if(!db) return {ok:false,local:true};
+    try{ await db.doc(SHARED_DOC).set({data,updated:u}); return {ok:true}; }catch(e){ console.warn('shared ranges save',e); return {ok:false,err:e&&e.code||String(e)}; }
+  }
+};
+SharedRanges.readCache(); Ranges.load();
+const rangesReady=SharedRanges.fetch().then(ch=>{ if(ch) Ranges.load(); });
+window.PFRanges={exp:(m,p,k)=>Ranges.data?Ranges.exp(m,p,k):{has:false}};   // read-only view for the ring game (beginner advice)
 
 /* range text parser */
 function normTok(t){ t=t.trim(); if(!t) return ''; return t.slice(0,2).toUpperCase()+t.slice(2).toLowerCase(); }
@@ -2511,52 +2602,134 @@ function insightHTML(m,fp,A,byPos,byPK){
 /* =========================================================
    Range editor
    ========================================================= */
-let rPaint='r1', rEdit=false;
+const rName=m=>m==='vs3bet'?'4ベット':'レイズ';
+function fillPosSelect(selId,m,key){
+  const sel=document.getElementById(selId), prev=sel.value;
+  sel.innerHTML=MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
+  const saved=lsGet(key+'_'+m)||(m==='open'?lsGet('pflab_rpos'):null);
+  if(MODE_POS[m].includes(prev)) sel.value=prev; else if(saved&&MODE_POS[m].includes(saved)) sel.value=saved;
+}
+function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${m==='vs3bet'?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
+function rangeSumText(m,p){
+  const R=Ranges.get(m,p); if(!R||!Object.keys(R.h).length) return '未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
+  const w=Ranges.width(m,p), v3=m==='vs3bet', base=rangeBase(m,p);
+  return `${rName(m)} <b>${pct(w.r)}</b>　${v3?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?'UTGのオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
+}
+function rangeCells(m,p,selSet){
+  const R=Ranges.get(m,p)||{h:{}}, v3=m==='vs3bet';
+  return CLASSES.map(k=>{ const x=R.h[k]; const bg=x?mixBg(+x.r||0,+x.c||0,+x.j||0):''; const out=v3&&!dealWeight(m,p,k);   // vs3bet: hands the opener never has
+    return `<button data-k="${k}" class="${out?'thin':''}${selSet&&selSet.has(k)?' picked':''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join('');
+}
+
+/* ---------- range viewer (everyone) ---------- */
 function rState(){ return {m:document.getElementById('pf-rMode').value,p:document.getElementById('pf-rPos').value}; }
 function renderRange(){
-  const {m,p}=rState(); if(!Ranges.data[m][p]) Ranges.data[m][p]={size:2.5,h:{}}; const R=Ranges.data[m][p], v3=m==='vs3bet';
-  document.getElementById('pf-rTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`+(v3&&R.vs?`（相手の3ベット ${R.vs}bb → こちらの4ベット ${R.size}bb）`:'');
-  document.getElementById('pf-rSize').value=R.size;
-  document.querySelectorAll('.jamUI').forEach(e=>e.classList.toggle('hidden',!v3));
-  document.getElementById('pf-rGrid').innerHTML=CLASSES.map(k=>{ const x=R.h[k]; const bg=x?mixBg(+x.r||0,+x.c||0,+x.j||0):'';
-    const out=v3&&!dealWeight(m,p,k);   // vs3bet: hands the opener never has are greyed out
-    return `<button data-k="${k}" class="${out?'thin':''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join('');
-  const w=Ranges.width(m,p); const cnt=Object.keys(R.h).length;
-  const of=v3?'UTGのオープンレンジ中':'1326組中', base=rangeBase(m,p);
-  document.getElementById('pf-rSum').innerHTML=cnt?`${actName(m,'R')} <b>${pct(w.r)}</b>　${v3?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${of} ${Math.round((w.r+w.c+w.j)*base)}組）`:'未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
-  document.querySelectorAll('.editUI').forEach(e=>e.classList.toggle('hidden',!rEdit));
-  document.getElementById('pf-rEdit').textContent=rEdit?'編集を終える':'レンジを編集する';
-  document.getElementById('pf-rEdit').classList.toggle('main',rEdit);
-  document.querySelectorAll('#pf-rGrid button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k;
-    if(!rEdit){ document.getElementById('pf-rInfo').innerHTML=`<b>${k}</b>（${posLabel(p)}）：${expText(Ranges.exp(m,p,k))}`; return; }
-    if(rPaint==='f') delete R.h[k]; else if(rPaint==='r1') R.h[k]={r:1}; else if(rPaint==='r5') R.h[k]={r:0.5}; else if(rPaint==='c1') R.h[k]={c:1}; else if(rPaint==='j1') R.h[k]={j:1};
-    Store.saveRanges(); renderRange(); });
-}
-function fillRangePos(){
-  const m=document.getElementById('pf-rMode').value, sel=document.getElementById('pf-rPos'), prev=sel.value;
-  sel.innerHTML=MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
-  const savedRP=lsGet('pflab_rpos_'+m)||(m==='open'?lsGet('pflab_rpos'):null);
-  if(MODE_POS[m].includes(prev)) sel.value=prev; else if(savedRP&&MODE_POS[m].includes(savedRP)) sel.value=savedRP;
+  const {m,p}=rState(), R=Ranges.get(m,p)||{}, v3=m==='vs3bet';
+  document.getElementById('pf-rTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`+(v3&&R.vs?`（相手の3ベット ${R.vs}bb → こちらの4ベット ${R.size}bb）`:R.size?`（オープンサイズ ${R.size}bb）`:'');
+  document.getElementById('pf-rGrid').innerHTML=rangeCells(m,p);
+  document.getElementById('pf-rLegend').innerHTML=rangeLegend(m);
+  document.getElementById('pf-rSum').innerHTML=rangeSumText(m,p);
+  document.querySelectorAll('#pf-rGrid button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; document.getElementById('pf-rInfo').innerHTML=`<b>${k}</b>（${posLabel(p)}）：${expText(Ranges.exp(m,p,k))}`; });
 }
 function initRangeTab(){
-  fillRangePos();
+  fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos');
+  document.getElementById('pf-rMode').onchange=()=>{ fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos'); renderRange(); };
   document.getElementById('pf-rPos').onchange=()=>{ lsSet('pflab_rpos_'+document.getElementById('pf-rMode').value,document.getElementById('pf-rPos').value); renderRange(); };
-  document.getElementById('pf-rEdit').onclick=()=>{ rEdit=!rEdit; renderRange(); }; document.getElementById('pf-rMode').onchange=()=>{ fillRangePos(); renderRange(); };
-  document.querySelectorAll('#pf-rtools [data-p]').forEach(b=>b.onclick=()=>{ rPaint=b.dataset.p; document.querySelectorAll('#pf-rtools [data-p]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
-  document.getElementById('pf-rSize').onchange=e=>{ const v=+e.target.value; if(v>=1.5&&v<=100){ const {m,p}=rState(); Ranges.data[m][p].size=Math.round(v*10)/10; Store.saveRanges(); renderRange(); } };
-  let armed=false;
-  document.getElementById('pf-rClear').onclick=e=>{ const b=e.currentTarget; if(!armed){ armed=true; b.textContent='もう一度押すと空にします'; setTimeout(()=>{armed=false;b.textContent='このポジションを空にする';},3000); return; }
-    armed=false; b.textContent='このポジションを空にする'; const {m,p}=rState(); Ranges.data[m][p].h={}; Store.saveRanges(); renderRange(); };
-  document.getElementById('pf-rExport').onclick=()=>{ document.getElementById('pf-rText').value=rangeToText(document.getElementById('pf-rMode').value); };
-  document.getElementById('pf-rImport').onclick=()=>{
-    const m=document.getElementById('pf-rMode').value, txt=document.getElementById('pf-rText').value, msgs=[], done=[];
-    txt.split('\n').forEach(line=>{ line=line.trim(); if(!line) return; const mm=line.match(/^([A-Za-z]+)\s*([\d.]+)?\s*(?:bb)?\s*[:：]\s*(.*)$/);
-      if(!mm){ msgs.push('読めない行：'+line.slice(0,30)); return; } const p=MODE_POS[m].find(x=>x.toUpperCase()===mm[1].toUpperCase()); if(!p){ msgs.push('不明なポジション：'+mm[1]); return; }
-      const {h,errs}=parseRangeLine(mm[3]); Ranges.data[m][p]={...(Ranges.data[m][p]||{}),size:mm[2]?+mm[2]:(Ranges.data[m][p]||{}).size||2.5,h}; done.push(p); if(errs.length) msgs.push(p+'で読めない表記：'+errs.join(' ')); });
-    if(done.length){ Store.saveRanges(); renderRange(); renderPosChecks(); renderFarInfo(); }
-    document.getElementById('pf-rMsg').innerHTML=(done.length?`${done.join('・')}を読み込みました。`:'読み込めるポジションがありませんでした。')+(msgs.length?'<br><span style="color:var(--loss)">'+esc(msgs.join('／'))+'</span>':'');
-  };
+  initRangeEditor();
 }
+
+/* ---------- range editor (admin only; saving publishes to every player) ---------- */
+const isAdmin=()=>{ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } };
+const ED={sel:new Set(),dirty:false,drag:null};
+function eState(){ return {m:document.getElementById('pf-eMode').value,p:document.getElementById('pf-ePos').value}; }
+function eSpot(){ const {m,p}=eState(); if(!Ranges.data[m][p]) Ranges.data[m][p]={size:2.5,h:{}}; return Ranges.data[m][p]; }
+function markDirty(v){ ED.dirty=v; renderSaveBar(); }
+function renderSaveBar(msg){
+  const bar=document.getElementById('pf-eSaveBar'); bar.classList.toggle('dirty',ED.dirty);
+  const when=SharedRanges.updated?new Date(SharedRanges.updated).toLocaleString('ja-JP'):'まだ保存されていません（初期値のまま）';
+  document.getElementById('pf-eStatus').textContent=msg||(ED.dirty?'未保存の変更があります（保存するまで他のプレイヤーには反映されません）':'全員に反映済みの最終保存：'+when);
+  document.getElementById('pf-eSave').disabled=!ED.dirty; document.getElementById('pf-eDiscard').disabled=!ED.dirty;
+}
+function renderRangeEdit(){
+  const unlocked=isAdmin();
+  document.getElementById('pf-eGate').classList.toggle('hidden',unlocked); document.getElementById('pf-eBody').classList.toggle('hidden',!unlocked);
+  if(!unlocked) return;
+  const {m,p}=eState(), R=eSpot(), v3=m==='vs3bet';
+  document.querySelectorAll('#pf-tab-redit .jamUI').forEach(e=>e.classList.toggle('hidden',!v3));
+  document.querySelectorAll('#pf-tab-redit .rname').forEach(e=>e.textContent=rName(m));
+  document.getElementById('pf-eRLbl').textContent=rName(m);
+  document.getElementById('pf-eSizeLbl').textContent=v3?'こちらの4ベットサイズ':'オープンサイズ';
+  document.getElementById('pf-eTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`;
+  document.getElementById('pf-eSize').value=R.size; document.getElementById('pf-eVs').value=R.vs||'';
+  document.getElementById('pf-eGrid').innerHTML=rangeCells(m,p,ED.sel);
+  document.getElementById('pf-eSum').innerHTML=rangeSumText(m,p);
+  renderSelInfo(); renderSaveBar();
+}
+function readMix(){ const v=id=>Math.max(0,Math.min(100,Math.round(+document.getElementById(id).value||0))); const v3=eState().m==='vs3bet';
+  return {r:v('pf-eR'),c:v('pf-eC'),j:v3?v('pf-eJ'):0}; }
+function renderMixPreview(){
+  const x=readMix(), f=100-x.r-x.c-x.j, el=document.querySelector('#pf-tab-redit .efold');
+  document.getElementById('pf-eF').textContent=f; el.classList.toggle('bad',f<0);
+  const bar=f<0?'<div class="freqbar"><span class="ff" style="width:100%;background:var(--loss)">合計が100%を超えています</span></div>'
+    :freqBar({has:true,m:eState().m,r:x.r/100,c:x.c/100,j:x.j/100,f:f/100});
+  document.getElementById('pf-ePreview').innerHTML=bar.replace(/^<div class="freqbar">/,'').replace(/<\/div>$/,'');
+  document.getElementById('pf-eApply').disabled=f<0||!ED.sel.size;
+}
+function setMix(r,c,j){ document.getElementById('pf-eR').value=Math.round(r*100); document.getElementById('pf-eC').value=Math.round(c*100); document.getElementById('pf-eJ').value=Math.round(j*100); renderMixPreview(); }
+function renderSelInfo(){
+  const {m,p}=eState(), n=ED.sel.size, el=document.getElementById('pf-eSel');
+  if(!n) el.textContent='マスが選ばれていません（タップで選択／もう一度タップで解除）';
+  else { const ks=[...ED.sel]; el.innerHTML=`選択中 <b>${n}</b>マス：${ks.slice(0,12).join(' ')}${n>12?` ほか${n-12}`:''}`+(n===1?`　現在：${expText(Ranges.exp(m,p,ks[0]))}`:''); }
+  if(n===1){ const e=Ranges.exp(m,p,[...ED.sel][0]); if(e.has) setMix(e.r,e.c,e.j); else setMix(0,0,0); }
+  renderMixPreview();
+}
+function applyMix(x){
+  const R=eSpot(); if(!ED.sel.size) return;
+  ED.sel.forEach(k=>{ const r=x.r/100,c=x.c/100,j=x.j/100; if(r+c+j<=0) delete R.h[k]; else R.h[k]={...(r?{r}:{}),...(c?{c}:{}),...(j?{j}:{})}; });
+  markDirty(true); renderRangeEdit();
+}
+function initRangeEditor(){
+  const $=id=>document.getElementById(id);
+  $('pf-eUnlock').onclick=()=>{ if($('pf-ePass').value===ADMIN_PASSCODE){ try{ sessionStorage.setItem('sixmaxlab_admin_ok','1'); }catch(e){} $('pf-ePass').value=''; $('pf-eErr').textContent=''; renderRangeEdit(); } else $('pf-eErr').textContent='パスコードが違います'; };
+  $('pf-ePass').onkeydown=e=>{ if(e.key==='Enter') $('pf-eUnlock').click(); };
+  $('pf-eLock').onclick=()=>{ if(ED.dirty&&!confirm('保存していない変更があります。破棄して終了しますか？')) return; if(ED.dirty) discardEdits(); try{ sessionStorage.removeItem('sixmaxlab_admin_ok'); }catch(e){} renderRangeEdit(); };
+  fillPosSelect('pf-ePos',$('pf-eMode').value,'pflab_epos');
+  $('pf-eMode').onchange=()=>{ ED.sel.clear(); fillPosSelect('pf-ePos',$('pf-eMode').value,'pflab_epos'); renderRangeEdit(); };
+  $('pf-ePos').onchange=()=>{ ED.sel.clear(); lsSet('pflab_epos_'+$('pf-eMode').value,$('pf-ePos').value); renderRangeEdit(); };
+  // selection: tap toggles; with a mouse, dragging paints the same choice over several cells
+  const grid=$('pf-eGrid');
+  const cellAt=e=>{ const t=document.elementFromPoint(e.clientX,e.clientY); return t&&t.closest?t.closest('#pf-eGrid button'):null; };
+  const paint=b=>{ if(!b) return; const k=b.dataset.k; if(ED.drag==='add') ED.sel.add(k); else ED.sel.delete(k); b.classList.toggle('picked',ED.drag==='add'); };
+  grid.addEventListener('pointerdown',e=>{ const b=cellAt(e); if(!b) return; e.preventDefault(); ED.drag=ED.sel.has(b.dataset.k)?'del':'add'; paint(b); });
+  grid.addEventListener('pointermove',e=>{ if(ED.drag&&e.pointerType==='mouse') paint(cellAt(e)); });
+  window.addEventListener('pointerup',()=>{ if(ED.drag){ ED.drag=null; renderSelInfo(); } });
+  $('pf-eClearSel').onclick=()=>{ ED.sel.clear(); renderRangeEdit(); };
+  ['pf-eR','pf-eC','pf-eJ'].forEach(id=>$(id).oninput=renderMixPreview);
+  $('pf-eApply').onclick=()=>{ const x=readMix(); if(x.r+x.c+x.j>100) return; applyMix(x); };
+  document.querySelectorAll('#pf-tab-redit [data-preset]').forEach(b=>b.onclick=()=>{ const t=b.dataset.preset; const x={r:t==='r'?100:0,c:t==='c'?100:0,j:t==='j'?100:0}; setMix(x.r/100,x.c/100,x.j/100); applyMix(x); });
+  $('pf-eSize').onchange=e=>{ const v=+e.target.value; if(v>=1.5&&v<=100){ eSpot().size=Math.round(v*10)/10; markDirty(true); renderRangeEdit(); } };
+  $('pf-eVs').onchange=e=>{ const v=+e.target.value; if(v>=2&&v<=100){ eSpot().vs=Math.round(v*10)/10; markDirty(true); renderRangeEdit(); } };
+  let armed=false;
+  $('pf-eReset').onclick=e=>{ const b=e.currentTarget; if(!armed){ armed=true; b.textContent='もう一度押すと初期値に戻します'; setTimeout(()=>{armed=false;b.textContent='このスポットを初期値に戻す';},3000); return; }
+    armed=false; b.textContent='このスポットを初期値に戻す'; const {m,p}=eState(); Ranges.data[m][p]=JSON.parse(JSON.stringify((DEFAULT_RANGES[m]||{})[p]||{size:2.5,h:{}})); ED.sel.clear(); markDirty(true); renderRangeEdit(); };
+  $('pf-eDiscard').onclick=()=>{ discardEdits(); renderRangeEdit(); };
+  $('pf-eSave').onclick=async()=>{ $('pf-eSave').disabled=true; renderSaveBar('保存中…');
+    const res=await SharedRanges.save(Ranges.data); ED.dirty=false;
+    renderSaveBar(res.ok?'保存しました。全プレイヤーのレンジ表に反映されます（他の人は次にページを開いたときから）':res.local?'この端末に保存しました（クラウドに接続できないため、他のプレイヤーにはまだ反映されていません）':'クラウドへの保存に失敗しました（'+res.err+'）。この端末には保存済みです');
+    refreshAfterRangeChange(); };
+  $('pf-eExport').onclick=()=>{ $('pf-eText').value=rangeToText($('pf-eMode').value); };
+  $('pf-eImport').onclick=()=>{
+    const m=$('pf-eMode').value, txt=$('pf-eText').value, msgs=[], done=[];
+    txt.split('\n').forEach(line=>{ line=line.trim(); if(!line) return; const mm=line.match(/^([A-Za-z]+)\s*([\d.]+)?\s*(?:bb)?\s*[:：]\s*(.*)$/);
+      if(!mm){ msgs.push('読めない行：'+line.slice(0,30)); return; } const p=MODE_POS[m].find(x=>x.toUpperCase()===mm[1].toUpperCase()); if(!p){ msgs.push('不明なスポット：'+mm[1]); return; }
+      const {h,errs}=parseRangeLine(mm[3]); Ranges.data[m][p]={...(Ranges.data[m][p]||{}),size:mm[2]?+mm[2]:(Ranges.data[m][p]||{}).size||2.5,h}; done.push(posLabel(p)); if(errs.length) msgs.push(posLabel(p)+'で読めない表記：'+errs.join(' ')); });
+    if(done.length){ markDirty(true); renderRangeEdit(); }
+    $('pf-eMsg').innerHTML=(done.length?`${done.join('・')}を読み込みました（まだ保存されていません）。`:'読み込めるスポットがありませんでした。')+(msgs.length?'<br><span style="color:var(--loss)">'+esc(msgs.join('／'))+'</span>':'');
+  };
+  window.addEventListener('beforeunload',e=>{ if(ED.dirty){ e.preventDefault(); e.returnValue=''; } });
+}
+function discardEdits(){ Ranges.load(); ED.dirty=false; ED.sel.clear(); refreshAfterRangeChange(); }
+function refreshAfterRangeChange(){ renderPosChecks(); renderFarInfo(); if(curTab==='range') renderRange(); }
 
 /* =========================================================
    History & export
@@ -2588,8 +2761,8 @@ function histMsg(t){ const b=document.getElementById('pf-histBody'); const p=doc
 let curTab=lsGet('pflab_tab')||'play';
 function applyTab(){
   document.querySelectorAll('#tab-pf .subtabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===curTab?'true':'false'));
-  ['play','stats','range','hist'].forEach(t=>document.getElementById('pf-tab-'+t).classList.toggle('hidden',t!==curTab));
-  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='range') renderRange(); if(curTab==='play') renderPosChecks();
+  ['play','stats','range','redit','hist'].forEach(t=>document.getElementById('pf-tab-'+t).classList.toggle('hidden',t!==curTab));
+  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='range') renderRange(); if(curTab==='redit') renderRangeEdit(); if(curTab==='play') renderPosChecks();
 }
 document.querySelectorAll('#tab-pf .subtabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
 const modeReady=m=>m==='open'||m==='vs3bet';
@@ -2646,7 +2819,7 @@ document.getElementById('pf-setbox').addEventListener('toggle',e=>lsSet('pflab_s
 async function pfBoot(){
   await UserGate.ready;
   renderChips(); renderButtons(); initRangeTab(); applyMode();
-  await Store.init();
+  await Store.init(); await rangesReady; Ranges.load();
   if(!P.size||!SIZES.includes(P.size)) P.size=2.5; renderChips();
   renderPosChecks(); renderSession(); renderFarInfo();
   if(modeReady(P.mode)) deal();
