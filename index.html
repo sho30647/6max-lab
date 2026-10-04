@@ -326,6 +326,28 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .modes{margin-bottom:6px}.modes button{padding:5px 4px;font-size:13px}
   .session{margin-top:4px;font-size:12px}
 }
+/* phone: keep the beginner-mode table readable (smaller board, bets and badges; actions live in the seat plates) */
+@media (max-width:600px){
+  .center{top:51%}
+  .board{min-height:40px}
+  .board .card{width:28px;height:38px;font-size:16px}.board .card i{font-size:12px}
+  .potchips{margin-top:3px}
+  .pot{font-size:16px}.msg{font-size:11px;min-height:16px}
+  .abub .amt{font-size:12px;padding:2px 6px 1px;gap:3px}
+  .cstk i{width:13px;height:4px}.cstk i:last-child{height:7px}
+  .seat .act.beg{font-size:11px}
+  .seat .act.last{outline:2px solid var(--brass);outline-offset:1px;border-radius:4px}
+  .seat .hr{font-size:10px;padding:0 5px}
+  .res{padding:2px 8px}.res b{font-size:11px}.res span{font-size:13px}
+  .res.me{padding:3px 10px;border-width:1px}.res.me b{font-size:12px}.res.me span{font-size:16px}
+  .dealer{width:16px;height:16px;line-height:16px;font-size:10px;top:-8px;right:-4px}
+}
+@media (max-width:600px){
+  .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resline{display:inline-block;color:#fff;font-weight:800;font-size:11px;padding:0 5px;border-radius:5px;line-height:15px}
+  .resline.win{background:#2E8B57}.resline.lose{background:#B03A2E}.resline.draw{background:#6B7280}
+  .seat.hero .resline{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -1128,7 +1150,7 @@ async function playHand(){
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
   const txt=netTxt(rec.net);
-  const wtxt=S.showdown?S.winners.map(i=>(i===0?'あなた':S.players[i].name)+'（'+handName(i)+'）').join('・')+'の勝ち｜':'';
+  const wtxt=S.showdown&&!isPhone()?S.winners.map(i=>(i===0?'あなた':S.players[i].name)+'（'+handName(i)+'）').join('・')+'の勝ち｜':'';
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜'+wtxt+'あなた '+txt):('あなた '+txt));
   renderControls();
   if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
@@ -1589,14 +1611,23 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+const isPhone=()=>matchMedia('(max-width:600px)').matches;
+// phone: where each seat's bets / result badge go — clear of the seat plates, the board and each other
+const SPOT_XY_M=[[50,70],[27,84],[31,34],[50,33],[69,34],[73,84]];
 window.addEventListener("resize",()=>{ if(S.players.length) render(); });
 if(!matchMedia("(max-width:600px)").matches) document.getElementById("optBox").open=true;   // settings start folded on phones
 function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s${c&3} ${cls}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`; }
+/* beginner mode: a player's result once the hand is over (null = took no part) */
+function resultOf(p,i){
+  const d=p.stack-p.start, sign=d>0?'+':d<0?'−':'±';
+  const r=S.soleWin.has(i)?['win','勝ち']:S.shared.has(i)?['draw','引き分け']:d<0?['lose','負け']:null;
+  return r?{cls:r[0],label:r[1],amt:sign+pts(Math.abs(d))+'点'}:null;
+}
 function render(){
   if(S.fastFold&&S.running) return;   // beginner fold: skip drawing the rest of the hand, show only the result
   const box=document.getElementById('tablebox');
   box.querySelectorAll('.seat,.betchip,.dbtn,.abub,.res').forEach(e=>e.remove());
-  const handLive=S.players[0].hole.length>0, beg=isBeginner();
+  const handLive=S.players[0].hole.length>0, beg=isBeginner(), ph=isPhone();
   S.players.forEach((p,i)=>{
     const [x,y]=seatXY(i);
     const el=document.createElement('div');
@@ -1610,21 +1641,25 @@ function render(){
       // after a hand that reached the flop, label each face-up hand that saw the flop with its made hand (shown in the plate, clear of the cards)
       if(show&&!S.running&&S.board.length>=3&&(S.flopSeats||[]).includes(i)) hr=`<div><span class="hr${winIdx?' win':''}">${handName(i)}</span></div>`;
     }
-    const act=actText(p);
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&!beg?'<span class="dealer">D</span>':''}<div class="nm">${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k):''}">${act||'&nbsp;'}</div>${hr}</div>`;
+    let act=actText(p);
+    // phones, beginner mode: once the hand is over the action line shows the win/lose result instead
+    const res=beg&&ph&&handLive&&S.done?resultOf(p,i):null;
+    if(res) act=`<span class="resline ${res.cls}">${res.label} ${res.amt}</span>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&(!beg||ph)?'<span class="dealer">D</span>':''}<div class="nm">${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
     box.appendChild(el);
-    const spotX=(x+(50-x)*0.42)+'%', spotY=(y+(46-y)*0.42)+'%';   // the felt in front of the seat
+    // the felt in front of the seat (phones: fixed spots that stay clear of the plates and the board)
+    const [bx,by]=ph?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
     if(beg&&handLive){
       // beginner: action bubble (+ chips) while the hand runs; win/lose/draw and the chip change once it is over
       const c=document.createElement('div'); c.style.left=spotX; c.style.top=spotY;
       if(S.done){
-        const d=p.stack-p.start, sign=d>0?'+':d<0?'−':'±';
-        const r=S.soleWin.has(i)?['win','勝ち']:S.shared.has(i)?['draw','引き分け']:d<0?['lose','負け']:null;
-        if(r){ c.className='res '+r[0]+(p.isHero?' me':''); c.innerHTML=`<b>${r[1]}</b><span>${sign}${pts(Math.abs(d))}点</span>`; box.appendChild(c); }
+        const r=resultOf(p,i); if(ph) return;   // phones: the result is shown in the seat plate
+        if(r){ c.className='res '+r.cls+(p.isHero?' me':''); c.innerHTML=`<b>${r.label}</b><span>${r.amt}</span>`; box.appendChild(c); }
       } else if(p.la&&p.la.st===S.street){
         const k=p.la.ai&&p.la.k!=='fold'?'ai':p.la.k, name=k==='ai'?'オールイン':{sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[k];
         c.className='abub'+(S.lastActor===i?' last':'');
-        c.innerHTML=`<span class="an k-${k}">${name}</span>`+(p.bet>0?`<span class="amt">${chipsHTML(p.bet)}<span>${amtShort(p.bet)}</span></span>`:'');
+        if(ph&&!p.bet) return;   // phones: the action name is shown in the seat plate instead of on the felt
+        c.innerHTML=(ph?'':`<span class="an k-${k}">${name}</span>`)+(p.bet>0?`<span class="amt">${chipsHTML(p.bet)}<span>${amtShort(p.bet)}</span></span>`:'');
         box.appendChild(c);
       } else if(p.bet>0){
         c.className='abub'; c.innerHTML=`<span class="amt">${chipsHTML(p.bet)}<span>${amtShort(p.bet)}</span></span>`; box.appendChild(c);
@@ -1635,7 +1670,7 @@ function render(){
       c.textContent=bbs(p.bet);
       box.appendChild(c);
     }
-    if(beg&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot
+    if(beg&&!ph&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot (phones use the plate's D mark)
       const dx=50-x, dy=46-y, n=Math.hypot(dx,dy)||1, d=document.createElement('div'); d.className='dbtn'; d.textContent='DEALER';
       d.style.left=(x+dx*0.3-dy/n*8)+'%'; d.style.top=(y+dy*0.3+dx/n*8)+'%'; box.appendChild(d);
     }
@@ -2449,6 +2484,7 @@ function freqBar(e){
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+const SPOT_XY_M=[[50,70],[27,84],[31,34],[50,33],[69,34],[73,84]];   // phone: bet spots clear of the plates
 window.addEventListener("resize",()=>{ if(P.cur) renderTable(); });
 const P={mode:lsGet('pflab_mode')||'open',cur:null,answered:false,size:+(lsGet('pflab_size')||2.5),t0:0,session:{n:0,ok:0,j:0},timer:null,last:null};
 const DEF={far:true,sizeOn:false,speed:150,farD:3,useGameLog:true};
@@ -2552,7 +2588,7 @@ function renderTable(heroAct){
     pot+=bet;
     el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}<div class="nm">${hero?'あなた':'&nbsp;'}</div><div class="stk">${v3?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
     box.appendChild(el);
-    if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; ch.style.left=(x+(50-x)*0.42)+'%'; ch.style.top=(y+(46-y)*0.42)+'%'; ch.textContent=bet; box.appendChild(ch); }
+    if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
   }
   document.getElementById('pf-board').innerHTML='';
   document.getElementById('pf-pot').textContent='ポット '+pot+'bb';
