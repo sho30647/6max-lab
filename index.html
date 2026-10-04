@@ -913,6 +913,9 @@ async function playHand(){
       await sleep(delay()*0.8);
     }
     await bettingRound();
+    // beginner: keep the street's closing action (call / check / fold) on screen before the next street or the result
+    const la=S.lastActor>=0&&S.players[S.lastActor].la;
+    if(isBeginner()&&!S.fastFold&&!S.autoFolded&&la&&la.st===S.street) await sleep(1100);
     if(active().length<=1) break;
   }
   collectBets();
@@ -967,6 +970,8 @@ async function bettingRound(){
     applyAction(seat,dec);
     S.cursor=(seat+1)%6;
     render();
+    // beginner: after the hero folds, let the fold show for a moment, then play out the rest instantly and show just the result
+    if(p.isHero&&p.folded&&!S.autoFolded&&isBeginner()){ await sleep(1000); S.fastFold=true; }
   }
 }
 function delay(){if(S.autoFolded||S.fastFold) return 0; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
@@ -1010,7 +1015,6 @@ function applyAction(seat,dec){
     if(st>0) p.postAggr++;
   }
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
-  if(p.isHero&&dec.act==='fold'&&isBeginner()) S.fastFold=true;   // beginner: after folding, play out the rest instantly and show just the result
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
