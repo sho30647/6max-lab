@@ -286,6 +286,46 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .subtabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:12px}
 .subtabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-size:14px;color:var(--muted)}
 .subtabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+/* ===== admin: member links & "viewing another member" bar ===== */
+.ulink{border:0;background:transparent;padding:0;font:inherit;font-weight:700;color:var(--sd);text-decoration:underline;cursor:pointer;text-align:left}
+.uact{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.uact .btn{min-height:34px;padding:5px 10px;font-size:13px}
+.viewbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:2px solid var(--brass);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:13px}
+.viewbar span{margin-right:auto}.viewbar .btn{min-height:34px;padding:5px 12px}
+/* ===== settings fold-out (ring game) ===== */
+.optbox{margin-top:10px}
+.optbox summary{font-size:13px;color:var(--muted);cursor:pointer;padding:2px 0}
+.optbox .opts{margin-top:6px}
+/* ===== phone layout (fits an iPhone 14 screen: header, table and controls without scrolling) ===== */
+@media (max-width:600px){
+  .wrap{padding:6px 10px 24px}
+  header{gap:6px 8px;margin-bottom:6px}
+  .brand{order:1}.brand span{display:none}.brand h1{font-size:21px}
+  .userChip{order:2;margin-left:auto;font-size:11px;gap:4px;min-width:0}
+  .userChip b{display:inline-block;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;font-size:12px}
+  .userChip button{padding:2px 6px;font-size:11px}
+  .tabs{order:3;width:100%}
+  .tabs button{flex:1 1 0;padding:6px 2px;font-size:14px}
+  .subtabs{margin-bottom:6px;padding:2px}
+  .subtabs button{flex:1 1 auto;padding:5px 4px;font-size:13px;white-space:nowrap}
+  .tablebox{aspect-ratio:1/0.9}
+  .felt{inset:12% 6% 11% 6%;border-width:8px;border-radius:44%/46%}
+  .seat{width:76px}
+  .seat .cards{height:38px;margin-bottom:-7px}
+  .card{width:27px;height:38px;font-size:16px}.card i{font-size:12px}
+  .seat .plate{padding:7px 3px 2px;border-radius:8px}
+  .seat .nm{font-size:11px}.seat .stk{font-size:14px}.seat .act{font-size:10px;min-height:13px}
+  .seat .pos{font-size:11px;top:-8px;left:-4px}
+  .board{min-height:46px;gap:3px}
+  .board .card{width:32px;height:44px;font-size:18px}.board .card i{font-size:14px}
+  .pot{font-size:17px;margin-top:3px}.msg{font-size:12px}
+  .center{width:80%}
+  .betchip{font-size:13px;padding:0 6px}
+  .controls{margin-top:6px;padding:8px}
+  .presets{margin:6px 0 4px}.presets button{padding:3px 8px}
+  .btn{min-height:40px;padding:8px 10px}
+  .modes{margin-bottom:6px}.modes button{padding:5px 4px;font-size:13px}
+  .session{margin-top:4px;font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -329,6 +369,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
     <div class="advice hidden" id="advice"></div>
     <div class="controls" id="controls">
       <div id="actArea"></div>
+      <details class="optbox" id="optBox"><summary>設定（自動進行・初心者モードなど）</summary>
       <div class="opts">
         <label><input type="checkbox" id="optFast"> 相手の手番を高速に</label>
         <label><input type="checkbox" id="optAuto" checked> ハンド終了後に自動で次へ</label>
@@ -337,12 +378,14 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       </div>
       <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、持ち点は次のハンドに引き継がれます（0点になったら200点で再スタート）。ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）
         <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点に戻す</button></div></div>
+      </details>
     </div>
     <div class="session" id="session"></div>
   </div>
 
   <!-- STATS -->
   <div id="tab-stats" class="hidden">
+    <div class="viewbar hidden" data-viewbar></div>
     <div class="filters">
       <select id="fPos" aria-label="ポジション">
         <option value="">全ポジション</option><option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
@@ -382,7 +425,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <button role="tab" aria-selected="false" data-tab="stats">分析</button>
       <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
       <button role="tab" aria-selected="false" data-tab="range">レンジ表</button>
-      <button role="tab" aria-selected="false" data-tab="redit">レンジ表編集（管理者）</button>
+      <button role="tab" aria-selected="false" data-tab="redit">レンジ編集</button>
     </div>
     <div id="pf-tab-play">
     <div class="modes" id="pf-modes">
@@ -443,6 +486,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   </div>
 
   <div id="pf-tab-stats" class="hidden">
+    <div class="viewbar hidden" data-viewbar></div>
     <div class="filters">
       <select id="pf-fMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
       <select id="pf-fPos" aria-label="ポジション"><option value="">全ポジション</option></select>
@@ -546,7 +590,7 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
     <div id="adminGate">
       <section class="block">
         <h2>管理者ログイン</h2>
-        <p class="sub">全ユーザーの記録一覧を見るにはパスコードを入力してください。</p>
+        <p class="sub">管理者はパスコードを入力してください。</p>
         <div class="row">
           <input type="password" id="adminPass" placeholder="パスコード" style="flex:1;min-width:160px;font:inherit;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)">
           <button class="btn main" id="adminUnlock">表示する</button>
@@ -1541,6 +1585,10 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
    Rendering: table
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
+const SEAT_XY_M=[[50,87],[12,63],[16,24],[50,13],[84,24],[88,63]];   // phone: pulled in so the seats stay on screen
+const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+window.addEventListener("resize",()=>{ if(S.players.length) render(); });
+if(!matchMedia("(max-width:600px)").matches) document.getElementById("optBox").open=true;   // settings start folded on phones
 function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s${c&3} ${cls}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`; }
 function render(){
   if(S.fastFold&&S.running) return;   // beginner fold: skip drawing the rest of the hand, show only the result
@@ -1548,7 +1596,7 @@ function render(){
   box.querySelectorAll('.seat,.betchip,.dbtn,.abub,.res').forEach(e=>e.remove());
   const handLive=S.players[0].hole.length>0, beg=isBeginner();
   S.players.forEach((p,i)=>{
-    const [x,y]=SEAT_XY[i];
+    const [x,y]=seatXY(i);
     const el=document.createElement('div');
     el.className='seat'+(p.isHero?' hero':'')+(S.acting===i&&S.running?' acting':'')+(p.folded&&handLive?' folded':'');
     el.style.left=x+'%'; el.style.top=y+'%';
@@ -1742,9 +1790,9 @@ function renderStats(){
   const body=document.getElementById('statsBody');
   const fp=document.getElementById('fPos').value, fr=+document.getElementById('fRange').value;
   const fb=document.getElementById('fBot').value;
-  let all=Store.hands; if(fb) all=all.filter(h=>String(h.bv||1)===fb); if(fr) all=all.slice(-fr);
+  let all=statsHands(); if(fb) all=all.filter(h=>String(h.bv||1)===fb); if(fr) all=all.slice(-fr);
   const hs=fp?all.filter(h=>h.pos===fp):all;
-  if(!Store.hands.length){ body.innerHTML='<div class="empty">まだ記録がありません。「テーブル」でプレーすると、1ハンドごとにここへ集計されます。</div>'; return; }
+  if(!statsHands().length){ body.innerHTML='<div class="empty">まだ記録がありません。「テーブル」でプレーすると、1ハンドごとにここへ集計されます。</div>'; return; }
   const o=agg(hs), n=o.n;
   const cnt=f=>hs.filter(f).length;
   const vp=pct(cnt(h=>h.vpip),n), pr=pct(cnt(h=>h.pfr),n), t3=pct(cnt(h=>h.b3),cnt(h=>h.o3));
@@ -1803,16 +1851,16 @@ function renderHist(){
     <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb</div>${vhHTML(h)}</details>`).join('')}</div>`;
 }
 const CSV_COLS=['id','t','pos','hc','cls','board','pf','vpip','pfr','o3','b3','f3o','f3f','sf','st','sr','sd','wsd','net','pot','np','tex_suit','tex_high','tex_conn','tex_paired','cat','ptype','fh','or','ip','pa','cbo','cb','pb','pact','log','sh','vh','bv'];
-function toCSV(noLog){
-  const cols=noLog?CSV_COLS.filter(c=>c!=='log'):CSV_COLS;
+function toCSV(noLog,hands=Store.hands,pre=[]){   // pre: extra leading columns (admin export: user, email)
+  const cols=pre.concat(noLog?CSV_COLS.filter(c=>c!=='log'):CSV_COLS);
   const esc=v=>{ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const rows=Store.hands.map(h=>{ const x={...h,t:new Date(h.t).toISOString(),tex_suit:h.tex?h.tex.s:'',tex_high:h.tex?h.tex.h:'',tex_conn:h.tex?h.tex.c:'',tex_paired:h.tex?h.tex.p:'',ip:h.ip==null?'':(h.ip?'IP':'OOP'),cat:h.cat==null?'':CAT_NAMES[h.cat]}; return cols.map(c=>esc(typeof x[c]==='boolean'?(x[c]?1:0):x[c])).join(','); });
+  const rows=hands.map(h=>{ const x={...h,t:new Date(h.t).toISOString(),tex_suit:h.tex?h.tex.s:'',tex_high:h.tex?h.tex.h:'',tex_conn:h.tex?h.tex.c:'',tex_paired:h.tex?h.tex.p:'',ip:h.ip==null?'':(h.ip?'IP':'OOP'),cat:h.cat==null?'':CAT_NAMES[h.cat]}; return cols.map(c=>esc(typeof x[c]==='boolean'?(x[c]?1:0):x[c])).join(','); });
   return '\uFEFF'+cols.join(',')+'\n'+rows.join('\n');
 }
 async function saveFile(name,data){
   try{
     const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
-    if(!dl){ alertBar('このビューでは書き出しが使えません'); return; }
+    if(!dl){ downloadBlob(name,data); return; }   // normal browsers: plain file download
     await dl.save({filename:name,data});
   }catch(e){ if(e&&e.code!=='declined') alertBar('書き出せませんでした（'+(e.code||'error')+'）'); }
 }
@@ -1974,7 +2022,7 @@ async function initSheets(){
 const ADMIN_PASSCODE='6max2026';
 function escHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function downloadBlob(filename,text){
-  const blob=new Blob([text],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob);
+  const blob=new Blob([text],{type:/.json$/.test(filename)?'application/json;charset=utf-8':'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },0);
 }
@@ -1995,10 +2043,11 @@ async function adminRows(){
     let hands=[],recs=[];
     snap.docs.forEach(d=>{ const x=d.data(); if(!x) return; if(d.id.startsWith('hands_')&&Array.isArray(x.h)) hands=hands.concat(x.h); if(d.id.startsWith('pf_')&&Array.isArray(x.r)) recs=recs.concat(x.r); });
     const seen=new Set(); hands=hands.filter(h=>{ const k=h.t+'_'+h.hc; if(seen.has(k)) return false; seen.add(k); return true; });
+    hands=hands.sort((a,b)=>a.t-b.t).map((h,i)=>{ h.id=i+1; return backfill(h); }); recs.sort((a,b)=>a.t-b.t);
     const a=agg(hands);
     const judged=recs.filter(r=>r.g&&r.g!=='na'), okN=judged.filter(r=>r.g==='ok').length;
     const last=Math.max(+u.lastSeen||0,...hands.map(h=>+h.t||0),...recs.map(r=>+r.t||0));
-    return {name:u.name||'(名前なし)',email:u.email||'',created:+u.created||last,lastSeen:last,n:a.n,net:a.net,bb100:a.bb100,pfN:recs.length,pfAcc:judged.length?okN/judged.length*100:null};
+    return {name:u.name||'(名前なし)',email:u.email||'',created:+u.created||last,lastSeen:last,n:a.n,net:a.net,bb100:a.bb100,pfN:recs.length,pfAcc:judged.length?okN/judged.length*100:null,hands,recs};
   }));
   return rows.sort((a,b)=>b.lastSeen-a.lastSeen);
 }
@@ -2026,14 +2075,40 @@ async function renderAdmin(){
       <div class="kpi"><div class="v">${totalHands}</div><div class="l">総ハンド数</div></div>
       <div class="kpi"><div class="v ${totalNet>=0?'pos-c':'neg-c'}">${fmt(totalNet)}</div><div class="l">全体収支 bb</div></div>
     </div>
-    <div class="toolbar"><button class="btn" id="adminCsv">CSVで書き出す</button><button class="btn fold" id="adminLock">ロックする</button></div>
+    <div class="toolbar"><button class="btn" id="adminCsv">一覧をCSV</button><button class="btn" id="adminHandsCsv">全ハンドをCSV（リング）</button><button class="btn" id="adminPfCsv">全回答をCSV（プリフロ）</button><button class="btn fold" id="adminLock">ロックする</button></div>
+    <p class="sub" style="font-size:12px;color:var(--muted);margin:0 0 6px">名前をタップすると、そのメンバーのリングゲーム／プリフロ練習の「分析」を表示できます。</p>
     <div class="tscroll"><table class="t">
       <thead><tr><th>ユーザー</th><th>最終プレイ</th><th>開始</th><th>ハンド数</th><th>収支 bb</th><th>bb/100</th><th>プリフロ回答</th><th>正解率</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${escHtml(r.name)}${r.email?`<br><small style="color:var(--muted)">${escHtml(r.email)}</small>`:""}</td><td>${d(r.lastSeen)}</td><td>${d(r.created)}</td><td class="${r.n<30?'few':''}">${r.n}</td><td class="${r.net>=0?'pos-c':'neg-c'}">${fmt(r.net)}</td><td class="${r.bb100>=0?'pos-c':'neg-c'}">${r.n?fmt(r.bb100,0):'—'}</td><td>${r.pfN}</td><td>${r.pfAcc==null?'—':r.pfAcc.toFixed(0)+'%'}</td></tr>`).join('')}</tbody>
+      <tbody>${rows.map((r,i)=>`<tr><td><button class="ulink" data-i="${i}">${escHtml(r.name)}</button>${r.email?`<br><small style="color:var(--muted)">${escHtml(r.email)}</small>`:""}
+        <div class="uact hidden" data-i="${i}"><button class="btn" data-w="ring" data-i="${i}">リングの分析</button><button class="btn" data-w="pf" data-i="${i}">プリフロの分析</button></div></td><td>${d(r.lastSeen)}</td><td>${d(r.created)}</td><td class="${r.n<30?'few':''}">${r.n}</td><td class="${r.net>=0?'pos-c':'neg-c'}">${fmt(r.net)}</td><td class="${r.bb100>=0?'pos-c':'neg-c'}">${r.n?fmt(r.bb100,0):'—'}</td><td>${r.pfN}</td><td>${r.pfAcc==null?'—':r.pfAcc.toFixed(0)+'%'}</td></tr>`).join('')}</tbody>
     </table></div>`;
   document.getElementById('adminCsv').onclick=()=>downloadBlob('6max_users.csv',adminCSV(rows));
-  document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); renderAdmin(); };
+  // every hand / every answer of every member, one file each (member name & email in the first columns)
+  const tag=list=>rows.flatMap(r=>list(r).map(x=>({...x,user:r.name,email:r.email})));
+  document.getElementById('adminHandsCsv').onclick=()=>downloadBlob('6max_all_hands.csv',toCSV(false,tag(r=>r.hands),['user','email']));
+  document.getElementById('adminPfCsv').onclick=()=>{ if(window.PF&&window.PF.recsCSV) downloadBlob('6max_all_preflop.csv',window.PF.recsCSV(tag(r=>r.recs),['user','email'])); };
+  body.querySelectorAll('.ulink').forEach(b=>b.onclick=()=>{ const a=body.querySelector(`.uact[data-i="${b.dataset.i}"]`); a.classList.toggle('hidden'); });
+  body.querySelectorAll('.uact [data-w]').forEach(b=>b.onclick=()=>AdminView.open(rows[+b.dataset.i],b.dataset.w));
+  document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); AdminView.close(); renderAdmin(); };
 }
+/* admin: show a member's "分析" tabs (ring / preflop) with their data instead of your own, until "自分の分析に戻る" */
+const AdminView={active:false,name:'',hands:[],recs:[],
+  open(row,where){
+    Object.assign(this,{active:true,name:row.name,hands:row.hands,recs:row.recs}); renderViewBars();
+    if(where==='ring'){ document.querySelector('.tabs button[data-tab="ring"]').click(); document.querySelector('#tab-ring .subtabs button[data-tab="stats"]').click(); }
+    else { document.querySelector('.tabs button[data-tab="pf"]').click(); document.querySelector('#tab-pf .subtabs button[data-tab="stats"]').click(); }
+    window.scrollTo(0,0);
+  },
+  close(){ if(!this.active) return; Object.assign(this,{active:false,name:'',hands:[],recs:[]}); renderViewBars();
+    if(curTab==='stats') renderStats(); if(window.PF&&window.PF.refreshStats) window.PF.refreshStats(); }
+};
+window.AdminView=AdminView;
+function renderViewBars(){
+  document.querySelectorAll('[data-viewbar]').forEach(el=>{ el.classList.toggle('hidden',!AdminView.active);
+    el.innerHTML=AdminView.active?`<span>管理者表示：<b>${escHtml(AdminView.name)}</b> さんの分析を表示中</span><button class="btn" data-back>自分の分析に戻る</button>`:'';
+    const b=el.querySelector('[data-back]'); if(b) b.onclick=()=>AdminView.close(); });
+}
+const statsHands=()=>AdminView.active?AdminView.hands:Store.hands;
 document.getElementById('adminUnlock').onclick=()=>{
   const v=document.getElementById('adminPass').value;
   if(v===ADMIN_PASSCODE){ sessionStorage.setItem('sixmaxlab_admin_ok','1'); document.getElementById('adminErr').textContent=''; document.getElementById('adminPass').value=''; renderAdmin(); }
@@ -2282,7 +2357,9 @@ function rangeToText(m){
    ========================================================= */
 const LS_RNG='pflab_ranges';
 const rkey=r=>r.t+'_'+r.h;
-function combinedRecs(){ if(!cfg.useGameLog) return Store.recs; const glog=gameLogOpenRecords(); const seen=new Set(Store.recs.map(rkey)); const merged=Store.recs.slice(); glog.forEach(r=>{ const k=rkey(r); if(!seen.has(k)){ seen.add(k); merged.push(r); } }); merged.sort((a,b)=>a.t-b.t); return merged; }
+// practice answers merged with the open decisions found in table-play logs (own data, or the member the admin is viewing)
+function combinedRecs(own,hands){ own=own||Store.recs; if(!cfg.useGameLog) return own; const glog=gameLogOpenRecords(hands); const seen=new Set(own.map(rkey)); const merged=own.slice(); glog.forEach(r=>{ const k=rkey(r); if(!seen.has(k)){ seen.add(k); merged.push(r); } }); merged.sort((a,b)=>a.t-b.t); return merged; }
+const statsRecs=()=>window.AdminView&&window.AdminView.active?combinedRecs(window.AdminView.recs,window.AdminView.hands):combinedRecs();
 const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),doc:null,docRecs:[],synced:new Set(),rq:Promise.resolve(),
   lsRead(k,d){ try{const raw=localStorage.getItem(k); return raw?JSON.parse(raw):d;}catch(e){return d;} },
   lsWrite(){ return lsSet(UserGate.pfRecsKey(),JSON.stringify(this.recs)); },
@@ -2363,6 +2440,9 @@ function freqBar(e){
    Practice
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
+const SEAT_XY_M=[[50,87],[12,63],[16,24],[50,13],[84,24],[88,63]];   // phone: pulled in so the seats stay on screen
+const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+window.addEventListener("resize",()=>{ if(P.cur) renderTable(); });
 const P={mode:lsGet('pflab_mode')||'open',cur:null,answered:false,size:+(lsGet('pflab_size')||2.5),t0:0,session:{n:0,ok:0,j:0},timer:null,last:null};
 const DEF={far:true,sizeOn:false,speed:150,farD:3,useGameLog:true};
 const cfg={pos:new Set(JSON.parse(lsGet('pflab_pos')||'null')||MODE_POS.open),deal:lsGet('pflab_deal')||'all',
@@ -2372,12 +2452,12 @@ const cfg={pos:new Set(JSON.parse(lsGet('pflab_pos')||'null')||MODE_POS.open),de
   farD:lsGet('pflab_fard')===null?DEF.farD:+lsGet('pflab_fard'),
   useGameLog:lsGet('pflab_uselog')===null?DEF.useGameLog:lsGet('pflab_uselog')==='1'};
 
-function gameLogOpenRecords(){
+function gameLogOpenRecords(hands){
   try{
-    const gs=window.GameStore; if(!gs||!Array.isArray(gs.hands)) return [];
+    const gs=window.GameStore; if(!hands&&(!gs||!Array.isArray(gs.hands))) return [];
     const OPEN_POS=new Set(['UTG','HJ','CO','BTN','SB']);
     const out=[];
-    for(const h of gs.hands){
+    for(const h of (hands||gs.hands)){
       const pos=h.pos; if(!OPEN_POS.has(pos)) continue;
       const log=h.log||''; const first=log.split('\n')[0];
       if(!first.startsWith('P: ')) continue;
@@ -2454,7 +2534,7 @@ function renderTable(heroAct){
   for(let i=0;i<6;i++){
     const pi=(hi+i)%6, pos=POS[pi], hero=i===0, vil=v3&&pos===sp.vil;
     const folded=v3?(!hero&&!vil):pi<hi;   // vs3bet: everyone but the opener and the 3bettor has folded
-    const [x,y]=SEAT_XY[i]; const el=document.createElement('div');
+    const [x,y]=seatXY(i); const el=document.createElement('div');
     el.className='seat'+(hero?' hero':'')+(hero&&!P.answered?' acting':'')+(folded?' folded':'');
     el.style.left=x+'%'; el.style.top=y+'%';
     const cards=hero?c.cards.map(cc=>cardHTML(cc)).join(''):(folded?'':'<span class="card back"></span><span class="card back"></span>');
@@ -2548,7 +2628,7 @@ function widthCompare(m,p,byPK){
 }
 function renderStats(){
   const body=document.getElementById('pf-statsBody'); const m=document.getElementById('pf-fMode').value, fp=document.getElementById('pf-fPos').value, lim=+document.getElementById('pf-fRange').value;
-  let recs=combinedRecs().filter(r=>r.m===m); if(lim) recs=recs.slice(-lim);
+  let recs=statsRecs().filter(r=>r.m===m); if(lim) recs=recs.slice(-lim);
   const allRecs=recs; if(fp) recs=recs.filter(r=>r.p===fp);
   if(!recs.length){ body.innerHTML='<div class="empty">まだ回答がありません。練習タブで出題に答えると、ここにポジション別・ハンド別の集計が出ます。</div>'; return; }
   const {A,byPos,byCls,byPK}=aggregate(recs); const allAgg=fp?aggregate(allRecs):null; const PK=fp?byPK:byPK;
@@ -2839,14 +2919,15 @@ function renderHist(){
     return `<div class="hrow"><span class="id">#${base-i}</span><span class="p">${posLabel(r.p)}</span><span class="mc">${hcParse(r.h).map(c=>cardHTML(c)).join('')}</span><span class="ac">${r.a==='R'&&r.s!=null?'レイズ '+r.s:actName(r.m,r.a)}${src}</span><span class="badge ${gc}" style="font-size:12px">${gl.split(' ')[0]}${j.z===false?' サイズ':''}</span><span class="ms">${r.ms?(r.ms/1000).toFixed(1)+'s':'—'}</span></div>`; }).join('')+'</div>';
 }
 const CSV_COLS=['no','t','m','p','h','k','a','s','src','g','z','ms','g_now','z_now','exp_r','exp_c','exp_j','exp_f','exp_size'];
-function toCSV(){
+function toCSV(recs,pre=[]){   // pre: extra leading columns (admin export: user, email)
+  recs=recs||combinedRecs(); const cols=pre.concat(CSV_COLS);
   const q=v=>{ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const rows=combinedRecs().map((r,i)=>{ const j=rejudge(r); const x={...r,no:i+1,t:new Date(r.t).toISOString(),src:r.src||'practice',g_now:j.g,z_now:j.z,exp_r:j.e.has?j.e.r:'',exp_c:j.e.has?j.e.c:'',exp_j:j.e.has?j.e.j:'',exp_f:j.e.has?j.e.f:'',exp_size:j.e.has?j.e.size:''};
-    return CSV_COLS.map(c=>q(typeof x[c]==='boolean'?(x[c]?1:0):x[c])).join(','); });
-  return '\uFEFF'+CSV_COLS.join(',')+'\n'+rows.join('\n');
+  const rows=recs.map((r,i)=>{ const j=rejudge(r); const x={...r,no:i+1,t:new Date(r.t).toISOString(),src:r.src||'practice',g_now:j.g,z_now:j.z,exp_r:j.e.has?j.e.r:'',exp_c:j.e.has?j.e.c:'',exp_j:j.e.has?j.e.j:'',exp_f:j.e.has?j.e.f:'',exp_size:j.e.has?j.e.size:''};
+    return cols.map(c=>q(typeof x[c]==='boolean'?(x[c]?1:0):x[c])).join(','); });
+  return '﻿'+cols.join(',')+'\n'+rows.join('\n');
 }
 async function saveFile(name,data){
-  try{ const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null; if(!dl){ histMsg('このビューでは書き出しが使えません'); return; } await dl.save({filename:name,data}); }
+  try{ const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null; if(!dl){ downloadBlob(name,data); return; } await dl.save({filename:name,data}); }
   catch(e){ if(e&&e.code!=='declined') histMsg('書き出せませんでした（'+(e.code||'error')+'）'); }
 }
 function histMsg(t){ const b=document.getElementById('pf-histBody'); const p=document.createElement('p'); p.style.color='var(--loss)'; p.textContent=t; b.prepend(p); }
@@ -2921,7 +3002,9 @@ async function pfBoot(){
   if(modeReady(P.mode)) deal();
   applyTab();
 }
-window.PF={ boot: pfBoot, onShow: function(){ renderSession(); } };
+window.PF={ boot: pfBoot, onShow: function(){ renderSession(); },
+  refreshStats: function(){ if(curTab==='stats') renderStats(); },   // admin view switched back to own data
+  recsCSV: (recs,pre)=>toCSV(recs,pre) };   // admin: everyone's answers as one CSV
 
 })();
 </script>
