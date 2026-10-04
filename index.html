@@ -685,6 +685,7 @@ const UserGate=(()=>{
       setCurrent(conn.user.displayName||conn.user.email||'あなた');
       close();
       resolveReady();
+      registerProfile(conn);
     } else {
       open();
     }
@@ -1971,28 +1972,45 @@ function downloadBlob(filename,text){
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },0);
 }
-function adminRows(){
-  const reg=UserGate.registry();
-  return Object.values(reg).map(u=>{
+/* Account directory for the admin view: every Google-logged-in player keeps profiles/{uid} up to date
+   (Firestore can't list the per-user data collections from the browser, so this is how the admin finds them). */
+async function registerProfile(conn){
+  try{
+    const ref=conn.db.doc('profiles/'+conn.uid), now=Date.now(), snap=await ref.get();
+    await ref.set({name:conn.user.displayName||conn.user.email||'',email:conn.user.email||'',lastSeen:now,created:snap.exists&&snap.data().created||now},{merge:true});
+  }catch(e){ console.warn('profile',e); }
+}
+/* every player's records, read from the cloud (only the admin's account may read other players' data) */
+async function adminRows(){
+  const conn=await FirebaseGate.ready(); if(!conn) throw {code:'unavailable'};
+  const profs=await conn.db.collection('profiles').get();
+  const rows=await Promise.all(profs.docs.map(async p=>{
+    const u=p.data()||{}, snap=await conn.db.collection('data/users/'+p.id).get();
     let hands=[],recs=[];
-    try{hands=JSON.parse(localStorage.getItem('sixmaxlab_hands__'+UserGate.safe(u.name))||'[]');}catch(e){}
-    try{recs=JSON.parse(localStorage.getItem('pflab_recs__'+UserGate.safe(u.name))||'[]');}catch(e){}
+    snap.docs.forEach(d=>{ const x=d.data(); if(!x) return; if(d.id.startsWith('hands_')&&Array.isArray(x.h)) hands=hands.concat(x.h); if(d.id.startsWith('pf_')&&Array.isArray(x.r)) recs=recs.concat(x.r); });
+    const seen=new Set(); hands=hands.filter(h=>{ const k=h.t+'_'+h.hc; if(seen.has(k)) return false; seen.add(k); return true; });
     const a=agg(hands);
     const judged=recs.filter(r=>r.g&&r.g!=='na'), okN=judged.filter(r=>r.g==='ok').length;
-    return {name:u.name,created:u.created,lastSeen:u.lastSeen,n:a.n,net:a.net,bb100:a.bb100,pfN:recs.length,pfAcc:judged.length?okN/judged.length*100:null};
-  }).sort((a,b)=>b.lastSeen-a.lastSeen);
+    const last=Math.max(+u.lastSeen||0,...hands.map(h=>+h.t||0),...recs.map(r=>+r.t||0));
+    return {name:u.name||'(名前なし)',email:u.email||'',created:+u.created||last,lastSeen:last,n:a.n,net:a.net,bb100:a.bb100,pfN:recs.length,pfAcc:judged.length?okN/judged.length*100:null};
+  }));
+  return rows.sort((a,b)=>b.lastSeen-a.lastSeen);
 }
 function adminCSV(rows){
   const q=v=>{ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const head='﻿name,last_seen,created,hands,net_bb,bb100,pf_answers,pf_accuracy\n';
-  return head+rows.map(r=>[r.name,new Date(r.lastSeen).toISOString(),new Date(r.created).toISOString(),r.n,r.net,r.bb100.toFixed(2),r.pfN,r.pfAcc==null?'':r.pfAcc.toFixed(1)].map(q).join(',')).join('\n');
+  const head='﻿name,email,last_seen,created,hands,net_bb,bb100,pf_answers,pf_accuracy\n';
+  return head+rows.map(r=>[r.name,r.email,new Date(r.lastSeen).toISOString(),new Date(r.created).toISOString(),r.n,r.net,r.bb100.toFixed(2),r.pfN,r.pfAcc==null?'':r.pfAcc.toFixed(1)].map(q).join(',')).join('\n');
 }
-function renderAdmin(){
+async function renderAdmin(){
   const gate=document.getElementById('adminGate'), body=document.getElementById('adminBody');
   const unlocked=sessionStorage.getItem('sixmaxlab_admin_ok')==='1';
   gate.classList.toggle('hidden',unlocked); body.classList.toggle('hidden',!unlocked);
   if(!unlocked) return;
-  const rows=adminRows();
+  body.innerHTML='<div class="empty">全プレイヤーの記録をクラウドから読み込み中…</div>';
+  let rows;
+  try{ rows=await adminRows(); }
+  catch(e){ body.innerHTML=`<div class="empty">${e&&e.code==='permission-denied'?'全プレイヤーの成績は、管理者のGoogleアカウントでログインしているときだけ表示できます。':'読み込みに失敗しました（'+escHtml(e&&e.code||String(e))+'）'}</div><div class="toolbar" style="margin-top:10px"><button class="btn fold" id="adminLock">ロックする</button></div>`;
+    document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); renderAdmin(); }; return; }
   if(!rows.length){ body.innerHTML='<div class="empty">まだ誰も記録していません。</div>'; return; }
   const d=t=>new Date(t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const totalHands=rows.reduce((s,r)=>s+r.n,0), totalNet=rows.reduce((s,r)=>s+r.net,0);
@@ -2005,7 +2023,7 @@ function renderAdmin(){
     <div class="toolbar"><button class="btn" id="adminCsv">CSVで書き出す</button><button class="btn fold" id="adminLock">ロックする</button></div>
     <div class="tscroll"><table class="t">
       <thead><tr><th>ユーザー</th><th>最終プレイ</th><th>開始</th><th>ハンド数</th><th>収支 bb</th><th>bb/100</th><th>プリフロ回答</th><th>正解率</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${escHtml(r.name)}</td><td>${d(r.lastSeen)}</td><td>${d(r.created)}</td><td class="${r.n<30?'few':''}">${r.n}</td><td class="${r.net>=0?'pos-c':'neg-c'}">${fmt(r.net)}</td><td class="${r.bb100>=0?'pos-c':'neg-c'}">${r.n?fmt(r.bb100,0):'—'}</td><td>${r.pfN}</td><td>${r.pfAcc==null?'—':r.pfAcc.toFixed(0)+'%'}</td></tr>`).join('')}</tbody>
+      <tbody>${rows.map(r=>`<tr><td>${escHtml(r.name)}${r.email?`<br><small style="color:var(--muted)">${escHtml(r.email)}</small>`:""}</td><td>${d(r.lastSeen)}</td><td>${d(r.created)}</td><td class="${r.n<30?'few':''}">${r.n}</td><td class="${r.net>=0?'pos-c':'neg-c'}">${fmt(r.net)}</td><td class="${r.bb100>=0?'pos-c':'neg-c'}">${r.n?fmt(r.bb100,0):'—'}</td><td>${r.pfN}</td><td>${r.pfAcc==null?'—':r.pfAcc.toFixed(0)+'%'}</td></tr>`).join('')}</tbody>
     </table></div>`;
   document.getElementById('adminCsv').onclick=()=>downloadBlob('6max_users.csv',adminCSV(rows));
   document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); renderAdmin(); };
@@ -2787,7 +2805,7 @@ function initRangeEditor(){
   $('pf-eDiscard').onclick=()=>{ discardEdits(); renderRangeEdit(); };
   $('pf-eSave').onclick=async()=>{ $('pf-eSave').disabled=true; renderSaveBar('保存中…');
     const res=await SharedRanges.save(Ranges.data); ED.dirty=false;
-    renderSaveBar(res.ok?'保存しました。全プレイヤーのレンジ表に反映されます（他の人は次にページを開いたときから）':res.local?'この端末に保存しました（クラウドに接続できないため、他のプレイヤーにはまだ反映されていません）':res.err==='permission-denied'?'保存できませんでした：Googleでログインしたアカウントでのみ全員に反映できます（この端末には保存済み）':'クラウドへの保存に失敗しました（'+res.err+'）。この端末には保存済みです');
+    renderSaveBar(res.ok?'保存しました。全プレイヤーのレンジ表に反映されます（他の人は次にページを開いたときから）':res.local?'この端末に保存しました（クラウドに接続できないため、他のプレイヤーにはまだ反映されていません）':res.err==='permission-denied'?'保存できませんでした：全員への反映は管理者のGoogleアカウントでログインしているときだけできます（この端末には保存済み）':'クラウドへの保存に失敗しました（'+res.err+'）。この端末には保存済みです');
     refreshAfterRangeChange(); };
   $('pf-eExport').onclick=()=>{ $('pf-eText').value=rangeToText($('pf-eMode').value); };
   $('pf-eImport').onclick=()=>{
