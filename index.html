@@ -1475,7 +1475,7 @@ function renderControls(){
   presets.forEach(x=>x[1]=roundBet(x[1]));
   presets.push(['オールイン',maxTo]);
   const verb=S.currentBet===0?'ベット':'レイズ';
-  const init=clamp(presets[0][1],minTo,maxTo);
+  const init=clamp(presets[isBeginner()&&S.street===0&&S.raiseCount===1?2:0][1],minTo,maxTo);   // beginner opens default to 3bb (6点)
   area.innerHTML=`
     <div class="row">
       <button class="btn fold grow" id="bF" ${toCall===0?'disabled':''}>フォールド</button>
