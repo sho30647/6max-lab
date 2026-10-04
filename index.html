@@ -68,8 +68,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 .board .card{width:44px;height:60px;font-size:24px}
 .board .card i{font-size:19px}
 .card.win{box-shadow:0 0 0 3px var(--brass)}
-.seat .hr{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#F1EEE4;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;white-space:nowrap;z-index:2}
+.seat .hr{display:inline-block;margin:2px 0 1px;background:var(--ink);color:var(--bg);font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;white-space:nowrap}
 .seat .hr.win{background:var(--brass);color:#1C1A15}
+.advice{max-width:820px;margin:10px auto 0;border:2px solid var(--loss);background:var(--surface);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5}
+.advice b{color:var(--loss)}
 /* beginner mode */
 .seat .act.beg{font-size:13px;font-weight:700;color:var(--ink)}
 .seat .act.k-fold{color:var(--muted)}
@@ -289,6 +291,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
         <div class="msg" id="msg">記録を読み込み中…</div>
       </div>
     </div>
+    <div class="advice hidden" id="advice"></div>
     <div class="controls" id="controls">
       <div id="actArea"></div>
       <div class="opts">
@@ -297,7 +300,8 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
         <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
         <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
       </div>
-      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で表示し、ゆっくり進めます（分析・履歴はbb表示のままです。1bb＝2点）</div>
+      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、持ち点は次のハンドに引き継がれます（0点になったら200点で再スタート）。ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）
+        <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点に戻す</button></div></div>
     </div>
     <div class="session" id="session"></div>
   </div>
@@ -856,7 +860,11 @@ function setupHand(){
   S.heroDec=[]; S.heroSaw=[true,false,false,false]; S.log=[[],[],[],[]]; S.flopSeats=[];
   S.pfAggr=-1; S.lastAggr=-1; S.prevStreetAggr=-1; S.pfRaises=null; S.heroIPflop=null;
   computeHeroProfile();
-  S.players.forEach(p=>{p.stack=START;p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
+  // beginner mode carries stacks over between hands (a busted player re-buys for 200点); normal mode always starts at 100bb
+  const carry=isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
+  S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
+  document.getElementById('advice').classList.add('hidden');
+  S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const sb=(S.button+1)%6, bb=(S.button+2)%6;
   put(S.players[sb],50); S.players[sb].la={k:'sb',a:50};
@@ -885,7 +893,7 @@ function autoFoldHero(p){
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
 async function playHand(){
-  S.running=true; S.autoFolded=false; setupHand(); render(); setMsg('');
+  S.running=true; S.autoFolded=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので200点で再スタート':'');
   for(let st=0;st<4;st++){
     if(st>0){
       if(active().length<=1) break;
@@ -974,6 +982,7 @@ function applyAction(seat,dec){
   const sit=(st===0&&dec.act!=='fold')?preSituation(seat):null;
   const potBefore=potTotal();
   let code='';
+  if(p.isHero&&st===0&&rcBefore===1&&limperCount()===0&&isBeginner()) openAdvice(dec.act);
   if(p.isHero) S.heroDec.push({st,rc:rcBefore,toCall,act:dec.act,unbet:S.currentBet===0});
   if(dec.act==='fold'){p.folded=true;p.la={k:'fold'};code='f';}
   else if(dec.act==='check'){p.la={k:'check'};code='x';}
@@ -995,6 +1004,16 @@ function applyAction(seat,dec){
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
 }
+/* beginner mode: flag an unopened-pot open/fold that is clearly outside the equilibrium open chart (the hand keeps going) */
+function openAdvice(act){
+  const p=S.players[0], pos=posOf(0), ch=CH.open[pos]; if(!ch) return;
+  const k=classKey(p.hole[0],p.hole[1]), f=freqOf(ch.r,k), hand=k.length===2?k:k.slice(0,2)+(k[2]==='s'?'（スーテッド）':'（オフスート）');
+  let t='';
+  if(act==='raise'&&f===0) t=`<b>ミス：</b>${pos}の ${hand} は均衡のオープンレンジに入っていません（オープン頻度 0%）。<br>正しいアクション：<b>フォールド</b>`;
+  else if(act==='fold'&&f>=1) t=`<b>ミス：</b>${pos}の ${hand} は均衡では毎回オープンするハンドです（オープン頻度 100%）。<br>正しいアクション：<b>オープン（レイズ）</b>`;
+  const el=document.getElementById('advice'); el.innerHTML=t; el.classList.toggle('hidden',!t);
+}
+
 /* =========================================================
    Bot AI v2
    ========================================================= */
@@ -1244,7 +1263,7 @@ function settle(){
   S.winners=[...win];
 }
 function buildRecord(){
-  const h=S.players[0], net=Math.round(h.stack-START)/100, pos=posOf(0);
+  const h=S.players[0], net=Math.round(h.stack-h.start)/100, pos=posOf(0);
   const pre=S.heroDec.filter(d=>d.st===0);
   let maxR=-1,called=-1,checked=false;
   pre.forEach(d=>{ if(d.act==='raise')maxR=Math.max(maxR,d.rc); else if(d.act==='call')called=Math.max(called,d.rc); else if(d.act==='check')checked=true; });
@@ -1366,16 +1385,16 @@ function render(){
     const el=document.createElement('div');
     el.className='seat'+(p.isHero?' hero':'')+(S.acting===i&&S.running?' acting':'')+(p.folded&&handLive?' folded':'');
     el.style.left=x+'%'; el.style.top=y+'%';
-    let cards='';
+    let cards='', hr='';
     if(handLive&&(!(p.folded&&!p.isHero)||(p.reveal&&!S.running))){
       const show=p.isHero||p.shown||(p.reveal&&!S.running);
       const winIdx=!S.running&&S.winners.includes(i);
       cards=p.hole.map(c=>show?cardHTML(c,winIdx?'win':''):'<span class="card back"></span>').join('');
-      // after a hand that reached the flop, label each face-up hand that saw the flop with its made hand
-      if(show&&!S.running&&S.board.length>=3&&(S.flopSeats||[]).includes(i)) cards+=`<span class="hr${winIdx?' win':''}">${handName(i)}</span>`;
+      // after a hand that reached the flop, label each face-up hand that saw the flop with its made hand (shown in the plate, clear of the cards)
+      if(show&&!S.running&&S.board.length>=3&&(S.flopSeats||[]).includes(i)) hr=`<div><span class="hr${winIdx?' win':''}">${handName(i)}</span></div>`;
     }
     const act=actText(p);
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&!beg?'<span class="dealer">D</span>':''}<div class="nm">${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k):''}">${act||'&nbsp;'}</div></div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&!beg?'<span class="dealer">D</span>':''}<div class="nm">${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k):''}">${act||'&nbsp;'}</div>${hr}</div>`;
     box.appendChild(el);
     if(p.bet>0){
       const c=document.createElement('div'); c.className='betchip'+(beg?' beg':'');
@@ -1865,8 +1884,22 @@ function applyBeginner(){
   render(); renderSession(); if(S.heroResolve) renderControls();
 }
 try{ document.getElementById('optBeginner').checked=localStorage.getItem('sixmaxlab_beginner')==='1'; }catch(e){}
+if(isBeginner()) document.getElementById('optAuto').checked=false;
 applyBeginner();
-document.getElementById('optBeginner').onchange=e=>{ try{localStorage.setItem('sixmaxlab_beginner',e.target.checked?'1':'0');}catch(_){} applyBeginner(); };
+document.getElementById('optBeginner').onchange=e=>{
+  try{localStorage.setItem('sixmaxlab_beginner',e.target.checked?'1':'0');}catch(_){}
+  if(e.target.checked){ // beginner defaults: decide every hand yourself, deal the next hand by hand, start everyone at 200点
+    document.getElementById('optAuto').checked=false;
+    document.getElementById('optAutoFold').checked=false; try{localStorage.setItem('sixmaxlab_autofold','0');}catch(_){}
+    resetStacks();
+  }
+  applyBeginner();
+};
+function resetStacks(){ // applied at the next deal; shown right away when no hand is in progress
+  S.resetStacks=true;
+  if(!S.running&&S.players.length){ S.players.forEach(p=>p.stack=START); render(); }
+}
+document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.running) setMsg('次のハンドから全員200点に戻します'); };
 
 (async function init(){
   await UserGate.ready;
