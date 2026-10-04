@@ -1011,7 +1011,7 @@ function applyAction(seat,dec){
     if(st>0) p.postAggr++;
   }
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
-  if(p.isHero&&dec.act==='fold'&&st===0&&isBeginner()) S.fastFold=true;   // beginner: a preflop fold skips straight to the next hand
+  if(p.isHero&&dec.act==='fold'&&isBeginner()) setTimeout(renderControls,0);   // beginner: offer "次のハンドへ" once the hero has folded
   if(isBeginner()) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
@@ -1456,7 +1456,12 @@ function heroChoose(dec){ const r=S.heroResolve; S.heroResolve=null; document.ge
 function renderControls(){
   const area=document.getElementById('actArea');
   if(!S.heroResolve){
-    if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; return; }
+    if(S.running&&isBeginner()&&S.players[0].folded&&!S.fastFold){ // folded: watch the rest, or skip to the next hand
+      area.innerHTML='<div class="row"><button class="btn main grow" id="btnSkip">次のハンドへ</button></div>';
+      document.getElementById('btnSkip').onclick=()=>{ S.fastFold=true; renderControls(); };
+      return;
+    }
+    if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>'+(S.fastFold?'次のハンドを準備中…':'相手の手番…')+'</button></div>'; return; }
     area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
     document.getElementById('btnDeal').onclick=()=>{ if(!S.running) playHand(); };
     return;
