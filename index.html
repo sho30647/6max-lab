@@ -2729,11 +2729,12 @@ function renderStats(){
 }
 /* ---------- range comparison: correct vs yours vs gap ---------- */
 let cPos=null, cView=null, cSel=null;
-function mixBg(r,c,j){
-  j=j||0; if(r+c+j<=0) return '';
+// fc: colour for the fold share (the "your range" grid paints folds so answered cells never look empty)
+function mixBg(r,c,j,fc){
+  j=j||0; const F=fc||'var(--surface2)'; if(r+c+j<=0) return fc||'';
   const R=r*100, J=(r+j)*100, C=(r+j+c)*100;
   if(r>=0.999) return 'var(--win)'; if(c>=0.999) return 'var(--sd)'; if(j>=0.999) return 'var(--jam)';
-  return `linear-gradient(90deg,var(--win) ${R}%,var(--jam) ${R}% ${J}%,var(--sd) ${J}% ${C}%,var(--surface2) ${C}%)`;
+  return `linear-gradient(90deg,var(--win) ${R}%,var(--jam) ${R}% ${J}%,var(--sd) ${J}% ${C}%,${F} ${C}%)`;
 }
 function renderCompare(m,recs,fp){
   const box=document.getElementById('pf-cmpBlock'); if(!box) return;
@@ -2754,7 +2755,7 @@ function renderCompare(m,recs,fp){
   const views=[['all','3つ並べる'],['ok','正解レンジ'],['me','あなたのレンジ'],['gap','乖離']];
   const grid=(type)=>`<div><p class="lbl">${{ok:'正解レンジ（GTO）',me:'あなたのレンジ（回答から）',gap:'乖離'}[type]}</p><div class="grid13 cgrid" data-type="${type}">${CLASSES.map(k=>{ const c=cell[k]; let bg='',cls='',txt=k,col='';
       if(type==='ok'){ bg=mixBg(c.e.r,c.e.c,c.e.j); if(bg) col='#fff'; }
-      else if(type==='me'){ if(!c.o){ cls='nod unk'; } else { bg=mixBg(c.yr,c.yc,c.yj); if(bg) col='#fff'; if(c.o.n<3) cls='thin'; } }
+      else if(type==='me'){ if(!c.o){ cls='nod unk'; } else { bg=mixBg(c.yr,c.yc,c.yj,'#7C8790'); if(bg) col='#fff'; if(c.o.n<3) cls='thin'; } }
       else { if(!c.o) cls='nod unk'; else if(c.kind==='loose'){ bg=`rgba(217,130,43,${0.35+0.65*Math.min(1,c.d)})`; col='#fff'; } else if(c.kind==='tight'){ bg=`rgba(58,111,176,${0.35+0.65*Math.min(1,-c.d)})`; col='#fff'; } else if(c.kind==='type'){ bg='rgba(139,92,176,.85)'; col='#fff'; } else { cls='match'; }
         if(c.o&&c.o.n<3) cls+=' thin'; }
       return `<button data-k="${k}" class="${cls}${cSel===k?' sel':''}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}">${txt}</button>`; }).join('')}</div></div>`;
@@ -2773,7 +2774,7 @@ function renderCompare(m,recs,fp){
     <div class="gtoggle" id="pf-cViewT">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${cView===v}">${l}</button>`).join('')}</div>
     <div class="${cView==='all'?'cmp3':''}">${cView==='all'?grid('ok')+grid('me')+grid('gap'):grid(cView)}</div>
     <div class="cellinfo" id="pf-cInfo">&nbsp;</div>
-    <div class="legend"><span><i style="background:var(--win)"></i>レイズ</span>${m==='vs3bet'?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
+    <div class="legend"><span><i style="background:var(--win)"></i>レイズ</span>${m==='vs3bet'?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
     <div class="insight" style="margin-top:10px">${list(looseL,'広すぎるハンド',f1)}${list(tightL,'狭すぎるハンド',f1)}${list(typL,'アクションの種類がずれるハンド',f2)}${!looseL.length&&!tightL.length&&!typL.length?(cov?'<p>回答済みのハンドでは、正解レンジと15pt以上ずれているものはありません。</p>':'<p>このポジションはまだ回答がありません。</p>'):''}</div>`;
   box.innerHTML=h;
   box.querySelectorAll('#pf-cPosT button').forEach(b=>b.onclick=()=>{ cPos=b.dataset.p; cSel=null; renderCompare(m,recs,null); });
