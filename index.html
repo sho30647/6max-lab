@@ -267,11 +267,10 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 <body>
 <div class="modalOverlay hidden" id="userGate">
   <div class="modalBox">
-    <h2>お名前を入力してください</h2>
-    <p class="sub">入力した名前でプレー記録が保存されます。次回も同じ名前で開くと記録が続きます（この端末・ブラウザだけに保存され、他の端末とは共有されません）。</p>
-    <input type="text" id="userNameInput" maxlength="20" autocomplete="off" placeholder="例：たろう">
-    <p class="err hidden" id="userNameErr">名前を入力してください</p>
-    <button class="btn main grow" id="userNameSubmit" style="width:100%">この名前で始める</button>
+    <h2>はじめに</h2>
+    <p class="sub">プレー記録を保存するため、Googleでログインしてください。スマホ・PCなど別の端末からも同じ記録にアクセスできます。次回からはこの画面は出ず、自動でログインします。</p>
+    <button class="btn main grow" id="gateGoogleBtn" style="width:100%">Googleでログイン</button>
+    <p class="err hidden" id="gateErr">ログインに失敗しました。もう一度お試しください</p>
   </div>
 </div>
 <div class="wrap">
@@ -282,7 +281,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <button role="tab" aria-selected="false" data-tab="pf">プリフロ練習</button>
       <button role="tab" aria-selected="false" data-tab="admin">管理者</button>
     </div>
-    <div class="userChip" id="userChip">プレイヤー: <b id="userChipName"></b><button id="userSwitchBtn">切替</button></div>
+    <div class="userChip" id="cloudChip">ログイン中: <b id="cloudChipStatus">確認中…</b><button id="cloudLogoutBtn" class="hidden">ログアウト</button></div>
   </header>
 
   <!-- RING GAME -->
@@ -489,6 +488,95 @@ SB 3: 55+, A2s+, K9o:c, ..."></textarea>
 
 </div>
 
+<!-- Firebase (compat SDK: keeps the same db.collection()/db.doc() calls used below) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+"use strict";
+const firebaseConfig = {
+  apiKey: "AIzaSyAMdjHCBVWWFgFvZOYZ1dTVZU6chy9lsWk",
+  authDomain: "max-lab-381f7.firebaseapp.com",
+  projectId: "max-lab-381f7",
+  storageBucket: "max-lab-381f7.firebasestorage.app",
+  messagingSenderId: "1081488100187",
+  appId: "1:1081488100187:web:e756ac4efb6577b2c7287e"
+};
+firebase.initializeApp(firebaseConfig);
+/* Anonymous auth gives this browser a stable uid so Store.connect() below
+   can read/write its own data under data/users/{uid}/... in Firestore. */
+const FirebaseGate=(()=>{
+  let p=null;
+  function ready(){
+    if(!p){
+      p=new Promise(resolve=>{
+        // Fires once immediately with whatever session the browser already has
+        // persisted (a previous Google login, a previous anonymous session, or
+        // none). Only when there is truly none yet do we create a fresh anonymous one.
+        const unsub=firebase.auth().onAuthStateChanged(user=>{
+          if(user){ unsub(); resolve({db:firebase.firestore(),uid:user.uid,user}); }
+          else firebase.auth().signInAnonymously().catch(e=>{ console.warn('auth',e); resolve(null); });
+        });
+      });
+    }
+    return p;
+  }
+  return {ready};
+})();
+
+/* =========================================================
+   Cloud login (Google) — lets the same account's data be reached
+   from any device/browser. Internally this "upgrades" the anonymous
+   account created above to a permanent Google-linked one, keeping
+   the same uid (and therefore the same Firestore data) whenever possible.
+   ========================================================= */
+const CloudAuth=(()=>{
+  function render(user){
+    const statusEl=document.getElementById('cloudChipStatus');
+    const logoutBtn=document.getElementById('cloudLogoutBtn');
+    if(!statusEl) return;
+    if(user&&!user.isAnonymous){
+      statusEl.textContent=user.email||user.displayName||'ログイン中';
+      logoutBtn.classList.remove('hidden');
+    } else {
+      statusEl.textContent='未ログイン';
+      logoutBtn.classList.add('hidden');
+    }
+  }
+  function showGateErr(msg){
+    const el=document.getElementById('gateErr');
+    if(!el){ alert(msg); return; }
+    el.textContent=msg; el.classList.remove('hidden');
+  }
+  async function login(){
+    const provider=new firebase.auth.GoogleAuthProvider();
+    try{
+      const cur=firebase.auth().currentUser;
+      if(cur&&cur.isAnonymous) await cur.linkWithPopup(provider);
+      else await firebase.auth().signInWithPopup(provider);
+    }catch(e){
+      if(e&&e.code==='auth/credential-already-in-use'){
+        // this Google account already has data from another device: switch to it
+        try{ await firebase.auth().signInWithCredential(e.credential); }
+        catch(e2){ console.warn('login(switch)',e2); showGateErr('ログインに失敗しました: '+(e2.message||e2.code)); return; }
+      } else if(e&&e.code==='auth/popup-closed-by-user'){ return; }
+      else { console.warn('login',e); showGateErr('ログインに失敗しました: '+(e.message||e.code)); return; }
+    }
+    location.reload(); // re-run Store.init() so data for the (possibly new) uid is loaded fresh
+  }
+  async function logout(){
+    try{ await firebase.auth().signOut(); }catch(e){ console.warn('logout',e); }
+    location.reload(); // back to the gate: Google login is required again
+  }
+  function init(){
+    firebase.auth().onAuthStateChanged(render);
+    document.getElementById('cloudLogoutBtn').onclick=logout;
+    document.getElementById('gateGoogleBtn').onclick=login;
+  }
+  return {init, login};
+})();
+CloudAuth.init();
+</script>
 <script>
 "use strict";
 /* =========================================================
@@ -520,29 +608,21 @@ const UserGate=(()=>{
     current=name;
     try{ localStorage.setItem(CU_KEY,name); }catch(e){}
     touch(name); migrateLegacy(name);
-    const chip=document.getElementById('userChipName'); if(chip) chip.textContent=name;
     return true;
   }
-  function open(){
-    document.getElementById('userGate').classList.remove('hidden');
-    document.getElementById('userNameInput').value=current||'';
-    document.getElementById('userNameErr').classList.add('hidden');
-    setTimeout(()=>document.getElementById('userNameInput').focus(),0);
-  }
+  function open(){ document.getElementById('userGate').classList.remove('hidden'); }
   function close(){ document.getElementById('userGate').classList.add('hidden'); }
-  function submit(){
-    const v=document.getElementById('userNameInput').value;
-    if(!v||!v.trim()){ document.getElementById('userNameErr').classList.remove('hidden'); return; }
-    const firstTime=!current;
-    setCurrent(v); close();
-    if(firstTime) resolveReady(); else location.reload();
-  }
-  function init(){
-    document.getElementById('userNameSubmit').onclick=submit;
-    document.getElementById('userNameInput').onkeydown=e=>{ if(e.key==='Enter') submit(); };
-    document.getElementById('userSwitchBtn').onclick=open;
-    let saved=null; try{ saved=localStorage.getItem(CU_KEY); }catch(e){}
-    if(saved){ setCurrent(saved); resolveReady(); } else open();
+  async function init(){
+    // Google login is mandatory: show the gate until this browser has a
+    // Google-linked session, then take the display name from that account.
+    const conn=await FirebaseGate.ready();
+    if(conn&&conn.user&&!conn.user.isAnonymous){
+      setCurrent(conn.user.displayName||conn.user.email||'あなた');
+      close();
+      resolveReady();
+    } else {
+      open();
+    }
   }
   return {ready, get:()=>current, safe, handsKey, pfRecsKey, registry, init, open};
 })();
@@ -1328,15 +1408,7 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
   lsRead(){ try{const raw=localStorage.getItem(UserGate.handsKey()); return raw?JSON.parse(raw):[];}catch(e){return [];} },
   lsWrite(){ try{ localStorage.setItem(UserGate.handsKey(),JSON.stringify(this.hands)); return true; }catch(e){ return false; } },
   async connect(){
-    if(!(window.claude&&typeof window.claude.use==='function')) return null;
-    for(let attempt=0;attempt<2;attempt++){
-      try{
-        const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
-        if(db&&user){ const uid=await user.id(); if(uid) return {db,uid}; }
-      }catch(e){ console.warn('connect',e); }
-      await new Promise(r=>setTimeout(r,1200));
-    }
-    return null;
+    try{ return await FirebaseGate.ready(); }catch(e){ console.warn('connect',e); return null; }
   },
   async init(){
     const local=this.lsRead();
@@ -2074,12 +2146,7 @@ const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),d
   lsRead(k,d){ try{const raw=localStorage.getItem(k); return raw?JSON.parse(raw):d;}catch(e){return d;} },
   lsWrite(){ return lsSet(UserGate.pfRecsKey(),JSON.stringify(this.recs)); },
   async connect(){
-    if(!(window.claude&&typeof window.claude.use==='function')) return null;
-    for(let i=0;i<2;i++){
-      try{ const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]); if(db&&user){ const uid=await user.id(); if(uid) return {db,uid}; } }catch(e){ console.warn('connect',e); }
-      await new Promise(r=>setTimeout(r,1200));
-    }
-    return null;
+    try{ return await FirebaseGate.ready(); }catch(e){ console.warn('connect',e); return null; }
   },
   async init(){
     const local=this.lsRead(UserGate.pfRecsKey(),[]); let savedR=this.lsRead(LS_RNG,null);
