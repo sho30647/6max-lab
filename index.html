@@ -231,9 +231,9 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .grid13 button.thin{opacity:.55}
 .grid13 button.match{background:var(--surface2)}
 
-.pftabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
-.pftabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-size:14px;color:var(--muted)}
-.pftabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+.subtabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:12px}
+.subtabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-size:14px;color:var(--muted)}
+.subtabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);font-weight:700}
 </style>
 </head>
 <body>
@@ -250,15 +250,20 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   <header>
     <div class="brand"><h1>6-Max Lab</h1><span>NLH 6人テーブル／プリフロ練習 一体型</span></div>
     <div class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" data-tab="play">テーブル</button>
-      <button role="tab" aria-selected="false" data-tab="stats">分析</button>
-      <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
+      <button role="tab" aria-selected="true" data-tab="ring">リングゲーム</button>
       <button role="tab" aria-selected="false" data-tab="pf">プリフロ練習</button>
       <button role="tab" aria-selected="false" data-tab="admin">管理者</button>
     </div>
     <div class="userChip" id="userChip">プレイヤー: <b id="userChipName"></b><button id="userSwitchBtn">切替</button></div>
   </header>
 
+  <!-- RING GAME -->
+  <div id="tab-ring">
+    <div class="subtabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="play">ゲーム開始</button>
+      <button role="tab" aria-selected="false" data-tab="stats">分析</button>
+      <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
+    </div>
   <!-- PLAY -->
   <div id="tab-play">
     <div class="tablebox" id="tablebox">
@@ -311,13 +316,15 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
     </div>
     <div id="histBody"></div>
   </div>
+  </div>
 
+  <!-- PREFLOP PRACTICE -->
   <div id="tab-pf" class="hidden">
-    <div class="pftabs" role="tablist">
-      <button role="tab" aria-selected="true" data-tab="play">練習</button>
+    <div class="subtabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="play">ゲーム開始</button>
       <button role="tab" aria-selected="false" data-tab="stats">分析</button>
-      <button role="tab" aria-selected="false" data-tab="range">レンジ表</button>
       <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
+      <button role="tab" aria-selected="false" data-tab="range">レンジ表</button>
     </div>
     <div id="pf-tab-play">
     <div class="modes" id="pf-modes">
@@ -1761,13 +1768,22 @@ document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document
 /* =========================================================
    Tabs & init
    ========================================================= */
-let curTab='play', pfBooted=false;
+// top tabs: ring / pf / admin. curTab = the visible ring sub-tab ('play','stats','hist'), or the top tab while the ring game is hidden
+let topTab='ring', ringTab='play', curTab='play', pfBooted=false;
+function applyRingTab(){
+  curTab=topTab==='ring'?ringTab:topTab;
+  document.querySelectorAll('#tab-ring .subtabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===ringTab?'true':'false'));
+  ['play','stats','hist'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==ringTab));
+  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist();
+}
+document.querySelectorAll('#tab-ring .subtabs button').forEach(b=>b.onclick=()=>{ ringTab=b.dataset.tab; applyRingTab(); });
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
-  curTab=b.dataset.tab;
+  topTab=b.dataset.tab;
   document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));
-  ['play','stats','hist','pf','admin'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==curTab));
-  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='admin') renderAdmin();
-  if(curTab==='pf'){ if(!pfBooted){ pfBooted=true; window.PF.boot(); } else { window.PF.onShow(); } }
+  ['ring','pf','admin'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==topTab));
+  applyRingTab();
+  if(topTab==='admin') renderAdmin();
+  if(topTab==='pf'){ if(!pfBooted){ pfBooted=true; window.PF.boot(); } else { window.PF.onShow(); } }
 });
 document.getElementById('fPos').onchange=renderStats;
 document.getElementById('fRange').onchange=renderStats;
@@ -2387,11 +2403,11 @@ function histMsg(t){ const b=document.getElementById('pf-histBody'); const p=doc
    ========================================================= */
 let curTab=lsGet('pflab_tab')||'play';
 function applyTab(){
-  document.querySelectorAll('.pftabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===curTab?'true':'false'));
+  document.querySelectorAll('#tab-pf .subtabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===curTab?'true':'false'));
   ['play','stats','range','hist'].forEach(t=>document.getElementById('pf-tab-'+t).classList.toggle('hidden',t!==curTab));
   if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='range') renderRange(); if(curTab==='play') renderPosChecks();
 }
-document.querySelectorAll('.pftabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
+document.querySelectorAll('#tab-pf .subtabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
 function applyMode(){
   document.querySelectorAll('#pf-modes button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===P.mode?'true':'false'));
   const ready=P.mode==='open';
@@ -2417,7 +2433,7 @@ document.getElementById('pf-dealMode').onchange=e=>{ cfg.deal=e.target.value; ls
 document.getElementById('pf-optAuto').checked=lsGet('pflab_auto')!=='0';
 document.getElementById('pf-optAuto').onchange=e=>lsSet('pflab_auto',e.target.checked?'1':'0');
 document.addEventListener('keydown',e=>{
-  if(curTab!=='play'||e.target.closest('input,select,textarea')) return; const k=e.key.toLowerCase();
+  if(curTab!=='play'||document.getElementById('tab-pf').classList.contains('hidden')||e.target.closest('input,select,textarea')) return; const k=e.key.toLowerCase();
   if(k==='f') answer('F'); else if(k==='c') answer('C'); else if(k==='r') answer('R');
   else if(cfg.sizeOn&&/^[1-7]$/.test(k)){ P.size=SIZES[+k-1]; lsSet('pflab_size',P.size); renderChips(); }
   else if(k===' '&&P.answered){ e.preventDefault(); deal(); }
