@@ -146,6 +146,17 @@ svg.chart{width:100%;height:auto;display:block}
 .empty{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px}
 .hidden{display:none!important}
 
+/* ===== user profiles / admin ===== */
+.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.modalBox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;max-width:360px;width:100%}
+.modalBox h2{margin:0 0 6px;font-size:18px}
+.modalBox .sub{margin:0 0 10px;color:var(--muted);font-size:13px}
+.modalBox input[type=text],.modalBox input[type=password]{width:100%;font:inherit;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);margin:0 0 10px}
+.modalBox .err{color:var(--loss);font-size:12px;margin:0 0 10px}
+.userChip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto}
+.userChip b{color:var(--ink);font-weight:700;font-size:13px}
+.userChip button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:3px 8px;font-size:12px}
+
 @media (max-width:600px){
   .tablebox{aspect-ratio:10/12}
   .felt{inset:8% 5% 10% 5%;border-width:9px;border-radius:46%/50%}
@@ -226,6 +237,15 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 </style>
 </head>
 <body>
+<div class="modalOverlay hidden" id="userGate">
+  <div class="modalBox">
+    <h2>お名前を入力してください</h2>
+    <p class="sub">入力した名前でプレー記録が保存されます。次回も同じ名前で開くと記録が続きます（この端末・ブラウザだけに保存され、他の端末とは共有されません）。</p>
+    <input type="text" id="userNameInput" maxlength="20" autocomplete="off" placeholder="例：たろう">
+    <p class="err hidden" id="userNameErr">名前を入力してください</p>
+    <button class="btn main grow" id="userNameSubmit" style="width:100%">この名前で始める</button>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div class="brand"><h1>6-Max Lab</h1><span>NLH 6人テーブル／プリフロ練習 一体型</span></div>
@@ -234,7 +254,9 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <button role="tab" aria-selected="false" data-tab="stats">分析</button>
       <button role="tab" aria-selected="false" data-tab="hist">履歴</button>
       <button role="tab" aria-selected="false" data-tab="pf">プリフロ練習</button>
+      <button role="tab" aria-selected="false" data-tab="admin">管理者</button>
     </div>
+    <div class="userChip" id="userChip">プレイヤー: <b id="userChipName"></b><button id="userSwitchBtn">切替</button></div>
   </header>
 
   <!-- PLAY -->
@@ -408,10 +430,83 @@ SB 3: 55+, A2s+, K9o:c, ..."></textarea>
   </div>
   </div>
 
+  <!-- ADMIN -->
+  <div id="tab-admin" class="hidden">
+    <div id="adminGate">
+      <section class="block">
+        <h2>管理者ログイン</h2>
+        <p class="sub">全ユーザーの記録一覧を見るにはパスコードを入力してください。</p>
+        <div class="row">
+          <input type="password" id="adminPass" placeholder="パスコード" style="flex:1;min-width:160px;font:inherit;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink)">
+          <button class="btn main" id="adminUnlock">表示する</button>
+        </div>
+        <p class="help" id="adminErr" style="color:var(--loss)"></p>
+      </section>
+    </div>
+    <div id="adminBody" class="hidden"></div>
+  </div>
+
 </div>
 
 <script>
 "use strict";
+/* =========================================================
+   User profiles (namespaces localStorage per entered name,
+   so records from different people on the same browser don't mix)
+   ========================================================= */
+const US_KEY='sixmaxlab_users', CU_KEY='sixmaxlab_currentUser';
+const UserGate=(()=>{
+  let current=null, resolveReady;
+  const ready=new Promise(res=>resolveReady=res);
+  const safe=n=>encodeURIComponent(n);
+  const handsKey=()=>'sixmaxlab_hands__'+safe(current||'');
+  const pfRecsKey=()=>'pflab_recs__'+safe(current||'');
+  function registry(){ try{const raw=localStorage.getItem(US_KEY); return raw?JSON.parse(raw):{};}catch(e){return {};} }
+  function saveRegistry(r){ try{localStorage.setItem(US_KEY,JSON.stringify(r));}catch(e){} }
+  function touch(name){ const r=registry(), now=Date.now(), k=safe(name); if(!r[k]) r[k]={name,created:now}; r[k].name=name; r[k].lastSeen=now; saveRegistry(r); }
+  function migrateLegacy(name){
+    try{
+      if(localStorage.getItem('sixmaxlab_migrated_v2')) return;
+      const hk='sixmaxlab_hands__'+safe(name), pk='pflab_recs__'+safe(name);
+      const oldHands=localStorage.getItem('sixmaxlab_hands'), oldRecs=localStorage.getItem('pflab_recs');
+      if(oldHands&&!localStorage.getItem(hk)) localStorage.setItem(hk,oldHands);
+      if(oldRecs&&!localStorage.getItem(pk)) localStorage.setItem(pk,oldRecs);
+      localStorage.setItem('sixmaxlab_migrated_v2','1');
+    }catch(e){}
+  }
+  function setCurrent(name){
+    name=name.trim(); if(!name) return false;
+    current=name;
+    try{ localStorage.setItem(CU_KEY,name); }catch(e){}
+    touch(name); migrateLegacy(name);
+    const chip=document.getElementById('userChipName'); if(chip) chip.textContent=name;
+    return true;
+  }
+  function open(){
+    document.getElementById('userGate').classList.remove('hidden');
+    document.getElementById('userNameInput').value=current||'';
+    document.getElementById('userNameErr').classList.add('hidden');
+    setTimeout(()=>document.getElementById('userNameInput').focus(),0);
+  }
+  function close(){ document.getElementById('userGate').classList.add('hidden'); }
+  function submit(){
+    const v=document.getElementById('userNameInput').value;
+    if(!v||!v.trim()){ document.getElementById('userNameErr').classList.remove('hidden'); return; }
+    const firstTime=!current;
+    setCurrent(v); close();
+    if(firstTime) resolveReady(); else location.reload();
+  }
+  function init(){
+    document.getElementById('userNameSubmit').onclick=submit;
+    document.getElementById('userNameInput').onkeydown=e=>{ if(e.key==='Enter') submit(); };
+    document.getElementById('userSwitchBtn').onclick=open;
+    let saved=null; try{ saved=localStorage.getItem(CU_KEY); }catch(e){}
+    if(saved){ setCurrent(saved); resolveReady(); } else open();
+  }
+  return {ready, get:()=>current, safe, handsKey, pfRecsKey, registry, init, open};
+})();
+UserGate.init();
+
 /* =========================================================
    Cards & evaluator
    ========================================================= */
@@ -675,7 +770,7 @@ const FULL_RANGE=new Float32Array(ALL.length).fill(1);
 const freqOf=(m,k)=>m?(m.get(k)||0):0;
 
 function initPlayers(){
-  S.players=[{name:'あなた',isHero:true,style:{loose:1,aggr:1,three:1}}].concat(BOTS.map(b=>({name:b.name,isHero:false,style:b})));
+  S.players=[{name:UserGate.get()||'あなた',isHero:true,style:{loose:1,aggr:1,three:1}}].concat(BOTS.map(b=>({name:b.name,isHero:false,style:b})));
   S.players.forEach(p=>{p.stack=START;p.hole=[];p.folded=true;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.lastAct='';p.range=[0,100];p.postAggr=0;p.shown=false;});
 }
 const posOf=seat=>POS[(seat-S.button+6)%6];
@@ -1138,12 +1233,11 @@ function countFlopPlayers(){ // players who were live when flop dealt
 /* =========================================================
    Storage
    ========================================================= */
-const LS_KEY='sixmaxlab_hands';
 const hkey=h=>h.t+'_'+h.hc;
 const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
   sessionDoc:null, sessionHands:[], synced:new Set(), cloudCount:0,
-  lsRead(){ try{const raw=localStorage.getItem(LS_KEY); return raw?JSON.parse(raw):[];}catch(e){return [];} },
-  lsWrite(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(this.hands)); return true; }catch(e){ return false; } },
+  lsRead(){ try{const raw=localStorage.getItem(UserGate.handsKey()); return raw?JSON.parse(raw):[];}catch(e){return [];} },
+  lsWrite(){ try{ localStorage.setItem(UserGate.handsKey(),JSON.stringify(this.hands)); return true; }catch(e){ return false; } },
   async connect(){
     if(!(window.claude&&typeof window.claude.use==='function')) return null;
     for(let attempt=0;attempt<2;attempt++){
@@ -1201,7 +1295,7 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
       try{ const snap=await this.db.collection('data/users/'+this.uid).get(); for(const d of snap.docs){ if(d.id.startsWith('hands_')){ try{ await this.db.doc('data/users/'+this.uid+'/'+d.id).delete(); }catch(e){} } } }catch(e){}
     }
     this.hands=[]; this.synced.clear(); this.sessionDoc=null; this.sessionHands=[];
-    try{localStorage.removeItem(LS_KEY);}catch(e){}
+    try{localStorage.removeItem(UserGate.handsKey());}catch(e){}
   }
 };
 
@@ -1609,14 +1703,70 @@ async function initSheets(){
 }
 
 /* =========================================================
+   Admin: all-users summary (passcode-gated, this browser only)
+   ========================================================= */
+const ADMIN_PASSCODE='6max2026';
+function escHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function downloadBlob(filename,text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },0);
+}
+function adminRows(){
+  const reg=UserGate.registry();
+  return Object.values(reg).map(u=>{
+    let hands=[],recs=[];
+    try{hands=JSON.parse(localStorage.getItem('sixmaxlab_hands__'+UserGate.safe(u.name))||'[]');}catch(e){}
+    try{recs=JSON.parse(localStorage.getItem('pflab_recs__'+UserGate.safe(u.name))||'[]');}catch(e){}
+    const a=agg(hands);
+    const judged=recs.filter(r=>r.g&&r.g!=='na'), okN=judged.filter(r=>r.g==='ok').length;
+    return {name:u.name,created:u.created,lastSeen:u.lastSeen,n:a.n,net:a.net,bb100:a.bb100,pfN:recs.length,pfAcc:judged.length?okN/judged.length*100:null};
+  }).sort((a,b)=>b.lastSeen-a.lastSeen);
+}
+function adminCSV(rows){
+  const q=v=>{ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const head='﻿name,last_seen,created,hands,net_bb,bb100,pf_answers,pf_accuracy\n';
+  return head+rows.map(r=>[r.name,new Date(r.lastSeen).toISOString(),new Date(r.created).toISOString(),r.n,r.net,r.bb100.toFixed(2),r.pfN,r.pfAcc==null?'':r.pfAcc.toFixed(1)].map(q).join(',')).join('\n');
+}
+function renderAdmin(){
+  const gate=document.getElementById('adminGate'), body=document.getElementById('adminBody');
+  const unlocked=sessionStorage.getItem('sixmaxlab_admin_ok')==='1';
+  gate.classList.toggle('hidden',unlocked); body.classList.toggle('hidden',!unlocked);
+  if(!unlocked) return;
+  const rows=adminRows();
+  if(!rows.length){ body.innerHTML='<div class="empty">まだ誰も記録していません。</div>'; return; }
+  const d=t=>new Date(t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const totalHands=rows.reduce((s,r)=>s+r.n,0), totalNet=rows.reduce((s,r)=>s+r.net,0);
+  body.innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="v">${rows.length}</div><div class="l">ユーザー数</div></div>
+      <div class="kpi"><div class="v">${totalHands}</div><div class="l">総ハンド数</div></div>
+      <div class="kpi"><div class="v ${totalNet>=0?'pos-c':'neg-c'}">${fmt(totalNet)}</div><div class="l">全体収支 bb</div></div>
+    </div>
+    <div class="toolbar"><button class="btn" id="adminCsv">CSVで書き出す</button><button class="btn fold" id="adminLock">ロックする</button></div>
+    <div class="tscroll"><table class="t">
+      <thead><tr><th>ユーザー</th><th>最終プレイ</th><th>開始</th><th>ハンド数</th><th>収支 bb</th><th>bb/100</th><th>プリフロ回答</th><th>正解率</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${escHtml(r.name)}</td><td>${d(r.lastSeen)}</td><td>${d(r.created)}</td><td class="${r.n<30?'few':''}">${r.n}</td><td class="${r.net>=0?'pos-c':'neg-c'}">${fmt(r.net)}</td><td class="${r.bb100>=0?'pos-c':'neg-c'}">${r.n?fmt(r.bb100,0):'—'}</td><td>${r.pfN}</td><td>${r.pfAcc==null?'—':r.pfAcc.toFixed(0)+'%'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  document.getElementById('adminCsv').onclick=()=>downloadBlob('6max_users.csv',adminCSV(rows));
+  document.getElementById('adminLock').onclick=()=>{ sessionStorage.removeItem('sixmaxlab_admin_ok'); renderAdmin(); };
+}
+document.getElementById('adminUnlock').onclick=()=>{
+  const v=document.getElementById('adminPass').value;
+  if(v===ADMIN_PASSCODE){ sessionStorage.setItem('sixmaxlab_admin_ok','1'); document.getElementById('adminErr').textContent=''; document.getElementById('adminPass').value=''; renderAdmin(); }
+  else document.getElementById('adminErr').textContent='パスコードが違います';
+};
+document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('adminUnlock').click(); };
+
+/* =========================================================
    Tabs & init
    ========================================================= */
 let curTab='play', pfBooted=false;
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   curTab=b.dataset.tab;
   document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));
-  ['play','stats','hist','pf'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==curTab));
-  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist();
+  ['play','stats','hist','pf','admin'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==curTab));
+  if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='admin') renderAdmin();
   if(curTab==='pf'){ if(!pfBooted){ pfBooted=true; window.PF.boot(); } else { window.PF.onShow(); } }
 });
 document.getElementById('fPos').onchange=renderStats;
@@ -1634,6 +1784,7 @@ try{ const f=localStorage.getItem('sixmaxlab_fast'); if(f) document.getElementBy
 document.getElementById('optFast').onchange=e=>{ try{localStorage.setItem('sixmaxlab_fast',e.target.checked?'1':'0');}catch(_){} };
 
 (async function init(){
+  await UserGate.ready;
   initPlayers(); render();
   setTimeout(()=>{ buildPreflop(); },0);
   try{ await Store.init(); }
@@ -1764,12 +1915,12 @@ function rangeToText(m){
    Storage (cloud db per user, with browser backup)
    record: {t, m:mode, p:pos, h:'AsKd', k:'AKo', a:'R'|'C'|'F', s:size|null, g:'ok'|'mix'|'ng'|'na', z:sizeOk|null, ms}
    ========================================================= */
-const LS_REC='pflab_recs', LS_RNG='pflab_ranges';
+const LS_RNG='pflab_ranges';
 const rkey=r=>r.t+'_'+r.h;
 function combinedRecs(){ if(!cfg.useGameLog) return Store.recs; const glog=gameLogOpenRecords(); const seen=new Set(Store.recs.map(rkey)); const merged=Store.recs.slice(); glog.forEach(r=>{ const k=rkey(r); if(!seen.has(k)){ seen.add(k); merged.push(r); } }); merged.sort((a,b)=>a.t-b.t); return merged; }
 const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),doc:null,docRecs:[],synced:new Set(),rq:Promise.resolve(),
   lsRead(k,d){ try{const raw=localStorage.getItem(k); return raw?JSON.parse(raw):d;}catch(e){return d;} },
-  lsWrite(){ return lsSet(LS_REC,JSON.stringify(this.recs)); },
+  lsWrite(){ return lsSet(UserGate.pfRecsKey(),JSON.stringify(this.recs)); },
   async connect(){
     if(!(window.claude&&typeof window.claude.use==='function')) return null;
     for(let i=0;i<2;i++){
@@ -1779,7 +1930,7 @@ const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),d
     return null;
   },
   async init(){
-    const local=this.lsRead(LS_REC,[]); let savedR=this.lsRead(LS_RNG,null);
+    const local=this.lsRead(UserGate.pfRecsKey(),[]); let savedR=this.lsRead(LS_RNG,null);
     const c=await this.connect(); let cloud=[];
     if(c){
       try{
@@ -1818,7 +1969,7 @@ const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),d
   },
   async reset(){
     if(this.mode==='cloud'){ try{ const snap=await this.db.collection('data/users/'+this.uid).get(); for(const d of snap.docs){ if(d.id.startsWith('pf_')){ try{ await this.db.doc('data/users/'+this.uid+'/'+d.id).delete(); }catch(e){} } } }catch(e){} }
-    this.recs=[]; this.synced.clear(); this.doc=null; this.docRecs=[]; try{localStorage.removeItem(LS_REC);}catch(e){}
+    this.recs=[]; this.synced.clear(); this.doc=null; this.docRecs=[]; try{localStorage.removeItem(UserGate.pfRecsKey());}catch(e){}
   }
 };
 
@@ -2285,6 +2436,7 @@ document.getElementById('pf-setbox').open=lsGet('pflab_setopen')==='1';
 document.getElementById('pf-setbox').addEventListener('toggle',e=>lsSet('pflab_setopen',e.target.open?'1':'0'));
 
 async function pfBoot(){
+  await UserGate.ready;
   renderChips(); renderButtons(); initRangeTab(); applyMode();
   await Store.init();
   if(!P.size||!SIZES.includes(P.size)) P.size=2.5; renderChips();
