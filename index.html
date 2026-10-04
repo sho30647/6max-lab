@@ -2165,7 +2165,7 @@ const Ranges={
   has(m,p){ const r=this.get(m,p); return !!(r&&r.h&&Object.keys(r.h).length); },
   exp(m,p,k){
     const R=this.get(m,p); if(!R||!R.h||!Object.keys(R.h).length) return {has:false};
-    const x=R.h[k]||{}; const r=+x.r||0, c=+x.c||0, j=+x.j||0; return {has:true,m,r,c,j,f:Math.max(0,1-r-c-j),size:+R.size||2.5};
+    const x=R.h[k]||{}; const r=+x.r||0, c=+x.c||0, j=+x.j||0; return {has:true,m,r,c,j,f:Math.round(Math.max(0,1-r-c-j)*1e6)/1e6,size:+R.size||2.5};
   },
   // share of all 1326 combos (open) — for vs3bet, of the combos in the UTG opening range
   width(m,p){ const R=this.get(m,p); if(!R) return {r:0,c:0,j:0}; let r=0,c=0,j=0; const base=rangeBase(m,p);
@@ -2787,7 +2787,7 @@ function initRangeEditor(){
   $('pf-eDiscard').onclick=()=>{ discardEdits(); renderRangeEdit(); };
   $('pf-eSave').onclick=async()=>{ $('pf-eSave').disabled=true; renderSaveBar('保存中…');
     const res=await SharedRanges.save(Ranges.data); ED.dirty=false;
-    renderSaveBar(res.ok?'保存しました。全プレイヤーのレンジ表に反映されます（他の人は次にページを開いたときから）':res.local?'この端末に保存しました（クラウドに接続できないため、他のプレイヤーにはまだ反映されていません）':'クラウドへの保存に失敗しました（'+res.err+'）。この端末には保存済みです');
+    renderSaveBar(res.ok?'保存しました。全プレイヤーのレンジ表に反映されます（他の人は次にページを開いたときから）':res.local?'この端末に保存しました（クラウドに接続できないため、他のプレイヤーにはまだ反映されていません）':res.err==='permission-denied'?'保存できませんでした：Googleでログインしたアカウントでのみ全員に反映できます（この端末には保存済み）':'クラウドへの保存に失敗しました（'+res.err+'）。この端末には保存済みです');
     refreshAfterRangeChange(); };
   $('pf-eExport').onclick=()=>{ $('pf-eText').value=rangeToText($('pf-eMode').value); };
   $('pf-eImport').onclick=()=>{
