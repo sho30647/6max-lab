@@ -875,8 +875,7 @@ function setupHand(){
   // beginner mode carries stacks over between hands (a busted player re-buys for 200点); normal mode always starts at 100bb
   const carry=isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
   S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
-  const adv=document.getElementById('advice');   // advice from a fast-folded hand stays up through the next hand
-  if(S.keepAdvice){ S.keepAdvice=false; if(!adv.dataset.prev){ adv.dataset.prev='1'; adv.innerHTML='<small>前のハンド：</small>'+adv.innerHTML; } } else { adv.classList.add('hidden'); delete adv.dataset.prev; }
+  document.getElementById('advice').classList.add('hidden');
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const sb=(S.button+1)%6, bb=(S.button+2)%6;
@@ -931,7 +930,7 @@ async function playHand(){
   const wtxt=S.showdown?S.winners.map(i=>(i===0?'あなた':S.players[i].name)+'（'+handName(i)+'）').join('・')+'の勝ち｜':'';
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜'+wtxt+'あなた '+txt):('あなた '+txt));
   renderControls();
-  if(S.autoFolded||S.fastFold){ S.keepAdvice=S.fastFold&&!document.getElementById('advice').classList.contains('hidden'); await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
+  if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
   if(document.getElementById('optAuto').checked){ const slow=isBeginner()?1.6:1; await sleep(((S.showdown||S.heroSaw[1])?2600:1500)*slow); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); }
 }
 function dealBoard(){
@@ -1011,8 +1010,8 @@ function applyAction(seat,dec){
     if(st>0) p.postAggr++;
   }
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
-  if(p.isHero&&dec.act==='fold'&&isBeginner()) setTimeout(renderControls,0);   // beginner: offer "次のハンドへ" once the hero has folded
-  if(isBeginner()) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
+  if(p.isHero&&dec.act==='fold'&&isBeginner()) S.fastFold=true;   // beginner: after folding, play out the rest instantly and show just the result
+  if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0); }
@@ -1025,7 +1024,7 @@ function openAdvice(act){
   let t='';
   if(act==='raise'&&f===0) t=`<b>ミス：</b>${pos}の ${hand} は均衡のオープンレンジに入っていません（オープン頻度 0%）。<br>正しいアクション：<b>フォールド</b>`;
   else if(act==='fold'&&f>=1) t=`<b>ミス：</b>${pos}の ${hand} は均衡では毎回オープンするハンドです（オープン頻度 100%）。<br>正しいアクション：<b>オープン（レイズ）</b>`;
-  const el=document.getElementById('advice'); el.innerHTML=t; delete el.dataset.prev; el.classList.toggle('hidden',!t);
+  const el=document.getElementById('advice'); el.innerHTML=t; el.classList.toggle('hidden',!t);
 }
 
 /* =========================================================
@@ -1391,6 +1390,7 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s${c&3} ${cls}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`; }
 function render(){
+  if(S.fastFold&&S.running) return;   // beginner fold: skip drawing the rest of the hand, show only the result
   const box=document.getElementById('tablebox');
   box.querySelectorAll('.seat,.betchip,.dbtn,.abub,.res').forEach(e=>e.remove());
   const handLive=S.players[0].hole.length>0, beg=isBeginner();
@@ -1417,7 +1417,7 @@ function render(){
       if(S.done){
         const d=p.stack-p.start, sign=d>0?'+':d<0?'−':'±';
         const r=S.soleWin.has(i)?['win','勝ち']:S.shared.has(i)?['draw','引き分け']:d<0?['lose','負け']:null;
-        if(r){ c.className='res '+r[0]+(p.isHero?' me':''); c.innerHTML=`<b>${p.isHero?'あなたの':''}${r[1]}</b><span>${sign}${pts(Math.abs(d))}点</span>`; box.appendChild(c); }
+        if(r){ c.className='res '+r[0]+(p.isHero?' me':''); c.innerHTML=`<b>${r[1]}</b><span>${sign}${pts(Math.abs(d))}点</span>`; box.appendChild(c); }
       } else if(p.la&&p.la.st===S.street){
         const k=p.la.ai&&p.la.k!=='fold'?'ai':p.la.k, name=k==='ai'?'オールイン':{sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[k];
         c.className='abub'+(S.lastActor===i?' last':'');
@@ -1456,12 +1456,7 @@ function heroChoose(dec){ const r=S.heroResolve; S.heroResolve=null; document.ge
 function renderControls(){
   const area=document.getElementById('actArea');
   if(!S.heroResolve){
-    if(S.running&&isBeginner()&&S.players[0].folded&&!S.fastFold){ // folded: watch the rest, or skip to the next hand
-      area.innerHTML='<div class="row"><button class="btn main grow" id="btnSkip">次のハンドへ</button></div>';
-      document.getElementById('btnSkip').onclick=()=>{ S.fastFold=true; renderControls(); };
-      return;
-    }
-    if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>'+(S.fastFold?'次のハンドを準備中…':'相手の手番…')+'</button></div>'; return; }
+    if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; return; }
     area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
     document.getElementById('btnDeal').onclick=()=>{ if(!S.running) playHand(); };
     return;
