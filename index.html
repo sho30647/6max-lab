@@ -1613,7 +1613,7 @@ const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: p
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
 const isPhone=()=>matchMedia('(max-width:600px)').matches;
 // phone: where each seat's bets / result badge go — clear of the seat plates, the board and each other
-const SPOT_XY_M=[[50,70],[27,84],[31,34],[50,33],[69,34],[73,84]];
+const SPOT_XY_M=[[50,70],[31,72],[31,34],[50,33],[69,34],[69,72]];
 window.addEventListener("resize",()=>{ if(S.players.length) render(); });
 if(!matchMedia("(max-width:600px)").matches) document.getElementById("optBox").open=true;   // settings start folded on phones
 function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s${c&3} ${cls}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`; }
@@ -2484,7 +2484,7 @@ function freqBar(e){
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
-const SPOT_XY_M=[[50,70],[27,84],[31,34],[50,33],[69,34],[73,84]];   // phone: bet spots clear of the plates
+const SPOT_XY_M=[[50,70],[31,72],[31,34],[50,33],[69,34],[69,72]];   // phone: bet spots clear of the plates
 window.addEventListener("resize",()=>{ if(P.cur) renderTable(); });
 const P={mode:lsGet('pflab_mode')||'open',cur:null,answered:false,size:+(lsGet('pflab_size')||2.5),t0:0,session:{n:0,ok:0,j:0},timer:null,last:null};
 const DEF={far:true,sizeOn:false,speed:150,farD:3,useGameLog:true};
