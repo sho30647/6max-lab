@@ -367,6 +367,9 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .rov .grid13 button.cur{outline:3px solid var(--brass);outline-offset:-1px;position:relative;z-index:1;font-weight:700}
 .rov .legend i.curmark{height:10px;width:10px;border:2px solid var(--brass);box-sizing:border-box}
 .rovinfo{font-size:12px;color:var(--muted);text-align:center}
+.fbrng{padding:6px 16px;font-size:14px}
+/* phone: keep the bottom-right corner empty for the fixed "Powered by Netlify" badge */
+@media (max-width:600px){ #pf-controls .nextrow .btn{flex:0 0 calc(50% - 8px)} }
 .tablebox:has(.rov) .seat,.tablebox:has(.rov) .betchip{visibility:hidden}
 #pf-btnRng[aria-pressed="true"]{background:var(--surface2)}
 @media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} }
@@ -688,6 +691,49 @@ const FirebaseGate=(()=>{
     return p;
   }
   return {ready};
+})();
+
+/* =========================================================
+   Per-account settings: the last-used options (ring + preflop) and the beginner-mode stacks are kept in
+   Firestore doc data/users/{uid}/prefs, so they follow the account to every device and survive reloads.
+   Options themselves still live in localStorage (the rest of the code reads them there); this module mirrors
+   them to the cloud on every change, and on load lets the cloud copy win (one reload when it differs).
+   ========================================================= */
+const Prefs=(()=>{
+  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto)$/.test(k);
+  const snapshot=()=>{ const o={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(isPref(k)) o[k]=localStorage.getItem(k); } }catch(e){} return o; };
+  const same=(a,b)=>{ const ka=Object.keys(a).sort(), kb=Object.keys(b).sort(); return ka.length===kb.length&&ka.every((k,i)=>k===kb[i]&&a[k]===b[k]); };
+  const rawSet=Storage.prototype.setItem, rawDel=Storage.prototype.removeItem;
+  let ref=null, timer=null, applying=false, stacks=null;
+  const api={get stacks(){ return stacks; }};
+  function save(){
+    if(!ref) return;
+    ref.set({settings:snapshot(),stacks:stacks||[],updated:Date.now()}).catch(e=>console.warn('prefs save',e));
+  }
+  function schedule(){ if(!ref) return; clearTimeout(timer); timer=setTimeout(save,600); }
+  Storage.prototype.setItem=function(k,v){ rawSet.call(this,k,v); if(!applying&&this===localStorage&&isPref(k)) schedule(); };
+  Storage.prototype.removeItem=function(k){ rawDel.call(this,k); if(!applying&&this===localStorage&&isPref(k)) schedule(); };
+  api.saveStacks=arr=>{ stacks=arr; schedule(); };
+  async function load(){
+    try{
+      const c=await FirebaseGate.ready(); if(!c||!c.user||c.user.isAnonymous) return;
+      ref=c.db.doc('data/users/'+c.uid+'/prefs');
+      const s=await ref.get();
+      if(!s.exists){ save(); return; }
+      const d=s.data()||{}; stacks=Array.isArray(d.stacks)&&d.stacks.length===6?d.stacks:null;
+      const cloud=d.settings&&typeof d.settings==='object'?d.settings:null, local=snapshot();
+      if(cloud&&!same(cloud,local)){
+        let last=0; try{ last=+sessionStorage.getItem('prefsReloadAt')||0; }catch(e){}
+        if(Date.now()-last>15000){   // the guard stops a reload loop if storage refuses the write
+          try{ sessionStorage.setItem('prefsReloadAt',String(Date.now())); }catch(e){}
+          applying=true; Object.keys(local).forEach(k=>rawDel.call(localStorage,k)); Object.keys(cloud).forEach(k=>{ if(isPref(k)) rawSet.call(localStorage,k,String(cloud[k])); }); applying=false;
+          location.reload(); await new Promise(()=>{});
+        }
+      }
+    }catch(e){ console.warn('prefs load',e); }
+  }
+  api.ready=Promise.race([load(),new Promise(r=>setTimeout(r,5000))]);
+  return api;
 })();
 
 /* =========================================================
@@ -1174,6 +1220,7 @@ async function playHand(){
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
   S.session.n++; S.session.net+=rec.net;
+  if(isBeginner()) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
   const txt=netTxt(rec.net);
@@ -2232,26 +2279,30 @@ function applyBeginner(){
   render(); renderSession(); if(S.heroResolve) renderControls();
 }
 try{ document.getElementById('optBeginner').checked=localStorage.getItem('sixmaxlab_beginner')==='1'; }catch(e){}
+try{ const a=localStorage.getItem('sixmaxlab_auto'); if(a) document.getElementById('optAuto').checked=a==='1'; }catch(e){}
+document.getElementById('optAuto').onchange=e=>{ try{localStorage.setItem('sixmaxlab_auto',e.target.checked?'1':'0');}catch(_){} };
 if(isBeginner()) document.getElementById('optAuto').checked=false;
 applyBeginner();
 document.getElementById('optBeginner').onchange=e=>{
   try{localStorage.setItem('sixmaxlab_beginner',e.target.checked?'1':'0');}catch(_){}
   if(e.target.checked){ // beginner defaults: decide every hand yourself, deal the next hand by hand, start everyone at 200点
-    document.getElementById('optAuto').checked=false;
+    document.getElementById('optAuto').checked=false; try{localStorage.setItem('sixmaxlab_auto','0');}catch(_){}
     document.getElementById('optAutoFold').checked=false; try{localStorage.setItem('sixmaxlab_autofold','0');}catch(_){}
     resetStacks();
   }
   applyBeginner();
 };
 function resetStacks(){ // applied at the next deal; shown right away when no hand is in progress
-  S.resetStacks=true;
+  S.resetStacks=true; Prefs.saveStacks(S.players.length?S.players.map(()=>START):null);
   if(!S.running&&S.players.length){ S.players.forEach(p=>{p.stack=START; p.start=START; p.la=null;}); S.done=false; render(); }
 }
 document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.running) setMsg('次のハンドから全員200点に戻します'); };
 
 (async function init(){
-  await UserGate.ready;
-  initPlayers(); render();
+  await UserGate.ready; await Prefs.ready;
+  initPlayers();
+  if(isBeginner()&&Prefs.stacks) S.players.forEach((p,i)=>{ const v=+Prefs.stacks[i]; if(isFinite(v)&&v>=0) p.stack=v; });   // beginner-mode points follow the account
+  render();
   setTimeout(()=>{ buildPreflop(); },0);
   try{ await Store.init(); }
   catch(e){ console.error('init',e); setStatus('記録の読み込みでエラーが起きました（'+(e&&e.message||e)+'）。記録自体は保存先に残っています'); }
@@ -2685,15 +2736,14 @@ function answer(a){
 function renderFeedback(rec,e){
   const fb=document.getElementById('pf-fb'); fb.classList.remove('hidden');
   const [gc,gl]=GRADE[rec.g];
-  const mine=rec.a==='R'&&rec.s!=null?`レイズ ${rec.s}bb`:actName(rec.m,rec.a);
-  let sz=''; if(rec.z===false) sz=`<div class="fbsub" style="color:var(--loss)">サイズ：${rec.s}bb → レンジ表は ${e.size}bb</div>`;
+  let sz='';if(rec.z===false) sz=`<div class="fbsub" style="color:var(--loss)">サイズ：${rec.s}bb → レンジ表は ${e.size}bb</div>`;
   else if(rec.z===true) sz=`<div class="fbsub">サイズ一致（${e.size}bb）</div>`;
   const hist=combinedRecs().filter(r=>r.m===rec.m&&r.p===rec.p&&r.k===rec.k).map(rejudge).filter(j=>j.g!=='na');
   const hok=hist.filter(j=>(j.g==='ok'||j.g==='mix')&&j.z!==false).length;
-  fb.innerHTML=`<div class="fbhead"><span class="badge ${gc}">${gl}</span><span class="fbtxt">${posLabel(rec.p)}・${rec.k}　あなた：${mine}</span></div>
+  fb.innerHTML=`<div class="fbhead"><span class="badge ${gc}">${gl}</span>${e.has?'<button class="btn fbrng" id="pf-btnRng">レンジ表</button>':''}</div>
     <div class="fbsub">レンジ表：${expText(e)}</div>${freqBar(e)}${sz}
     <div class="fbsub">このハンドの通算（${posLabel(rec.p)}・${rec.k}）：${hist.length}回中 ${hok}回正解　判断 ${(rec.ms/1000).toFixed(1)}秒</div>
-    <div class="row" style="margin-top:10px">${e.has?'<button class="btn grow" id="pf-btnRng">レンジ表</button>':''}<button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
+    <div class="row nextrow" style="margin-top:10px"><button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
   document.getElementById('pf-btnNext').onclick=deal;
   const rb=document.getElementById('pf-btnRng');
   if(rb) rb.onclick=()=>{ const on=!document.getElementById('pf-rov'); lsSet('pflab_fbrange',on?'1':'0'); on?showRangeOverlay(rec):hideRangeOverlay(); };
