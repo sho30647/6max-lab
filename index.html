@@ -354,13 +354,19 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   #pf-controls .row .btn{flex:1 1 0;min-width:0;padding:6px 2px;font-size:14px;white-space:nowrap;line-height:1.25}
   #pf-controls .row .btn small{font-size:11px}
 }
-/* preflop feedback: whole range with the current hand outlined */
-.fbrange{margin-top:10px}
-.fbrange summary{cursor:pointer;font-size:13px;color:var(--muted);padding:2px 0}
-.fbrange .grid13{max-width:420px;margin:6px auto 0}
-.fbrange .grid13 button.cur{outline:3px solid var(--brass);outline-offset:-1px;position:relative;z-index:1;font-weight:700}
-.fbrange .legend i.curmark{height:10px;width:10px;border:2px solid var(--brass);box-sizing:border-box}
-@media (max-width:600px){ .fbrange .grid13 button{font-size:8.5px} .fbrange .grid13{gap:1px} }
+/* preflop: whole spot range drawn over the table after a stopped answer */
+.rov{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.rovhead{display:flex;align-items:center;gap:10px;width:100%;font-size:13px}
+.rovhead .legend{margin:0;gap:8px;font-size:11px;flex:1}
+.rovx{margin-left:auto;border:0;background:var(--surface2);color:var(--ink);border-radius:50%;width:28px;height:28px;font-size:18px;line-height:1;cursor:pointer}
+.rov .grid13{flex:1 1 0;min-height:0;aspect-ratio:1;max-width:100%;gap:1px;grid-template-rows:repeat(13,1fr)}
+.rov .grid13 button{aspect-ratio:auto;font-size:10px;min-height:0}
+.rov .grid13 button.cur{outline:3px solid var(--brass);outline-offset:-1px;position:relative;z-index:1;font-weight:700}
+.rov .legend i.curmark{height:10px;width:10px;border:2px solid var(--brass);box-sizing:border-box}
+.rovinfo{font-size:12px;color:var(--muted);text-align:center}
+.tablebox:has(.rov) .seat,.tablebox:has(.rov) .betchip{visibility:hidden}
+#pf-btnRng[aria-pressed="true"]{background:var(--surface2)}
+@media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} }
 </style>
 </head>
 <body>
@@ -2581,7 +2587,7 @@ function deal(){
   else { for(let t=0;t<500;t++){ const a=Math.floor(Math.random()*52); let b; do{ b=Math.floor(Math.random()*52); }while(b===a); cards=[a,b]; k=cardsToCls(a,b); if(!far.has(k)) break; } }
   if(P.last&&P.last===pos+k&&cfg.deal!=='all'){ return deal(); }
   P.last=pos+k; P.cur={pos,cards,k}; P.answered=false; P.t0=performance.now();
-  document.getElementById('pf-fb').classList.add('hidden');
+  document.getElementById('pf-fb').classList.add('hidden'); hideRangeOverlay();
   renderTable(); renderButtons(); renderChips();
   if(v3){ const R=Ranges.get('vs3bet',pos)||{}, s=spotOf(pos); setMsg(`あなたの${s.hero} ${openSize(s.hero)}bbオープンに ${s.vil} が ${R.vs||'?'}bb に3ベット`); }
   else { const pi=POS.indexOf(pos); setMsg(pi===0?'あなたが最初のアクション':(POS.slice(0,pi).join('・')+'がフォールド')); }
@@ -2642,6 +2648,7 @@ function answer(a){
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
   if(document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)) P.timer=setTimeout(deal,cfg.speed);
+  else if(lsGet('pflab_fbrange')!=='0') showRangeOverlay(rec);
 }
 function renderFeedback(rec,e){
   const fb=document.getElementById('pf-fb'); fb.classList.remove('hidden');
@@ -2654,16 +2661,24 @@ function renderFeedback(rec,e){
   fb.innerHTML=`<div class="fbhead"><span class="badge ${gc}">${gl}</span><span class="fbtxt">${posLabel(rec.p)}・${rec.k}　あなた：${mine}</span></div>
     <div class="fbsub">レンジ表：${expText(e)}</div>${freqBar(e)}${sz}
     <div class="fbsub">このハンドの通算（${posLabel(rec.p)}・${rec.k}）：${hist.length}回中 ${hok}回正解　判断 ${(rec.ms/1000).toFixed(1)}秒</div>
-    <div class="row" style="margin-top:10px"><button class="btn main grow" id="pf-btnNext">次のハンド</button></div>
-    ${e.has?`<details class="fbrange" id="pf-fbRange"${lsGet('pflab_fbrange')==='0'?'':' open'}><summary>レンジ全体（${posLabel(rec.p)}）</summary>
-      <div class="grid13" id="pf-fbGrid">${rangeCells(rec.m,rec.p)}</div>
-      <div class="legend">${rangeLegend(rec.m)}<span><i class="curmark"></i>今のハンド</span></div>
-      <div class="fbsub" id="pf-fbInfo">${rangeSumText(rec.m,rec.p)}</div></details>`:''}`;
+    <div class="row" style="margin-top:10px">${e.has?'<button class="btn grow" id="pf-btnRng">レンジ全体</button>':''}<button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
   document.getElementById('pf-btnNext').onclick=deal;
-  const g=document.getElementById('pf-fbGrid');
-  if(g){ const cur=g.querySelector(`[data-k="${rec.k}"]`); if(cur) cur.classList.add('cur');
-    g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ document.getElementById('pf-fbInfo').innerHTML=`<b>${b.dataset.k}</b>：${expText(Ranges.exp(rec.m,rec.p,b.dataset.k))}`; });
-    document.getElementById('pf-fbRange').ontoggle=ev=>lsSet('pflab_fbrange',ev.target.open?'1':'0'); }
+  const rb=document.getElementById('pf-btnRng');
+  if(rb) rb.onclick=()=>{ const on=!document.getElementById('pf-rov'); lsSet('pflab_fbrange',on?'1':'0'); on?showRangeOverlay(rec):hideRangeOverlay(); };
+}
+/* after a stopped answer: the whole spot range drawn over the table, current hand outlined */
+function hideRangeOverlay(){ const o=document.getElementById('pf-rov'); if(o) o.remove(); const b=document.getElementById('pf-btnRng'); if(b) b.setAttribute('aria-pressed','false'); }
+function showRangeOverlay(rec){
+  hideRangeOverlay(); if(!Ranges.has(rec.m,rec.p)) return;
+  const o=document.createElement('div'); o.className='rov'; o.id='pf-rov';
+  o.innerHTML=`<div class="rovhead"><b>${posLabel(rec.p)}<span class="pcOnly"> のレンジ全体</span></b><span class="legend">${rangeLegend(rec.m)}<span><i class="curmark"></i>${rec.k}</span></span><button class="rovx" aria-label="閉じる">×</button></div>
+    <div class="grid13">${rangeCells(rec.m,rec.p)}</div>
+    <div class="rovinfo">${rangeSumText(rec.m,rec.p)}</div>`;
+  document.getElementById('pf-tablebox').appendChild(o);
+  const cur=o.querySelector(`.grid13 [data-k="${rec.k}"]`); if(cur) cur.classList.add('cur');
+  o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ o.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${expText(Ranges.exp(rec.m,rec.p,b.dataset.k))}`; });
+  o.querySelector('.rovx').onclick=()=>{ lsSet('pflab_fbrange','0'); hideRangeOverlay(); };
+  const b=document.getElementById('pf-btnRng'); if(b) b.setAttribute('aria-pressed','true');
 }
 function setStatus(t){ const e=document.getElementById('pf-session'); e.dataset.status=t; renderSession(); }
 function renderSession(){
