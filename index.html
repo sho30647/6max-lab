@@ -499,7 +499,10 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <details class="setbox" id="pf-setbox">
         <summary>出題設定</summary>
         <div class="setin">
-          <div><p class="lbl">出題するポジション</p><div class="checks" id="pf-posChecks"></div></div>
+          <div><p class="lbl">出題するポジション</p>
+            <div class="row" style="gap:6px;margin-bottom:6px"><button class="btn" id="pf-posAll" type="button">全部選択</button><button class="btn" id="pf-posNone" type="button">全部クリア</button></div>
+            <div class="checks" id="pf-posChecks"></div>
+            <p class="help">1つも選ばないときは、すべてのポジションから出題します</p></div>
           <div><p class="lbl">ハンドの出方</p>
             <select id="pf-dealMode">
               <option value="all">実戦と同じ頻度（ランダム配布）</option>
@@ -2714,7 +2717,7 @@ function renderSession(){
   e.innerHTML=`今回 <b>${s.n}</b> 問／正解率 <b>${s.j?pct(s.ok/s.j,0):'—'}</b>　累計 <b>${Store.recs.length}</b> 問<br>${e.dataset.status||modeTxt}`;
 }
 function renderPosChecks(){
-  const on=modePos(P.mode);
+  const on=MODE_POS[P.mode].filter(p=>cfg.pos.has(p));
   document.getElementById('pf-posChecks').innerHTML=MODE_POS[P.mode].map(p=>`<label><input type="checkbox" value="${p}" ${on.includes(p)?'checked':''}> ${posLabel(p)}${Ranges.has(P.mode,p)?'':'<span class="help">（未登録）</span>'}</label>`).join('');
 }
 
@@ -3070,8 +3073,10 @@ function applyMode(){
 document.querySelectorAll('#pf-modes button').forEach(b=>b.onclick=()=>{ P.mode=b.dataset.mode; lsSet('pflab_mode',P.mode); applyMode(); if(modeReady(P.mode)){ renderPosChecks(); renderFarInfo(); deal(); } });
 document.getElementById('pf-chips').onclick=e=>{ const b=e.target.closest('[data-s]'); if(!b) return; P.size=+b.dataset.s; lsSet('pflab_size',P.size); renderChips(); };
 document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.onclick=()=>answer(b.dataset.a));
-document.getElementById('pf-posChecks').onchange=()=>{ const s=[...document.querySelectorAll('#pf-posChecks input:checked')].map(x=>x.value); if(!s.length){ renderPosChecks(); return; }
-  cfg.pos=new Set([...cfg.pos].filter(p=>!MODE_POS[P.mode].includes(p)).concat(s)); lsSet('pflab_pos',JSON.stringify([...cfg.pos])); };   // keep the other modes' selections
+const setPos=s=>{ cfg.pos=new Set([...cfg.pos].filter(p=>!MODE_POS[P.mode].includes(p)).concat(s)); lsSet('pflab_pos',JSON.stringify([...cfg.pos])); };   // keep the other modes' selections
+document.getElementById('pf-posChecks').onchange=()=>setPos([...document.querySelectorAll('#pf-posChecks input:checked')].map(x=>x.value));
+document.getElementById('pf-posAll').onclick=()=>{ setPos(MODE_POS[P.mode]); renderPosChecks(); };
+document.getElementById('pf-posNone').onclick=()=>{ setPos([]); renderPosChecks(); };
 document.getElementById('pf-dealMode').value=cfg.deal;
 document.getElementById('pf-optSize').checked=cfg.sizeOn;
 document.getElementById('pf-optSize').onchange=e=>{ cfg.sizeOn=e.target.checked; lsSet('pflab_sizeon',cfg.sizeOn?'1':'0'); renderChips(); };
