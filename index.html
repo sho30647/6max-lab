@@ -354,6 +354,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   #pf-controls .row .btn{flex:1 1 0;min-width:0;padding:6px 2px;font-size:14px;white-space:nowrap;line-height:1.25}
   #pf-controls .row .btn small{font-size:11px}
 }
+.grid13 button.mixf{text-shadow:0 0 2px #000,0 0 2px #000,0 0 3px #000,0 0 3px #000}
 /* preflop: whole spot range drawn over the table after a stopped answer */
 .rov{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
 .rovhead{display:flex;align-items:center;gap:10px;width:100%;font-size:13px}
@@ -505,6 +506,8 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
               <option value="edge">レンジの境界ハンド中心</option>
               <option value="weak">苦手ハンド中心（誤答の多い順）</option>
             </select>
+            <div class="checks"><label><input type="checkbox" id="pf-optBorder"> きわどいハンドのみを練習する</label></div>
+            <p class="help">フォールドとの境目にあるハンド（フォールドを含む混合戦略のハンド／真下が混合戦略のハンド／レンジの外側ですぐ隣にあるフォールドのハンド）だけを出題します</p>
           </div>
           <div><p class="lbl">明らかなフォールド</p>
             <div class="checks"><label><input type="checkbox" id="pf-optFar"> 参加ハンドから離れたハンドは出題しない</label>
@@ -2075,7 +2078,7 @@ async function initSheets(){
 /* =========================================================
    Admin: all-users summary (passcode-gated, this browser only)
    ========================================================= */
-const ADMIN_PASSCODE='6max2026';
+const ADMIN_PASSCODE='6max2026', OWNER_EMAIL='sho30647@gmail.com';
 function escHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function downloadBlob(filename,text){
   const blob=new Blob([text],{type:/.json$/.test(filename)?'application/json;charset=utf-8':'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob);
@@ -2085,6 +2088,10 @@ function downloadBlob(filename,text){
 /* Account directory for the admin view: every Google-logged-in player keeps profiles/{uid} up to date
    (Firestore can't list the per-user data collections from the browser, so this is how the admin finds them). */
 async function registerProfile(conn){
+  if(conn.user&&!conn.user.isAnonymous&&String(conn.user.email||'').toLowerCase()===OWNER_EMAIL){   // the owner skips the passcode
+    try{ sessionStorage.setItem('sixmaxlab_admin_ok','1'); }catch(e){}
+    try{ renderAdmin(); }catch(e){}
+  }
   try{
     const ref=conn.db.doc('profiles/'+conn.uid), now=Date.now(), snap=await ref.get();
     await ref.set({name:conn.user.displayName||conn.user.email||'',email:conn.user.email||'',lastSeen:now,created:snap.exists&&snap.data().created||now},{merge:true});
@@ -2520,7 +2527,8 @@ const cfg={pos:new Set(JSON.parse(lsGet('pflab_pos')||'null')||MODE_POS.open),de
   speed:lsGet('pflab_speed')===null?DEF.speed:+lsGet('pflab_speed'),
   farD:lsGet('pflab_fard')===null?DEF.farD:+lsGet('pflab_fard'),
   useGameLog:true,   // table-play decisions are always part of the analysis
-  stopMix:lsGet('pflab_stopmix')==='1'};
+  stopMix:lsGet('pflab_stopmix')==='1',
+  border:lsGet('pflab_border')==='1'};
 
 function gameLogOpenRecords(hands){
   try{
@@ -2561,6 +2569,22 @@ function edgeSet(m,p){
     if(edge) out.push(k); }
   return out;
 }
+/* "きわどいハンド": (a) pure fold with a non-pure-fold neighbour above / left / upper-left,
+   (b) any hand whose strategy mixes fold with something else,
+   (c) a no-fold hand whose cell directly below is a fold-mixed hand */
+function borderSet(m,p){
+  if(!Ranges.has(m,p)) return [];
+  const EPS=0.001, fo=(i,j)=>Ranges.exp(m,p,clsAt(i,j)).f;
+  const pureFold=(i,j)=>fo(i,j)>1-EPS, mixFold=(i,j)=>{ const f=fo(i,j); return f>EPS&&f<1-EPS; };
+  const out=[];
+  for(let i=0;i<13;i++) for(let j=0;j<13;j++){ const k=clsAt(i,j); if(!dealWeight(m,p,k)) continue;
+    let hit=false;
+    if(pureFold(i,j)) hit=[[-1,0],[0,-1],[-1,-1]].some(([di,dj])=>{ const a=i+di,b=j+dj; return a>=0&&b>=0&&!pureFold(a,b); });
+    else if(mixFold(i,j)) hit=true;
+    else if(fo(i,j)<EPS) hit=i<12&&mixFold(i+1,j);
+    if(hit) out.push(k); }
+  return out;
+}
 function farSet(m,p,dist){
   if(!Ranges.has(m,p)) return new Set();
   const inR=[]; for(let i=0;i<13;i++) for(let j=0;j<13;j++){ const e=Ranges.exp(m,p,clsAt(i,j)); if(e.r+e.c>0) inR.push([i,j]); }
@@ -2580,8 +2604,11 @@ function deal(){
   const v3=P.mode==='vs3bet';
   let cards=null, k=null;
   const far=cfg.far&&!v3?farSet(P.mode,pos,cfg.farD):new Set();
-  if(cfg.deal==='edge'){ const s=edgeSet(P.mode,pos); if(s.length){ k=pickWeighted(s.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)}))); } }
-  if(cfg.deal==='weak'){ const s=weakSet(P.mode,pos).filter(x=>!far.has(x.k)); if(s.length&&Math.random()<0.8){ k=pickWeighted(s); } }
+  if(cfg.border){ let s=borderSet(P.mode,pos);
+    if(cfg.deal==='weak'){ const w=weakSet(P.mode,pos).filter(x=>s.includes(x.k)); if(w.length&&Math.random()<0.8) k=pickWeighted(w); }
+    if(!k&&s.length) k=pickWeighted(s.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)}))); }
+  if(!k&&cfg.deal==='edge'){ const s=edgeSet(P.mode,pos); if(s.length){ k=pickWeighted(s.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)}))); } }
+  if(!k&&cfg.deal==='weak'){ const s=weakSet(P.mode,pos).filter(x=>!far.has(x.k)); if(s.length&&Math.random()<0.8){ k=pickWeighted(s); } }
   if(!k&&v3) k=pickWeighted(CLASSES.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)})).filter(x=>x.w>0));   // only hands the hero actually opened
   if(k) cards=cardsForCls(k);
   else { for(let t=0;t<500;t++){ const a=Math.floor(Math.random()*52); let b; do{ b=Math.floor(Math.random()*52); }while(b===a); cards=[a,b]; k=cardsToCls(a,b); if(!far.has(k)) break; } }
@@ -2793,7 +2820,7 @@ function renderCompare(m,recs,fp){
   const wc=widthCompare(m,cPos,aggregate(recs.filter(r=>r.p===cPos)).byPK);
   const views=[['all','3つ並べる'],['ok','正解レンジ'],['me','あなたのレンジ'],['gap','乖離']];
   const grid=(type)=>`<div><p class="lbl">${{ok:'正解レンジ（GTO）',me:'あなたのレンジ（回答から）',gap:'乖離'}[type]}</p><div class="grid13 cgrid" data-type="${type}">${CLASSES.map(k=>{ const c=cell[k]; let bg='',cls='',txt=k,col='';
-      if(type==='ok'){ bg=mixBg(c.e.r,c.e.c,c.e.j); if(bg) col='#fff'; }
+      if(type==='ok'){ bg=mixBg(c.e.r,c.e.c,c.e.j); if(bg) col='#fff'; if(bg&&c.e.f>0.001) cls='mixf'; }
       else if(type==='me'){ if(!c.o){ cls='nod unk'; } else { bg=mixBg(c.yr,c.yc,c.yj,'#7C8790'); if(bg) col='#fff'; if(c.o.n<3) cls='thin'; } }
       else { if(!c.o) cls='nod unk'; else if(c.kind==='loose'){ bg=`rgba(217,130,43,${0.35+0.65*Math.min(1,c.d)})`; col='#fff'; } else if(c.kind==='tight'){ bg=`rgba(58,111,176,${0.35+0.65*Math.min(1,-c.d)})`; col='#fff'; } else if(c.kind==='type'){ bg='rgba(139,92,176,.85)'; col='#fff'; } else { cls='match'; }
         if(c.o&&c.o.n<3) cls+=' thin'; }
@@ -2884,7 +2911,8 @@ function rangeSumText(m,p){
 function rangeCells(m,p,selSet){
   const R=Ranges.get(m,p)||{h:{}}, v3=m==='vs3bet';
   return CLASSES.map(k=>{ const x=R.h[k]; const bg=x?mixBg(+x.r||0,+x.c||0,+x.j||0):''; const out=v3&&!dealWeight(m,p,k);   // vs3bet: hands the opener never has
-    return `<button data-k="${k}" class="${out?'thin':''}${selSet&&selSet.has(k)?' picked':''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join('');
+    const mixf=x&&(+x.r||0)+(+x.c||0)+(+x.j||0)<0.999;   // gradient with a light fold part: white label needs an outline
+    return `<button data-k="${k}" class="${out?'thin':''}${selSet&&selSet.has(k)?' picked':''}${mixf?' mixf':''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join('');
 }
 
 /* ---------- range viewer (everyone) ---------- */
@@ -3057,6 +3085,8 @@ function renderFarInfo(){ const el=document.getElementById('pf-farInfo');
   const parts=MODE_POS[P.mode].filter(p=>Ranges.has(P.mode,p)).map(p=>{ const f=farSet(P.mode,p,cfg.farD); let c=0; f.forEach(k=>c+=combos(k)); return `${p} ${f.size}種（${pct(c/1326,0)}）`; });
   el.textContent=cfg.far?('除外されるハンド：'+parts.join('／')):'オフ：実戦どおり、明らかなフォールドも出題します'; }
 document.getElementById('pf-dealMode').onchange=e=>{ cfg.deal=e.target.value; lsSet('pflab_deal',cfg.deal); };
+document.getElementById('pf-optBorder').checked=cfg.border;
+document.getElementById('pf-optBorder').onchange=e=>{ cfg.border=e.target.checked; lsSet('pflab_border',cfg.border?'1':'0'); };
 document.getElementById('pf-optAuto').checked=lsGet('pflab_auto')!=='0';
 document.getElementById('pf-optAuto').onchange=e=>lsSet('pflab_auto',e.target.checked?'1':'0');
 document.getElementById("pf-optStopMix").checked=cfg.stopMix;
