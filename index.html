@@ -2691,7 +2691,7 @@ function renderFeedback(rec,e){
   fb.innerHTML=`<div class="fbhead"><span class="badge ${gc}">${gl}</span><span class="fbtxt">${posLabel(rec.p)}・${rec.k}　あなた：${mine}</span></div>
     <div class="fbsub">レンジ表：${expText(e)}</div>${freqBar(e)}${sz}
     <div class="fbsub">このハンドの通算（${posLabel(rec.p)}・${rec.k}）：${hist.length}回中 ${hok}回正解　判断 ${(rec.ms/1000).toFixed(1)}秒</div>
-    <div class="row" style="margin-top:10px">${e.has?'<button class="btn grow" id="pf-btnRng">レンジ全体</button>':''}<button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
+    <div class="row" style="margin-top:10px">${e.has?'<button class="btn grow" id="pf-btnRng">レンジ表</button>':''}<button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
   document.getElementById('pf-btnNext').onclick=deal;
   const rb=document.getElementById('pf-btnRng');
   if(rb) rb.onclick=()=>{ const on=!document.getElementById('pf-rov'); lsSet('pflab_fbrange',on?'1':'0'); on?showRangeOverlay(rec):hideRangeOverlay(); };
