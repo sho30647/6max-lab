@@ -367,6 +367,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .mchip.ng{background:var(--loss);border-color:var(--loss);color:#fff}
 .mchip.cur{outline:2px solid var(--brass);outline-offset:1px;color:var(--ink)}
 .mchip.ok.cur,.mchip.ng.cur{color:#fff}
+.msum{margin-top:8px;padding:8px 10px;border-radius:9px;background:var(--surface2);font-size:14px}
 .estgrid{touch-action:none;user-select:none}
 .estbar{display:flex;gap:6px;width:100%;justify-content:center;flex-wrap:wrap}
 .estbar .btn{padding:6px 14px;font-size:14px}
@@ -569,6 +570,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
         <option value="0">全回答</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
       </select>
     </div>
+    <section class="block" id="pf-mstBlock"></section>
     <div id="pf-statsBody"></div>
   </div>
 
@@ -2763,7 +2765,7 @@ function renderMprog(){
   if(P.special!=='master'||!M){ el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   const n=M.queue.length, done=M.res.filter(Boolean).length, okN=M.res.filter(resOk).length;
-  el.innerHTML=`<div class="mhead"><b>${posLabel(M.pos)}・${M.k}</b><span>${M.i+1}/${n}${done===n?`　総合 ${okN}/${n} 正解`:''}</span></div>
+  el.innerHTML=`<div class="mhead"><b>${posLabel(M.pos)}・${M.k}</b><span>${M.i+1}/${n}${done===n?`　総合 ${okN}/${n}（${Math.round(okN/n*100)}%）`:''}</span></div>
     <div class="mchips">${M.queue.map((q,i)=>`<span class="mchip${M.res[i]?(resOk(M.res[i])?' ok':' ng'):''}${i===M.i?' cur':''}">${q.label}</span>`).join('')}</div>`;
 }
 
@@ -2874,7 +2876,7 @@ function answer(a){
   if(a==='J'&&!isSpot(P.mode)) return;
   const sized=cfg.sizeOn&&P.mode==='open';
   const g=judge(e,a), z=sizeJudge(e,a,sized?P.size:null);
-  const rec={t:Date.now(),m:P.mode,p:c.pos,h:hcStr(c.cards),k:c.k,a,s:(a==='R'&&sized)?P.size:null,g,z,ms};
+  const rec={t:Date.now(),m:P.mode,p:c.pos,h:hcStr(c.cards),k:c.k,a,s:(a==='R'&&sized)?P.size:null,g,z,ms,...(P.special==='master'?{mm:1}:{})};
   Store.add(rec); P.answered=true;
   if(P.special==='master'&&P.master){ P.master.res[P.master.i]={g,z}; renderMprog(); }
   P.session.n++; if(g!=='na'){ P.session.j++; if((g==='ok'||g==='mix')&&z!==false) P.session.ok++; }
@@ -2882,12 +2884,16 @@ function answer(a){
   setMsg(GRADE[g][1]+(z===false?'（サイズ違い）':''));
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
-  if(P.special!=='range'&&document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)) P.timer=setTimeout(deal,cfg.speed);
+  const lastOfMaster=P.special==='master'&&P.master&&P.master.i===P.master.queue.length-1;   // always stop on the last pattern to show the hand's score
+  if(P.special!=='range'&&!lastOfMaster&&document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)) P.timer=setTimeout(deal,cfg.speed);
   else if(P.special==='range'||lsGet('pflab_fbrange')!=='0') showRangeOverlay(rec);
 }
 function renderFeedback(rec,e){
   const fb=document.getElementById('pf-fb'); fb.classList.remove('hidden');
   const [gc,gl]=GRADE[rec.g];
+  let msum=''; if(P.special==='master'&&P.master){ const M=P.master, n=M.queue.length;
+    if(M.res.filter(Boolean).length===n){ const okN=M.res.filter(resOk).length, bad=M.queue.filter((q,i)=>!resOk(M.res[i])).map(q=>q.label);
+      msum=`<div class="msum"><b>${posLabel(M.pos)}・${M.k} 全${n}パターン終了：${okN}/${n} 正解（${Math.round(okN/n*100)}%）</b>${bad.length?`<br>間違えた場面：${bad.join('、')}`:'<br>全問正解です'}</div>`; } }
   let sz='';if(rec.z===false) sz=`<div class="fbsub" style="color:var(--loss)">サイズ：${rec.s}bb → レンジ表は ${e.size}bb</div>`;
   else if(rec.z===true) sz=`<div class="fbsub">サイズ一致（${e.size}bb）</div>`;
   const hist=combinedRecs().filter(r=>r.m===rec.m&&r.p===rec.p&&r.k===rec.k).map(rejudge).filter(j=>j.g!=='na');
@@ -2895,6 +2901,7 @@ function renderFeedback(rec,e){
   fb.innerHTML=`<div class="fbhead"><span class="badge ${gc}">${gl}</span>${e.has||P.special==='range'?`<button class="btn fbrng" id="pf-btnRng">${P.special==='range'?'レンジ推定':'レンジ表'}</button>`:''}</div>
     <div class="fbsub">レンジ表：${expText(e)}</div>${freqBar(e)}${sz}
     <div class="fbsub">このハンドの通算（${posLabel(rec.p)}・${rec.k}）：${hist.length}回中 ${hok}回正解　判断 ${(rec.ms/1000).toFixed(1)}秒</div>
+    ${msum}
     <div class="row nextrow" style="margin-top:10px"><button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
   document.getElementById('pf-btnNext').onclick=deal;
   if(P.special==='master'&&P.master&&P.master.i<P.master.queue.length-1) document.getElementById('pf-btnNext').textContent='次のアクションへ';
@@ -2954,7 +2961,36 @@ function widthCompare(m,p,byPK){
   CLASSES.forEach(k=>{ const o=byPK[p+'|'+k]; if(!o||!o.j) return; const cw=combos(k)*dealWeight(m,p,k); cov+=cw; diff+=cw*(o.vpj/o.j-o.ev/o.j); });
   return {range:full,you:Math.max(0,Math.min(1,full+diff/base)),cov:cov/base,diff:diff/base};
 }
+/* ---------- position x hand accuracy map (every spot a hand can meet at one seat, summed) ---------- */
+let mstPos='BTN', mstSrc='all', mstSel=null;
+function renderMasterStats(){
+  const box=document.getElementById('pf-mstBlock'); if(!box) return;
+  let recs=statsRecs(); if(mstSrc==='mm') recs=recs.filter(r=>r.mm);
+  const by={};
+  recs.forEach(r=>{ const j=rejudge(r); if(j.g==='na') return; const hp=heroOf(r.p), pk=by[hp]||(by[hp]={}), o=pk[r.k]||(pk[r.k]={n:0,ok:0,spots:{}}), good=(j.g==='ok'||j.g==='mix')&&j.z!==false;
+    o.n++; if(good) o.ok++; const s=o.spots[r.p]||(o.spots[r.p]={m:r.m,n:0,ok:0}); s.n++; if(good) s.ok++; });
+  const posAcc=p=>{ let n=0,ok=0; Object.values(by[p]||{}).forEach(o=>{ n+=o.n; ok+=o.ok; }); return n?{n,a:ok/n}:null; };
+  const cur=by[mstPos]||{};
+  const spotLbl=(m,p)=>m==='open'?'オープン':m==='vsOpen'?`vs ${spotOf(p).vil}オープン`:`vs ${spotOf(p).vil}の3ベット`;
+  const weak=Object.entries(cur).filter(([k,o])=>o.n>=2&&o.ok/o.n<0.7).sort((a,b)=>(b[1].n-b[1].ok)-(a[1].n-a[1].ok)||a[1].ok/a[1].n-b[1].ok/b[1].n).slice(0,10);
+  const tot=posAcc(mstPos);
+  box.innerHTML=`<h2>ポジション×ハンド別 正答率</h2><p class="sub">自分のポジションごとに、そのハンドが出会う全場面（オープン・vsオープン・vs3bet）の合計正答率。赤＝苦手、緑＝得意、白＝未回答、薄い色＝回答が少ない。</p>
+    <div class="gtoggle" id="pf-mstSrc">${[['all','全回答'],['mm','ハンド別マスターのみ']].map(([v,l])=>`<button data-v="${v}" aria-pressed="${mstSrc===v}">${l}</button>`).join('')}</div>
+    <div class="gtoggle" id="pf-mstPos">${POS.map(p=>{ const a=posAcc(p); return `<button data-p="${p}" aria-pressed="${mstPos===p}">${p}${a?` ${Math.round(a.a*100)}%`:''}</button>`; }).join('')}</div>
+    <div class="grid13" id="pf-mstGrid">${CLASSES.map(k=>{ const o=cur[k]; let st='',cls='';
+      if(!o) cls='nod'; else { const a=o.ok/o.n; st=`background:hsla(${Math.round(a*140)},55%,48%,${0.35+0.5*Math.min(1,o.n/5)})`; }
+      return `<button data-k="${k}" class="${cls}${mstSel===k?' sel':''}" style="${st}">${k}</button>`; }).join('')}</div>
+    <div class="cellinfo" id="pf-mstInfo">${tot?`${mstPos}：${tot.n}回答／正答率 ${Math.round(tot.a*100)}%`:`${mstPos}：まだ回答がありません`}</div>
+    <div class="legend"><span><i style="background:hsl(0,55%,48%)"></i>0%</span><span><i style="background:hsl(70,55%,48%)"></i>50%</span><span><i style="background:hsl(140,55%,48%)"></i>100%</span></div>
+    ${weak.length?`<p class="sub" style="margin-top:8px"><b>${mstPos}の苦手ハンド</b>：${weak.map(([k,o])=>`${k}（${o.ok}/${o.n}）`).join('、')}</p>`:''}`;
+  const info=k=>{ const o=cur[k], el=document.getElementById('pf-mstInfo'); el.innerHTML=o?`<b>${k}</b>（${mstPos}）　${o.n}回中 ${o.ok}回正解（${Math.round(o.ok/o.n*100)}%）<br>${Object.entries(o.spots).map(([p,s])=>`${spotLbl(s.m,p)} ${s.ok}/${s.n}`).join('　')}`:`<b>${k}</b>（${mstPos}）　未回答`; };
+  box.querySelectorAll('#pf-mstSrc button').forEach(b=>b.onclick=()=>{ mstSrc=b.dataset.v; renderMasterStats(); });
+  box.querySelectorAll('#pf-mstPos button').forEach(b=>b.onclick=()=>{ mstPos=b.dataset.p; mstSel=null; renderMasterStats(); });
+  box.querySelectorAll('#pf-mstGrid button').forEach(b=>b.onclick=()=>{ mstSel=b.dataset.k; box.querySelectorAll('#pf-mstGrid button').forEach(x=>x.classList.toggle('sel',x===b)); info(mstSel); });
+  if(mstSel) info(mstSel);
+}
 function renderStats(){
+  renderMasterStats();
   const body=document.getElementById('pf-statsBody'); const m=document.getElementById('pf-fMode').value, fp=document.getElementById('pf-fPos').value, lim=+document.getElementById('pf-fRange').value;
   let recs=statsRecs().filter(r=>r.m===m); if(lim) recs=recs.slice(-lim);
   const allRecs=recs; if(fp) recs=recs.filter(r=>r.p===fp);
