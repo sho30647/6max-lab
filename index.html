@@ -478,7 +478,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
     <div id="pf-tab-play">
     <div class="modes" id="pf-modes">
       <button data-mode="open" aria-pressed="true">オープン<small>RFI</small></button>
-      <button data-mode="vsOpen" aria-pressed="false">vsオープン<small>準備中</small></button>
+      <button data-mode="vsOpen" aria-pressed="false">vsオープン<small>全ポジション</small></button>
       <button data-mode="vs3bet" aria-pressed="false">vs3bet<small>全ポジション</small></button>
     </div>
     <div id="pf-playMain">
@@ -530,7 +530,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
             <label><input type="checkbox" id="pf-optStopMix"> 混合戦略は正解でも止める</label>
             <select id="pf-autoSpeed" aria-label="自動で次へ進む速さ"><option value="150">最速（0.15秒）</option><option value="400">速い（0.4秒）</option><option value="800">普通（0.8秒）</option><option value="1500">ゆっくり（1.5秒）</option></select>
           </div>
-          <p class="help">PCではキーボードでも操作できます：F＝フォールド、C＝コール、R＝レイズ（vs3betでは4ベット）、A＝オールイン（vs3betのみ）、1〜7＝サイズ、スペース＝次へ</p>
+          <p class="help">PCではキーボードでも操作できます：F＝フォールド、C＝コール、R＝レイズ（vsオープンでは3ベット、vs3betでは4ベット）、A＝オールイン（vsオープン・vs3betのみ）、1〜7＝サイズ、スペース＝次へ</p>
         </div>
       </details>
       <div class="session" id="pf-session"></div>
@@ -541,7 +541,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   <div id="pf-tab-stats" class="hidden">
     <div class="viewbar hidden" data-viewbar></div>
     <div class="filters">
-      <select id="pf-fMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
+      <select id="pf-fMode" aria-label="モード"><option value="open">オープン</option><option value="vsOpen">vsオープン</option><option value="vs3bet">vs3bet</option></select>
       <select id="pf-fPos" aria-label="ポジション"><option value="">全ポジション</option></select>
       <select id="pf-fRange" aria-label="対象期間">
         <option value="0">全回答</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
@@ -552,7 +552,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 
   <div id="pf-tab-range" class="hidden">
     <div class="filters">
-      <select id="pf-rMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
+      <select id="pf-rMode" aria-label="モード"><option value="open">オープン</option><option value="vsOpen">vsオープン</option><option value="vs3bet">vs3bet</option></select>
       <select id="pf-rPos" aria-label="ポジション"></select>
     </div>
     <section class="block">
@@ -578,7 +578,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
     </section>
     <div id="pf-eBody" class="hidden">
       <div class="filters">
-        <select id="pf-eMode" aria-label="モード"><option value="open">オープン</option><option value="vs3bet">vs3bet</option></select>
+        <select id="pf-eMode" aria-label="モード"><option value="open">オープン</option><option value="vsOpen">vsオープン</option><option value="vs3bet">vs3bet</option></select>
         <select id="pf-ePos" aria-label="ポジション"></select>
         <button class="btn" id="pf-eLock" style="margin-left:auto">管理者モードを終了</button>
       </div>
@@ -592,7 +592,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
         <p class="sub">マスをタップ（PCはドラッグも可）して選び、下の欄に各アクションの頻度（%）を入れて「選んだマスに適用」を押します。フォールドは残りの%です。</p>
         <div class="esizes">
           <label class="help"><span id="pf-eSizeLbl">レイズサイズ</span> <input type="number" id="pf-eSize" step="0.1" min="1.5" max="100"> bb</label>
-          <label class="help jamUI"><span>相手の3ベット</span> <input type="number" id="pf-eVs" step="0.5" min="2" max="100"> bb</label>
+          <label class="help jamUI"><span id="pf-eVsLbl">相手の3ベット</span> <input type="number" id="pf-eVs" step="0.5" min="2" max="100"> bb</label>
         </div>
         <div class="grid13 egrid" id="pf-eGrid"></div>
         <div class="emix">
@@ -2320,9 +2320,11 @@ document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.runn
    ========================================================= */
 const RANKS='23456789TJQKA', SUIT_SYM=['♠','♥','♦','♣'], SUITS='shdc';
 const POS=['UTG','HJ','CO','BTN','SB','BB'];
-const MODE_POS={open:['UTG','HJ','CO','BTN','SB'],vsOpen:[],vs3bet:['UTGvsHJ','UTGvsCO','UTGvsBTN','UTGvsSB','UTGvsBB','HJvsCO','HJvsBTN','HJvsSB','HJvsBB','COvsBTN','COvsSB','COvsBB','BTNvsSB','BTNvsBB','SBvsBB']};
+const MODE_POS={open:['UTG','HJ','CO','BTN','SB'],vsOpen:['HJvsUTG','COvsUTG','COvsHJ','BTNvsUTG','BTNvsHJ','BTNvsCO','SBvsUTG','SBvsHJ','SBvsCO','SBvsBTN','BBvsUTG','BBvsHJ','BBvsCO','BBvsBTN','BBvsSB'],vs3bet:['UTGvsHJ','UTGvsCO','UTGvsBTN','UTGvsSB','UTGvsBB','HJvsCO','HJvsBTN','HJvsSB','HJvsBB','COvsBTN','COvsSB','COvsBB','BTNvsSB','BTNvsBB','SBvsBB']};
 const posLabel=p=>String(p).replace('vs',' vs ');   // 'UTGvsBB' -> 'UTG vs BB' (vs3bet spots: hero position + 3bettor)
 const MODE_NAME={open:'オープン',vsOpen:'vsオープン',vs3bet:'vs3bet'};
+const isSpot=m=>m==='vs3bet'||m==='vsOpen';   // modes whose spots are 'HEROvsVILLAIN' with a villain raise size (vs) and an all-in option
+const RAISE_NAME={vs3bet:'4ベット',vsOpen:'3ベット'};
 const SIZES=[2,2.2,2.3,2.5,3,3.5,4];
 const GR='AKQJT98765432';
 function clsAt(i,j){ const a=GR[i],b=GR[j]; if(i===j) return a+a; return i<j? a+b+'s' : b+a+'o'; }
@@ -2359,7 +2361,25 @@ const DEFAULT_RANGES={
     BTN:{size:2.5,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":1},"ATs":{"r":1},"A9s":{"r":1},"A8s":{"r":1},"A7s":{"r":1},"A6s":{"r":1},"A5s":{"r":1},"A4s":{"r":1},"A3s":{"r":1},"A2s":{"r":1},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":1},"KJs":{"r":1},"KTs":{"r":1},"K9s":{"r":1},"K8s":{"r":1},"K7s":{"r":1},"K6s":{"r":1},"K5s":{"r":1},"K4s":{"r":1},"K3s":{"r":1},"K2s":{"r":1},"AQo":{"r":1},"KQo":{"r":1},"QQ":{"r":1},"QJs":{"r":1},"QTs":{"r":1},"Q9s":{"r":1},"Q8s":{"r":1},"Q7s":{"r":1},"Q6s":{"r":1},"Q5s":{"r":1},"Q4s":{"r":1},"Q3s":{"r":1},"Q2s":{"r":1},"AJo":{"r":1},"KJo":{"r":1},"QJo":{"r":1},"JJ":{"r":1},"JTs":{"r":1},"J9s":{"r":1},"J8s":{"r":1},"J7s":{"r":1},"J6s":{"r":1},"J5s":{"r":1},"J4s":{"r":1},"J3s":{"r":0.3},"ATo":{"r":1},"KTo":{"r":1},"QTo":{"r":1},"JTo":{"r":1},"TT":{"r":1},"T9s":{"r":1},"T8s":{"r":1},"T7s":{"r":1},"T6s":{"r":1},"T5s":{"r":0.3},"A9o":{"r":1},"K9o":{"r":1},"Q9o":{"r":1},"J9o":{"r":1},"T9o":{"r":1},"99":{"r":1},"98s":{"r":1},"97s":{"r":1},"96s":{"r":1},"A8o":{"r":1},"K8o":{"r":0.7},"J8o":{"r":0.3},"T8o":{"r":1},"98o":{"r":0.7},"88":{"r":1},"87s":{"r":1},"86s":{"r":1},"85s":{"r":0.9},"A7o":{"r":1},"K7o":{"r":0.25},"77":{"r":1},"76s":{"r":1},"75s":{"r":1},"A6o":{"r":1},"66":{"r":1},"65s":{"r":1},"64s":{"r":1},"A5o":{"r":1},"55":{"r":1},"54s":{"r":1},"53s":{"r":0.1},"A4o":{"r":1},"44":{"r":1},"A3o":{"r":0.1},"33":{"r":1},"22":{"r":1}}},
     SB:{size:3,h:{"AA":{"r":0.9,"c":0.1},"AKs":{"r":1},"AQs":{"r":0.95,"c":0.05},"AJs":{"r":1},"ATs":{"r":1},"A9s":{"r":0.8,"c":0.2},"A8s":{"r":0.8,"c":0.2},"A7s":{"r":0.7,"c":0.3},"A6s":{"r":0.55,"c":0.45},"A5s":{"r":0.75,"c":0.25},"A4s":{"r":0.7,"c":0.3},"A3s":{"r":0.55,"c":0.45},"A2s":{"r":0.3,"c":0.7},"AKo":{"r":0.8,"c":0.2},"KK":{"r":0.8,"c":0.2},"KQs":{"r":1},"KJs":{"r":1},"KTs":{"r":1},"K9s":{"r":0.75,"c":0.25},"K8s":{"r":0.6,"c":0.4},"K7s":{"r":0.6,"c":0.4},"K6s":{"r":0.8,"c":0.2},"K5s":{"r":0.75,"c":0.25},"K4s":{"r":0.75,"c":0.25},"K3s":{"r":0.75,"c":0.25},"K2s":{"r":0.85,"c":0.15},"AQo":{"r":0.85,"c":0.15},"KQo":{"r":0.75,"c":0.25},"QQ":{"r":0.85,"c":0.15},"QJs":{"r":1},"QTs":{"r":0.95,"c":0.05},"Q9s":{"r":0.55,"c":0.45},"Q8s":{"r":0.75,"c":0.25},"Q7s":{"r":0.8,"c":0.2},"Q6s":{"r":0.9,"c":0.1},"Q5s":{"r":0.85,"c":0.15},"Q4s":{"r":0.75,"c":0.25},"Q3s":{"r":0.7,"c":0.3},"Q2s":{"r":0.7,"c":0.3},"AJo":{"r":0.75,"c":0.25},"KJo":{"r":0.7,"c":0.3},"QJo":{"r":0.7,"c":0.3},"JJ":{"r":0.85,"c":0.15},"JTs":{"r":0.95,"c":0.05},"J9s":{"r":0.65,"c":0.35},"J8s":{"r":0.6,"c":0.4},"J7s":{"r":0.9,"c":0.1},"J6s":{"r":0.85,"c":0.15},"J5s":{"r":0.75,"c":0.25},"J4s":{"r":0.75,"c":0.25},"J3s":{"r":0.45,"c":0.55},"J2s":{"c":1.0},"ATo":{"r":0.75,"c":0.25},"KTo":{"r":0.7,"c":0.3},"QTo":{"r":0.65,"c":0.35},"JTo":{"r":0.65,"c":0.35},"TT":{"r":0.85,"c":0.15},"T9s":{"r":0.7,"c":0.3},"T8s":{"r":0.45,"c":0.55},"T7s":{"r":0.85,"c":0.15},"T6s":{"r":0.85,"c":0.15},"T5s":{"r":0.35,"c":0.65},"T4s":{"r":0.15,"c":0.85},"A9o":{"r":1},"K9o":{"r":0.75,"c":0.25},"Q9o":{"r":0.7,"c":0.3},"J9o":{"r":0.7,"c":0.3},"T9o":{"r":0.7,"c":0.3},"99":{"r":0.75,"c":0.25},"98s":{"r":0.4,"c":0.6},"97s":{"r":0.85,"c":0.15},"96s":{"r":0.8,"c":0.2},"95s":{"r":0.4,"c":0.6},"A8o":{"r":0.95,"c":0.05},"K8o":{"r":0.65,"c":0.35},"Q8o":{"r":0.25,"c":0.75},"J8o":{"r":0.4,"c":0.6},"T8o":{"r":0.6,"c":0.4},"98o":{"r":0.6,"c":0.4},"88":{"r":0.7,"c":0.3},"87s":{"r":0.75,"c":0.25},"86s":{"r":0.85,"c":0.15},"85s":{"r":0.8,"c":0.2},"A7o":{"r":0.85,"c":0.15},"K7o":{"r":0.3,"c":0.7},"Q7o":{"c":0.05},"T7o":{"c":0.1},"97o":{"c":0.25},"87o":{"r":0.3,"c":0.4},"77":{"r":0.65,"c":0.35},"76s":{"r":0.9,"c":0.1},"75s":{"r":0.8,"c":0.2},"74s":{"r":0.45,"c":0.55},"A6o":{"r":0.7,"c":0.3},"K6o":{"c":0.4},"Q6o":{"c":0.05},"76o":{"c":0.2},"66":{"r":0.65,"c":0.35},"65s":{"r":0.75,"c":0.25},"64s":{"r":0.8,"c":0.2},"63s":{"c":0.35},"A5o":{"r":0.75,"c":0.25},"K5o":{"c":0.15},"55":{"r":0.65,"c":0.35},"54s":{"r":0.65,"c":0.35},"53s":{"r":0.65,"c":0.35},"A4o":{"r":0.55,"c":0.45},"44":{"r":0.65,"c":0.35},"43s":{"c":0.35},"A3o":{"r":0.3,"c":0.7},"33":{"r":0.65,"c":0.35},"A2o":{"c":0.35},"22":{"r":0.65,"c":0.35}}}
   },
-  vsOpen:{},
+  /* vsオープン: 前のポジションのオープンに対するこちらの対応（フォールド／コール／3bet／オールイン）。GTO Wizard 6max NL500 100bb 標準GTO（画像の色比率を計測し5%単位に丸め）
+     size＝こちらの3betサイズ, vs＝相手のオープンサイズ, r＝3bet, j＝オールイン。キー＝こちらのポジション + vs + オープンした人 */
+  vsOpen:{
+    BBvsSB:{size:10,vs:3,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":1},"ATs":{"r":0.4,"c":0.6},"A9s":{"c":1},"A8s":{"c":1},"A7s":{"r":0.35,"c":0.65},"A6s":{"c":1},"A5s":{"r":1},"A4s":{"r":1},"A3s":{"r":0.35,"c":0.65},"A2s":{"c":1},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":1},"KJs":{"r":0.55,"c":0.45},"KTs":{"r":0.5,"c":0.5},"K9s":{"r":0.4,"c":0.6},"K8s":{"r":0.05,"c":0.95},"K7s":{"r":0.1,"c":0.9},"K6s":{"r":0.45,"c":0.55},"K5s":{"r":0.05,"c":0.95},"K4s":{"r":0.2,"c":0.8},"K3s":{"r":0.25,"c":0.75},"K2s":{"c":1},"AQo":{"r":0.85,"c":0.15},"KQo":{"r":0.15,"c":0.85},"QQ":{"r":1},"QJs":{"r":0.25,"c":0.75},"QTs":{"r":0.45,"c":0.55},"Q9s":{"r":0.25,"c":0.75},"Q8s":{"c":1},"Q7s":{"c":1},"Q6s":{"c":1},"Q5s":{"c":1},"Q4s":{"c":1},"Q3s":{"c":1},"Q2s":{"c":1},"AJo":{"r":0.35,"c":0.65},"KJo":{"r":0.05,"c":0.95},"QJo":{"c":1},"JJ":{"r":1},"JTs":{"r":0.6,"c":0.4},"J9s":{"r":0.45,"c":0.55},"J8s":{"r":0.1,"c":0.9},"J7s":{"c":1},"J6s":{"c":1},"J5s":{"c":1},"J4s":{"c":1},"J3s":{"r":0.15,"c":0.85},"J2s":{"r":0.15,"c":0.85},"ATo":{"c":1},"KTo":{"r":0.05,"c":0.95},"QTo":{"c":1},"JTo":{"c":1},"TT":{"r":1},"T9s":{"r":0.85,"c":0.15},"T8s":{"r":0.4,"c":0.6},"T7s":{"c":1},"T6s":{"c":1},"T5s":{"r":0.15,"c":0.85},"T4s":{"r":0.3,"c":0.7},"T3s":{"r":0.45,"c":0.55},"T2s":{"r":0.45,"c":0.55},"A9o":{"c":1},"K9o":{"r":0.1,"c":0.9},"Q9o":{"r":0.25,"c":0.75},"J9o":{"r":0.2,"c":0.8},"T9o":{"c":1},"99":{"r":0.4,"c":0.6},"98s":{"r":0.95,"c":0.05},"97s":{"r":0.2,"c":0.8},"96s":{"c":1},"95s":{"c":1},"94s":{"r":0.25,"c":0.55},"93s":{"r":0.1,"c":0.3},"A8o":{"c":1},"K8o":{"r":0.25,"c":0.75},"Q8o":{"r":0.55,"c":0.45},"J8o":{"r":0.6,"c":0.4},"T8o":{"r":0.25,"c":0.75},"98o":{"c":1},"88":{"r":0.25,"c":0.75},"87s":{"r":0.75,"c":0.25},"86s":{"c":1},"85s":{"c":1},"84s":{"c":1},"A7o":{"r":0.1,"c":0.9},"K7o":{"r":0.5,"c":0.45},"J7o":{"r":0.25},"T7o":{"r":0.3},"97o":{"c":0.25},"87o":{"c":0.8},"77":{"r":0.1,"c":0.9},"76s":{"r":0.85,"c":0.15},"75s":{"c":1},"74s":{"c":1},"73s":{"c":1},"A6o":{"r":0.45,"c":0.55},"K6o":{"r":0.45,"c":0.55},"Q6o":{"r":0.25},"76o":{"c":0.75},"66":{"r":0.1,"c":0.9},"65s":{"r":0.55,"c":0.45},"64s":{"c":1},"63s":{"c":1},"62s":{"c":0.1},"A5o":{"c":1},"K5o":{"r":0.3},"Q5o":{"r":0.05},"65o":{"c":0.45},"55":{"c":1},"54s":{"r":0.75,"c":0.25},"53s":{"c":1},"52s":{"c":1},"A4o":{"r":0.05,"c":0.95},"54o":{"c":0.45},"44":{"c":1},"43s":{"r":0.1,"c":0.9},"42s":{"c":1},"A3o":{"r":0.35,"c":0.65},"33":{"c":1},"32s":{"c":1},"A2o":{"r":0.85,"c":0.15},"22":{"c":1}}},
+    BBvsBTN:{size:13,vs:2.5,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":1},"ATs":{"r":0.35,"c":0.65},"A9s":{"c":1},"A8s":{"r":0.15,"c":0.85},"A7s":{"r":0.05,"c":0.95},"A6s":{"c":1},"A5s":{"r":1},"A4s":{"r":0.5,"c":0.5},"A3s":{"r":0.15,"c":0.85},"A2s":{"r":0.1,"c":0.9},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":1},"KJs":{"r":0.5,"c":0.5},"KTs":{"r":0.45,"c":0.55},"K9s":{"r":0.3,"c":0.7},"K8s":{"r":0.05,"c":0.95},"K7s":{"r":0.2,"c":0.8},"K6s":{"r":0.25,"c":0.75},"K5s":{"r":0.15,"c":0.85},"K4s":{"r":0.15,"c":0.85},"K3s":{"r":0.1,"c":0.9},"K2s":{"c":1},"AQo":{"r":0.95,"c":0.05},"KQo":{"r":0.35,"c":0.65},"QQ":{"r":1},"QJs":{"r":0.1,"c":0.9},"QTs":{"r":0.3,"c":0.7},"Q9s":{"r":0.1,"c":0.9},"Q8s":{"r":0.05,"c":0.95},"Q7s":{"c":1},"Q6s":{"r":0.1,"c":0.9},"Q5s":{"r":0.1,"c":0.9},"Q4s":{"r":0.05,"c":0.95},"Q3s":{"r":0.15,"c":0.85},"Q2s":{"c":1},"AJo":{"r":0.4,"c":0.6},"KJo":{"r":0.35,"c":0.65},"QJo":{"r":0.3,"c":0.7},"JJ":{"r":1},"JTs":{"r":0.75,"c":0.25},"J9s":{"r":0.75,"c":0.25},"J8s":{"r":0.1,"c":0.9},"J7s":{"r":0.4,"c":0.6},"J6s":{"r":0.15,"c":0.85},"J5s":{"r":0.25,"c":0.75},"J4s":{"r":0.2,"c":0.8},"J3s":{"r":0.15,"c":0.85},"J2s":{"c":0.95},"ATo":{"r":0.25,"c":0.75},"KTo":{"r":0.45,"c":0.55},"QTo":{"r":0.35,"c":0.65},"JTo":{"r":0.25,"c":0.75},"TT":{"r":1},"T9s":{"r":1},"T8s":{"r":0.6,"c":0.4},"T7s":{"r":0.3,"c":0.7},"T6s":{"r":0.45,"c":0.55},"T5s":{"c":0.65},"T4s":{"c":0.3},"T3s":{"c":0.35},"A9o":{"r":0.3,"c":0.7},"K9o":{"r":0.35,"c":0.65},"Q9o":{"r":0.2,"c":0.7},"J9o":{"r":0.1,"c":0.85},"T9o":{"r":0.15,"c":0.85},"99":{"r":0.7,"c":0.3},"98s":{"r":0.5,"c":0.5},"97s":{"r":0.1,"c":0.9},"96s":{"r":0.1,"c":0.9},"95s":{"c":0.35},"A8o":{"r":0.15,"c":0.85},"K8o":{"c":0.3},"T8o":{"c":0.4},"98o":{"c":0.35},"88":{"r":0.35,"c":0.65},"87s":{"r":0.5,"c":0.5},"86s":{"r":0.05,"c":0.95},"85s":{"r":0.15,"c":0.85},"84s":{"c":0.05},"A7o":{"r":0.3,"c":0.7},"87o":{"c":0.25},"77":{"r":0.15,"c":0.85},"76s":{"r":0.6,"c":0.4},"75s":{"c":1},"74s":{"c":1},"A6o":{"r":0.05,"c":0.3},"76o":{"c":0.25},"66":{"c":1},"65s":{"r":0.2,"c":0.8},"64s":{"c":1},"63s":{"c":1},"A5o":{"r":0.15,"c":0.85},"55":{"c":1},"54s":{"r":0.35,"c":0.65},"53s":{"c":1},"52s":{"c":1},"A4o":{"r":0.1,"c":0.4},"44":{"c":1},"43s":{"c":1},"42s":{"c":0.95},"33":{"c":1},"32s":{"c":0.25},"22":{"c":1}}},
+    BBvsCO:{size:13.5,vs:2.3,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.35,"c":0.65},"ATs":{"c":1},"A9s":{"r":0.05,"c":0.95},"A8s":{"r":0.1,"c":0.9},"A7s":{"c":1},"A6s":{"c":1},"A5s":{"r":0.65,"c":0.35},"A4s":{"r":0.05,"c":0.95},"A3s":{"r":0.15,"c":0.85},"A2s":{"r":0.15,"c":0.85},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":0.3,"c":0.7},"KJs":{"r":0.7,"c":0.3},"KTs":{"r":0.5,"c":0.5},"K9s":{"r":0.15,"c":0.85},"K8s":{"c":1},"K7s":{"r":0.1,"c":0.9},"K6s":{"r":0.25,"c":0.75},"K5s":{"r":0.1,"c":0.9},"K4s":{"r":0.25,"c":0.75},"K3s":{"r":0.25,"c":0.75},"K2s":{"r":0.1,"c":0.9},"AQo":{"r":0.45,"c":0.55},"KQo":{"r":0.35,"c":0.65},"QQ":{"r":1},"QJs":{"r":0.2,"c":0.8},"QTs":{"r":0.2,"c":0.8},"Q9s":{"c":1},"Q8s":{"r":0.2,"c":0.8},"Q7s":{"c":1},"Q6s":{"r":0.3,"c":0.7},"Q5s":{"r":0.4,"c":0.6},"Q4s":{"r":0.3,"c":0.7},"Q3s":{"r":0.1,"c":0.9},"Q2s":{"r":0.15,"c":0.85},"AJo":{"r":0.3,"c":0.7},"KJo":{"r":0.35,"c":0.65},"QJo":{"r":0.3,"c":0.7},"JJ":{"r":1},"JTs":{"r":0.75,"c":0.25},"J9s":{"r":0.4,"c":0.6},"J8s":{"r":0.1,"c":0.9},"J7s":{"r":0.25,"c":0.75},"J6s":{"r":0.2,"c":0.8},"J5s":{"c":1},"J4s":{"r":0.05,"c":0.9},"J3s":{"c":0.3},"ATo":{"r":0.15,"c":0.85},"KTo":{"r":0.15,"c":0.85},"QTo":{"r":0.1,"c":0.9},"JTo":{"c":1},"TT":{"r":0.4,"c":0.6},"T9s":{"r":0.45,"c":0.55},"T8s":{"c":1},"T7s":{"r":0.15,"c":0.85},"T6s":{"r":0.1,"c":0.9},"A9o":{"r":0.15,"c":0.85},"K9o":{"r":0.05,"c":0.45},"J9o":{"c":0.3},"T9o":{"c":0.5},"99":{"r":0.05,"c":0.95},"98s":{"r":0.25,"c":0.75},"97s":{"c":1},"96s":{"c":1},"95s":{"c":0.5},"A8o":{"r":0.15,"c":0.8},"98o":{"c":0.3},"88":{"c":1},"87s":{"r":0.3,"c":0.7},"86s":{"c":1},"85s":{"c":1},"A7o":{"r":0.05,"c":0.25},"87o":{"c":0.2},"77":{"c":1},"76s":{"r":0.35,"c":0.65},"75s":{"c":1},"74s":{"c":1},"76o":{"c":0.15},"66":{"c":1},"65s":{"r":0.5,"c":0.5},"64s":{"r":0.1,"c":0.9},"63s":{"c":1},"A5o":{"r":0.3,"c":0.7},"55":{"r":0.05,"c":0.95},"54s":{"r":0.3,"c":0.7},"53s":{"c":1},"52s":{"c":1},"A4o":{"r":0.1},"44":{"c":1},"43s":{"c":1},"42s":{"c":0.7},"33":{"c":1},"32s":{"c":0.15},"22":{"c":1}}},
+    BBvsHJ:{size:12.3,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.3,"c":0.7},"ATs":{"r":0.05,"c":0.95},"A9s":{"r":0.1,"c":0.9},"A8s":{"r":0.15,"c":0.85},"A7s":{"c":1},"A6s":{"c":1},"A5s":{"r":0.15,"c":0.85},"A4s":{"r":0.15,"c":0.85},"A3s":{"c":1},"A2s":{"r":0.25,"c":0.75},"AKo":{"r":0.9,"c":0.1},"KK":{"r":1},"KQs":{"c":1},"KJs":{"r":0.1,"c":0.9},"KTs":{"c":1},"K9s":{"r":0.3,"c":0.7},"K8s":{"c":1},"K7s":{"r":0.15,"c":0.85},"K6s":{"r":0.2,"c":0.8},"K5s":{"r":0.2,"c":0.8},"K4s":{"r":0.2,"c":0.8},"K3s":{"r":0.25,"c":0.75},"K2s":{"c":1},"AQo":{"c":1},"KQo":{"r":0.3,"c":0.7},"QQ":{"r":1},"QJs":{"r":0.6,"c":0.4},"QTs":{"r":0.4,"c":0.6},"Q9s":{"r":0.3,"c":0.7},"Q8s":{"r":0.15,"c":0.85},"Q7s":{"c":1},"Q6s":{"r":0.05,"c":0.95},"Q5s":{"c":1},"Q4s":{"c":1},"Q3s":{"c":1},"Q2s":{"c":1},"AJo":{"c":1},"KJo":{"r":0.15,"c":0.85},"QJo":{"c":1},"JJ":{"r":0.1,"c":0.9},"JTs":{"r":0.4,"c":0.6},"J9s":{"r":0.15,"c":0.85},"J8s":{"c":1},"J7s":{"c":1},"J6s":{"c":1},"J5s":{"c":1},"J4s":{"c":1},"J3s":{"c":1},"J2s":{"c":1},"ATo":{"r":0.15,"c":0.85},"KTo":{"r":0.1,"c":0.9},"QTo":{"c":1},"JTo":{"c":1},"TT":{"c":1},"T9s":{"r":0.4,"c":0.6},"T8s":{"c":1},"T7s":{"c":1},"T6s":{"c":1},"T5s":{"c":1},"T4s":{"c":0.4},"T3s":{"c":0.25},"A9o":{"c":1},"K9o":{"c":1},"Q9o":{"c":0.45},"J9o":{"c":0.5},"T9o":{"c":1},"99":{"c":1},"98s":{"r":0.2,"c":0.8},"97s":{"c":1},"96s":{"c":1},"95s":{"c":1},"93s":{"c":0.4},"92s":{"c":0.3},"A8o":{"c":1},"K8o":{"c":0.3},"T8o":{"c":0.3},"98o":{"c":0.8},"88":{"c":1},"87s":{"r":0.5,"c":0.5},"86s":{"c":1},"85s":{"c":1},"84s":{"c":0.95},"A7o":{"r":0.1,"c":0.9},"97o":{"c":0.2},"87o":{"c":0.75},"77":{"c":1},"76s":{"r":0.5,"c":0.5},"75s":{"c":1},"74s":{"c":1},"73s":{"c":0.05},"A6o":{"c":0.25},"K6o":{"c":0.1},"86o":{"c":0.2},"76o":{"c":0.65},"66":{"c":1},"65s":{"r":0.65,"c":0.35},"64s":{"c":1},"63s":{"c":1},"A5o":{"r":0.2,"c":0.8},"65o":{"c":0.6},"55":{"c":1},"54s":{"r":0.45,"c":0.55},"53s":{"c":1},"52s":{"c":1},"A4o":{"r":0.2,"c":0.7},"54o":{"c":0.3},"44":{"c":1},"43s":{"c":1},"42s":{"c":1},"A3o":{"r":0.1,"c":0.2},"33":{"c":1},"32s":{"c":1},"22":{"c":1}}},
+    BBvsUTG:{size:12,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":0.55,"c":0.45},"AJs":{"r":0.25,"c":0.75},"ATs":{"r":0.15,"c":0.85},"A9s":{"r":0.05,"c":0.95},"A8s":{"r":0.05,"c":0.95},"A7s":{"c":1},"A6s":{"c":1},"A5s":{"r":0.2,"c":0.8},"A4s":{"r":0.15,"c":0.85},"A3s":{"r":0.25,"c":0.75},"A2s":{"r":0.3,"c":0.7},"AKo":{"r":0.6,"c":0.4},"KK":{"r":1},"KQs":{"r":0.15,"c":0.85},"KJs":{"r":0.1,"c":0.9},"KTs":{"r":0.4,"c":0.6},"K9s":{"c":1},"K8s":{"c":1},"K7s":{"r":0.15,"c":0.85},"K6s":{"r":0.05,"c":0.95},"K5s":{"r":0.1,"c":0.9},"K4s":{"r":0.3,"c":0.7},"K3s":{"r":0.1,"c":0.9},"K2s":{"c":1},"AQo":{"c":1},"KQo":{"r":0.25,"c":0.75},"QQ":{"r":0.65,"c":0.35},"QJs":{"r":0.65,"c":0.35},"QTs":{"r":0.35,"c":0.65},"Q9s":{"r":0.1,"c":0.9},"Q8s":{"r":0.1,"c":0.9},"Q7s":{"c":1},"Q6s":{"r":0.05,"c":0.95},"Q5s":{"c":1},"Q4s":{"c":1},"Q3s":{"c":1},"Q2s":{"c":1},"AJo":{"c":1},"KJo":{"r":0.15,"c":0.85},"QJo":{"c":1},"JJ":{"r":0.15,"c":0.85},"JTs":{"r":0.35,"c":0.65},"J9s":{"r":0.05,"c":0.95},"J8s":{"c":1},"J7s":{"c":1},"J6s":{"c":1},"J5s":{"c":1},"J4s":{"c":1},"J3s":{"c":0.7},"J2s":{"c":0.45},"ATo":{"r":0.15,"c":0.85},"KTo":{"c":1},"QTo":{"c":1},"JTo":{"c":1},"TT":{"r":0.05,"c":0.95},"T9s":{"r":0.4,"c":0.6},"T8s":{"c":1},"T7s":{"c":1},"T6s":{"c":1},"T5s":{"c":0.55},"T4s":{"c":0.4},"T3s":{"c":0.25},"A9o":{"c":1},"K9o":{"c":0.35},"J9o":{"c":0.2},"T9o":{"c":0.85},"99":{"c":1},"98s":{"r":0.25,"c":0.75},"97s":{"c":1},"96s":{"c":1},"95s":{"c":1},"93s":{"c":0.25},"92s":{"c":0.3},"A8o":{"r":0.1,"c":0.45},"T8o":{"c":0.25},"98o":{"c":0.5},"88":{"c":1},"87s":{"r":0.45,"c":0.55},"86s":{"c":1},"85s":{"c":1},"84s":{"c":0.6},"97o":{"c":0.15},"87o":{"c":0.6},"77":{"c":1},"76s":{"r":0.4,"c":0.6},"75s":{"c":1},"74s":{"c":1},"73s":{"c":0.1},"86o":{"c":0.1},"76o":{"c":0.5},"66":{"c":1},"65s":{"r":0.55,"c":0.45},"64s":{"c":1},"63s":{"c":1},"A5o":{"r":0.15,"c":0.45},"65o":{"c":0.5},"55":{"c":1},"54s":{"r":0.3,"c":0.7},"53s":{"c":1},"52s":{"c":1},"A4o":{"r":0.05},"54o":{"c":0.3},"44":{"c":1},"43s":{"c":1},"42s":{"c":1},"33":{"c":1},"32s":{"c":1},"22":{"c":1}}},
+    SBvsBTN:{size:12,vs:2.5,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.95,"c":0.05},"ATs":{"r":0.9,"c":0.1},"A9s":{"r":0.8,"c":0.2},"A8s":{"r":0.8,"c":0.2},"A7s":{"r":0.85,"c":0.15},"A6s":{"r":0.2,"c":0.1},"A5s":{"r":0.95,"c":0.05},"A4s":{"r":0.9,"c":0.1},"A3s":{"r":0.15,"c":0.05},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":0.95,"c":0.05},"KJs":{"r":0.9,"c":0.1},"KTs":{"r":0.9,"c":0.1},"K9s":{"r":0.9,"c":0.1},"K8s":{"r":0.3,"c":0.05},"K7s":{"r":0.2},"K6s":{"r":0.3,"c":0.05},"K5s":{"c":0.05},"AQo":{"r":0.95,"c":0.05},"KQo":{"r":0.95,"c":0.05},"QQ":{"r":1},"QJs":{"r":0.8,"c":0.2},"QTs":{"r":0.9,"c":0.1},"Q9s":{"r":0.9,"c":0.1},"AJo":{"r":0.95,"c":0.05},"KJo":{"r":0.6,"c":0.05},"JJ":{"r":1},"JTs":{"r":0.95,"c":0.05},"J9s":{"r":0.9,"c":0.1},"ATo":{"r":0.75,"c":0.05},"KTo":{"r":0.4},"TT":{"r":0.95,"c":0.05},"T9s":{"r":0.95,"c":0.05},"T8s":{"r":0.45,"c":0.05},"99":{"r":0.9,"c":0.1},"98s":{"r":0.15,"c":0.05},"88":{"r":0.85,"c":0.15},"87s":{"r":0.1},"77":{"r":0.75,"c":0.25},"76s":{"r":0.2,"c":0.05},"66":{"r":0.3,"c":0.2},"55":{"c":0.1},"44":{"c":0.1},"33":{"c":0.1},"22":{"c":0.1}}},
+    SBvsCO:{size:11.5,vs:2.3,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":1},"ATs":{"r":0.8,"c":0.2},"A9s":{"r":0.7,"c":0.3},"A8s":{"r":0.55,"c":0.25},"A7s":{"c":0.1},"A6s":{"c":0.05},"A5s":{"r":0.85,"c":0.15},"A4s":{"r":0.8,"c":0.2},"A3s":{"r":0.15,"c":0.1},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":1},"KJs":{"r":1},"KTs":{"r":0.85,"c":0.15},"K9s":{"r":0.8,"c":0.2},"K6s":{"r":0.1,"c":0.1},"AQo":{"r":0.9,"c":0.1},"KQo":{"r":0.85,"c":0.15},"QQ":{"r":1},"QJs":{"r":0.85,"c":0.15},"QTs":{"r":0.8,"c":0.2},"Q9s":{"c":0.05},"AJo":{"r":0.75,"c":0.2},"KJo":{"r":0.35,"c":0.05},"JJ":{"r":1},"JTs":{"r":0.9,"c":0.1},"J9s":{"r":0.6,"c":0.1},"TT":{"r":0.85,"c":0.15},"T9s":{"r":0.7,"c":0.1},"99":{"r":0.75,"c":0.25},"98s":{"c":0.05},"88":{"r":0.65,"c":0.35},"77":{"r":0.4,"c":0.3},"66":{"r":0.3,"c":0.25},"65s":{"r":0.1},"55":{"r":0.05,"c":0.15},"44":{"c":0.15},"33":{"c":0.1},"22":{"c":0.1}}},
+    SBvsHJ:{size:11,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.95,"c":0.05},"ATs":{"r":0.4,"c":0.6},"A9s":{"r":0.15,"c":0.85},"A8s":{"r":0.25,"c":0.75},"A7s":{"r":0.5,"c":0.5},"A6s":{"c":0.5},"A5s":{"r":0.55,"c":0.45},"A4s":{"r":0.5,"c":0.5},"A3s":{"r":0.6,"c":0.4},"A2s":{"r":0.15,"c":0.05},"AKo":{"r":0.85,"c":0.15},"KK":{"r":1},"KQs":{"r":0.85,"c":0.15},"KJs":{"r":0.6,"c":0.4},"KTs":{"r":0.45,"c":0.55},"K9s":{"r":0.5,"c":0.5},"K7s":{"r":0.05},"K6s":{"r":0.25,"c":0.1},"AQo":{"r":0.55,"c":0.45},"KQo":{"r":0.5,"c":0.5},"QQ":{"r":0.95,"c":0.05},"QJs":{"r":0.4,"c":0.6},"QTs":{"r":0.45,"c":0.55},"AJo":{"r":0.2,"c":0.55},"JJ":{"r":0.65,"c":0.35},"JTs":{"r":0.45,"c":0.55},"J9s":{"c":0.15},"TT":{"r":0.4,"c":0.6},"T9s":{"r":0.45,"c":0.55},"99":{"r":0.25,"c":0.75},"98s":{"r":0.05,"c":0.35},"88":{"r":0.15,"c":0.85},"87s":{"r":0.15,"c":0.2},"77":{"r":0.2,"c":0.8},"66":{"r":0.15,"c":0.85},"65s":{"r":0.3,"c":0.05},"55":{"r":0.15,"c":0.8},"44":{"c":0.65},"33":{"c":0.6},"22":{"c":0.6}}},
+    SBvsUTG:{size:10,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.7,"c":0.3},"ATs":{"r":0.5,"c":0.5},"A9s":{"r":0.05,"c":0.95},"A8s":{"r":0.3,"c":0.7},"A7s":{"r":0.25,"c":0.4},"A6s":{"c":0.15},"A5s":{"r":0.5,"c":0.5},"A4s":{"r":0.5,"c":0.5},"A3s":{"r":0.35,"c":0.45},"AKo":{"r":0.7,"c":0.3},"KK":{"r":1},"KQs":{"r":0.9,"c":0.1},"KJs":{"r":0.5,"c":0.5},"KTs":{"r":0.55,"c":0.45},"K9s":{"r":0.1,"c":0.25},"K7s":{"c":0.05},"K6s":{"c":0.3},"AQo":{"r":0.35,"c":0.65},"KQo":{"r":0.2,"c":0.3},"QQ":{"r":0.8,"c":0.2},"QJs":{"r":0.45,"c":0.55},"QTs":{"r":0.3,"c":0.7},"AJo":{"c":0.15},"JJ":{"r":0.65,"c":0.35},"JTs":{"r":0.35,"c":0.65},"J9s":{"c":0.25},"TT":{"r":0.4,"c":0.6},"T9s":{"r":0.4,"c":0.6},"T8s":{"c":0.1},"99":{"r":0.25,"c":0.75},"98s":{"r":0.1,"c":0.3},"97s":{"c":0.05},"88":{"r":0.2,"c":0.8},"87s":{"r":0.15,"c":0.25},"77":{"r":0.2,"c":0.8},"76s":{"r":0.05,"c":0.15},"66":{"r":0.15,"c":0.85},"65s":{"r":0.35,"c":0.2},"55":{"r":0.15,"c":0.75},"54s":{"r":0.05,"c":0.15},"44":{"r":0.05,"c":0.6},"33":{"c":0.65},"22":{"c":0.75}}},
+    BTNvsCO:{size:7.5,vs:2.3,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":0.5,"c":0.5},"ATs":{"r":0.35,"c":0.65},"A9s":{"r":0.7,"c":0.3},"A8s":{"r":0.65,"c":0.35},"A7s":{"r":0.75,"c":0.25},"A6s":{"r":0.9,"c":0.1},"A5s":{"r":0.75,"c":0.25},"A4s":{"r":0.65,"c":0.35},"A3s":{"r":0.4,"c":0.3},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":0.55,"c":0.45},"KJs":{"r":0.75,"c":0.25},"KTs":{"r":0.65,"c":0.35},"K9s":{"r":0.65,"c":0.35},"K8s":{"r":0.55},"K7s":{"r":0.15,"c":0.1},"K6s":{"r":0.25,"c":0.2},"AQo":{"r":0.65,"c":0.35},"KQo":{"r":0.75,"c":0.25},"QQ":{"r":1},"QJs":{"r":0.45,"c":0.55},"QTs":{"r":0.5,"c":0.5},"Q9s":{"r":1},"AJo":{"r":0.8,"c":0.2},"KJo":{"r":0.45,"c":0.2},"QJo":{"r":0.35},"JJ":{"r":0.85,"c":0.15},"JTs":{"r":0.65,"c":0.35},"J9s":{"r":0.8,"c":0.2},"ATo":{"r":0.55},"KTo":{"r":0.1},"TT":{"r":0.6,"c":0.4},"T9s":{"r":0.65,"c":0.35},"T8s":{"r":0.25,"c":0.05},"99":{"r":0.55,"c":0.45},"98s":{"r":0.05,"c":0.3},"88":{"r":0.45,"c":0.55},"87s":{"r":0.2,"c":0.15},"77":{"r":0.4,"c":0.6},"76s":{"r":0.15,"c":0.1},"66":{"r":0.4,"c":0.6},"65s":{"r":0.15,"c":0.1},"55":{"r":0.1,"c":0.4},"54s":{"r":0.15,"c":0.15},"44":{"c":0.3},"33":{"c":0.25},"22":{"c":0.2}}},
+    BTNvsHJ:{size:7.5,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":0.7,"c":0.3},"AJs":{"r":0.35,"c":0.65},"ATs":{"r":0.35,"c":0.65},"A9s":{"r":0.5,"c":0.5},"A8s":{"r":0.45,"c":0.55},"A7s":{"r":0.7,"c":0.3},"A6s":{"r":0.35,"c":0.25},"A5s":{"r":0.55,"c":0.45},"A4s":{"r":0.6,"c":0.4},"A3s":{"r":0.65,"c":0.35},"AKo":{"r":0.9,"c":0.1},"KK":{"r":1},"KQs":{"r":0.4,"c":0.6},"KJs":{"r":0.85,"c":0.15},"KTs":{"r":0.55,"c":0.45},"K9s":{"r":0.6,"c":0.4},"K8s":{"r":0.15},"K6s":{"r":0.2,"c":0.15},"AQo":{"r":0.6,"c":0.4},"KQo":{"r":0.75,"c":0.25},"QQ":{"r":0.95,"c":0.05},"QJs":{"r":0.25,"c":0.75},"QTs":{"r":0.5,"c":0.5},"Q9s":{"r":0.85},"AJo":{"r":0.7,"c":0.3},"KJo":{"r":0.3,"c":0.2},"JJ":{"r":0.55,"c":0.45},"JTs":{"r":0.45,"c":0.55},"J9s":{"c":0.15},"ATo":{"r":0.25},"KTo":{"r":0.1},"TT":{"r":0.5,"c":0.5},"T9s":{"r":0.4,"c":0.6},"99":{"r":0.3,"c":0.7},"98s":{"r":0.05,"c":0.4},"88":{"r":0.25,"c":0.75},"87s":{"c":0.25},"77":{"r":0.3,"c":0.7},"76s":{"c":0.15},"66":{"r":0.3,"c":0.7},"65s":{"r":0.25,"c":0.2},"55":{"r":0.3,"c":0.55},"54s":{"c":0.3},"44":{"r":0.2,"c":0.45},"33":{"r":0.2,"c":0.35},"22":{"r":0.05,"c":0.35}}},
+    BTNvsUTG:{size:7.5,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":0.5,"c":0.5},"AJs":{"r":0.5,"c":0.5},"ATs":{"r":0.4,"c":0.6},"A9s":{"r":0.45,"c":0.55},"A8s":{"r":0.5,"c":0.5},"A7s":{"r":0.6,"c":0.4},"A6s":{"c":0.05},"A5s":{"r":0.45,"c":0.55},"A4s":{"r":0.6,"c":0.4},"A3s":{"r":0.5,"c":0.5},"A2s":{"c":0.05},"AKo":{"r":0.7,"c":0.3},"KK":{"r":1},"KQs":{"r":0.45,"c":0.55},"KJs":{"r":0.45,"c":0.55},"KTs":{"r":0.25,"c":0.75},"K9s":{"r":0.65,"c":0.35},"K8s":{"r":0.15},"K7s":{"r":0.05,"c":0.05},"K6s":{"r":0.2,"c":0.25},"AQo":{"r":0.45,"c":0.55},"KQo":{"r":0.75,"c":0.25},"QQ":{"r":0.7,"c":0.3},"QJs":{"r":0.25,"c":0.75},"QTs":{"r":0.4,"c":0.6},"AJo":{"r":0.4,"c":0.2},"KJo":{"r":0.15},"JJ":{"r":0.5,"c":0.5},"JTs":{"r":0.2,"c":0.8},"J9s":{"c":0.4},"KTo":{"r":0.1},"TT":{"r":0.35,"c":0.65},"T9s":{"r":0.35,"c":0.65},"T8s":{"r":0.1,"c":0.2},"99":{"r":0.15,"c":0.85},"98s":{"r":0.05,"c":0.5},"97s":{"c":0.05},"88":{"r":0.2,"c":0.8},"87s":{"r":0.05,"c":0.35},"86s":{"c":0.05},"77":{"r":0.2,"c":0.8},"76s":{"r":0.1,"c":0.3},"66":{"r":0.25,"c":0.75},"65s":{"r":0.35,"c":0.5},"55":{"r":0.25,"c":0.7},"54s":{"r":0.15,"c":0.6},"44":{"r":0.2,"c":0.6},"33":{"r":0.1,"c":0.5},"22":{"r":0.1,"c":0.55}}},
+    COvsHJ:{size:6.5,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":0.95,"c":0.05},"AJs":{"r":0.8,"c":0.2},"ATs":{"r":0.8,"c":0.2},"A9s":{"r":0.95,"c":0.05},"A8s":{"r":0.15,"c":0.05},"A7s":{"r":0.05},"A5s":{"r":0.9,"c":0.1},"A4s":{"r":0.9,"c":0.1},"A3s":{"r":0.45,"c":0.05},"AKo":{"r":0.95,"c":0.05},"KK":{"r":1},"KQs":{"r":0.85,"c":0.15},"KJs":{"r":0.95,"c":0.05},"KTs":{"r":0.9,"c":0.1},"K9s":{"r":0.65},"AQo":{"r":0.9,"c":0.1},"KQo":{"r":0.85,"c":0.05},"QQ":{"r":1},"QJs":{"r":0.9,"c":0.1},"QTs":{"r":0.95,"c":0.05},"AJo":{"r":0.65},"KJo":{"r":0.05},"JJ":{"r":0.9,"c":0.1},"JTs":{"r":0.85,"c":0.15},"TT":{"r":0.9,"c":0.1},"T9s":{"r":0.2,"c":0.05},"99":{"r":0.8,"c":0.2},"88":{"r":0.8,"c":0.2},"77":{"r":0.7,"c":0.2},"66":{"r":0.4,"c":0.15},"65s":{"r":0.3},"55":{"r":0.15,"c":0.05},"54s":{"r":0.25},"44":{"r":0.1,"c":0.05},"33":{"r":0.15,"c":0.05},"22":{"r":0.05,"c":0.05}}},
+    COvsUTG:{size:6.5,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":0.8,"c":0.2},"AJs":{"r":0.7,"c":0.3},"ATs":{"r":0.75,"c":0.25},"A9s":{"r":0.4,"c":0.15},"A8s":{"r":0.25,"c":0.1},"A7s":{"r":0.1,"c":0.05},"A5s":{"r":0.75,"c":0.25},"A4s":{"r":0.65,"c":0.2},"A3s":{"r":0.25,"c":0.1},"AKo":{"r":0.85,"c":0.15},"KK":{"r":1},"KQs":{"r":0.75,"c":0.25},"KJs":{"r":0.75,"c":0.25},"KTs":{"r":0.8,"c":0.2},"K9s":{"r":0.35,"c":0.05},"AQo":{"r":0.8,"c":0.2},"KQo":{"r":0.6},"QQ":{"r":0.85,"c":0.15},"QJs":{"r":0.75,"c":0.25},"QTs":{"r":0.7,"c":0.3},"AJo":{"r":0.2},"KJo":{"r":0.05},"JJ":{"r":0.8,"c":0.2},"JTs":{"r":0.65,"c":0.35},"TT":{"r":0.7,"c":0.3},"T9s":{"r":0.15,"c":0.15},"99":{"r":0.6,"c":0.4},"98s":{"c":0.1},"88":{"r":0.55,"c":0.45},"87s":{"c":0.05},"77":{"r":0.5,"c":0.4},"76s":{"r":0.05,"c":0.05},"66":{"r":0.3,"c":0.3},"65s":{"r":0.4,"c":0.1},"55":{"r":0.1,"c":0.15},"54s":{"r":0.3,"c":0.15},"44":{"r":0.1,"c":0.1},"33":{"r":0.05,"c":0.1},"22":{"c":0.1}}},
+    HJvsUTG:{size:6.5,vs:2,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"r":1},"ATs":{"r":1},"A8s":{"r":0.15},"A7s":{"r":0.1},"A5s":{"r":1},"A4s":{"r":0.75},"A3s":{"r":0.15},"AKo":{"r":1},"KK":{"r":1},"KQs":{"r":1},"KJs":{"r":1},"KTs":{"r":1},"K9s":{"r":0.05},"AQo":{"r":1},"KQo":{"r":0.6},"QQ":{"r":1},"QJs":{"r":0.95},"QTs":{"r":0.05},"JJ":{"r":1},"JTs":{"r":0.2},"TT":{"r":1},"99":{"r":0.75},"88":{"r":0.4},"77":{"r":0.4},"66":{"r":0.25},"65s":{"r":0.35},"55":{"r":0.1},"54s":{"r":0.25},"44":{"r":0.1},"33":{"r":0.1},"22":{"r":0.05}}}
+  },
   /* vs3bet: 各ポジションのオープン → 後ろのポジション（ブラインド含む）から3bet。GTO Wizard 6max NL500 100bb 標準GTO（画像の色比率を計測し5%単位に丸め）
      size＝こちらの4betサイズ, vs＝相手の3betサイズ, j＝オールイン頻度 */
   vs3bet:{
@@ -2550,11 +2570,11 @@ function judge(e,a){
   if(pf>=0.5||(pf>0&&pf>=mx-1e-9)) return 'ok';
   return pf>0?'mix':'ng';
 }
-const sizeJudge=(e,a,s)=>(a==='R'&&s!=null&&e.has&&e.r>0&&e.m!=='vs3bet')?Math.abs(s-e.size)<0.001:null;
+const sizeJudge=(e,a,s)=>(a==='R'&&s!=null&&e.has&&e.r>0&&!isSpot(e.m))?Math.abs(s-e.size)<0.001:null;
 /* re-judge any record with the CURRENT range table (so answers made before a range existed become judgeable) */
 function rejudge(r){ const e=Ranges.exp(r.m,r.p,r.k); return {e,g:judge(e,r.a),z:sizeJudge(e,r.a,r.s)}; }
 const ACT_NAME={R:'レイズ',C:'コール',F:'フォールド',J:'オールイン'};
-const actName=(m,a)=>m==='vs3bet'&&a==='R'?'4ベット':ACT_NAME[a];
+const actName=(m,a)=>a==='R'&&RAISE_NAME[m]?RAISE_NAME[m]:ACT_NAME[a];
 const GRADE={ok:['ok','◯ 正解'],mix:['mix','△ 許容（低頻度）'],ng:['ng','✕ 不正解'],na:['na','— レンジ未登録']};
 function expText(e){
   if(!e.has) return 'レンジ未登録';
@@ -2564,7 +2584,7 @@ function expText(e){
 function freqBar(e){
   if(!e.has) return '';
   const seg=(v,c,l)=>v>0?`<span class="${c}" style="width:${v*100}%">${v>=0.18?l+' '+Math.round(v*100)+'%':''}</span>`:'';
-  return `<div class="freqbar">${seg(e.r,'fr',e.m==='vs3bet'?'4bet':'R')}${seg(e.j||0,'fj','AI')}${seg(e.c,'fc','C')}${seg(e.f,'ff','F')}</div>`;
+  return `<div class="freqbar">${seg(e.r,'fr',e.m==='vs3bet'?'4bet':e.m==='vsOpen'?'3bet':'R')}${seg(e.j||0,'fj','AI')}${seg(e.c,'fc','C')}${seg(e.f,'ff','F')}</div>`;
 }
 
 /* =========================================================
@@ -2673,6 +2693,7 @@ function deal(){
   document.getElementById('pf-fb').classList.add('hidden'); hideRangeOverlay();
   renderTable(); renderButtons(); renderChips();
   if(v3){ const R=Ranges.get('vs3bet',pos)||{}, s=spotOf(pos); setMsg(`あなたの${s.hero} ${openSize(s.hero)}bbオープンに ${s.vil} が ${R.vs||'?'}bb に3ベット`); }
+  else if(P.mode==='vsOpen'){ const R=Ranges.get('vsOpen',pos)||{}, s=spotOf(pos); setMsg(`${s.vil} が ${R.vs||'?'}bb でオープン`); }
   else { const pi=POS.indexOf(pos); setMsg(pi===0?'あなたが最初のアクション':(POS.slice(0,pi).join('・')+'がフォールド')); }
   if(!Ranges.has(P.mode,pos)) setMsg('このポジションはレンジ未登録（記録のみ）');
 }
@@ -2682,11 +2703,12 @@ const spotOf=p=>{ const [hero,vil]=String(p).split('vs'); return {hero,vil}; };
 const openSize=pos=>+((Ranges.get('open',pos)||{}).size)||2;
 function renderTable(heroAct){
   const box=document.getElementById('pf-tablebox'); box.querySelectorAll('.seat,.betchip').forEach(e=>e.remove());
-  const c=P.cur; if(!c) return; const v3=P.mode==='vs3bet', sp=v3?spotOf(c.pos):null;
-  const hi=POS.indexOf(v3?sp.hero:c.pos); let pot=0;
+  const c=P.cur; if(!c) return; const v3=P.mode==='vs3bet', vo=P.mode==='vsOpen', sp=(v3||vo)?spotOf(c.pos):null;
+  const hi=POS.indexOf((v3||vo)?sp.hero:c.pos); let pot=0;
   for(let i=0;i<6;i++){
-    const pi=(hi+i)%6, pos=POS[pi], hero=i===0, vil=v3&&pos===sp.vil;
-    const folded=v3?(!hero&&!vil):pi<hi;   // vs3bet: everyone but the opener and the 3bettor has folded
+    const pi=(hi+i)%6, pos=POS[pi], hero=i===0, vil=(v3||vo)&&pos===sp.vil;
+    // vs3bet: everyone but the opener and the 3bettor has folded; vsOpen: seats before the hero other than the opener have folded, seats after the hero still have to act
+    const folded=v3?(!hero&&!vil):vo?(!hero&&!vil&&pi<hi):pi<hi;
     const [x,y]=seatXY(i); const el=document.createElement('div');
     el.className='seat'+(hero?' hero':'')+(hero&&!P.answered?' acting':'')+(folded?' folded':'');
     el.style.left=x+'%'; el.style.top=y+'%';
@@ -2694,9 +2716,9 @@ function renderTable(heroAct){
     let act=folded?'フォールド':''; if(hero&&heroAct) act=heroAct;
     let bet=pos==='SB'?0.5:pos==='BB'?1:0;
     if(v3&&hero){ bet=openSize(sp.hero); if(!heroAct) act='オープン '+bet; }
-    if(vil){ bet=+(Ranges.get('vs3bet',c.pos)||{}).vs||0; act='3ベット '+bet; }
+    if(vil){ bet=+(Ranges.get(P.mode,c.pos)||{}).vs||0; act=(vo?'オープン ':'3ベット ')+bet; }
     pot+=bet;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${v3?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${(v3||vo)?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
     box.appendChild(el);
     if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
   }
@@ -2704,12 +2726,12 @@ function renderTable(heroAct){
   document.getElementById('pf-pot').textContent='ポット '+pot+'bb';
 }
 function renderChips(){
-  const v3=P.mode==='vs3bet';
+  const v3=isSpot(P.mode);
   document.querySelectorAll('.sizeUI').forEach(e=>e.classList.toggle('hidden',!cfg.sizeOn||v3));
-  // vs3bet: four answers (fold / call / 4bet at the chart size / all-in); no size picking
+  // vs3bet / vsOpen: four answers (fold / call / 4bet or 3bet at the chart size / all-in); no size picking
   document.getElementById('pf-btnJam').classList.toggle('hidden',!v3);
   document.getElementById('pf-btnCall').innerHTML=v3?'コール':'コール<br><small>（リンプ）</small>';
-  if(v3){ const R=P.cur&&Ranges.get('vs3bet',P.cur.pos); document.getElementById('pf-btnRaise').innerHTML=`4ベット${R?`<br><small>${R.size}bb</small>`:''}`; return; }
+  if(v3){ const R=P.cur&&Ranges.get(P.mode,P.cur.pos); document.getElementById('pf-btnRaise').innerHTML=`${RAISE_NAME[P.mode]}${R?`<br><small>${R.size}bb</small>`:''}`; return; }
   if(!cfg.sizeOn){ document.getElementById('pf-btnRaise').innerHTML='レイズ'; return; }
   document.getElementById('pf-chips').innerHTML=SIZES.map(s=>`<button data-s="${s}" aria-pressed="${s===P.size}">${s}</button>`).join('');
   document.getElementById('pf-btnRaise').innerHTML=`レイズ<br><small>${P.size}bb</small>`;
@@ -2720,13 +2742,13 @@ function setMsg(t){ document.getElementById('pf-msg').textContent=t; }
 function answer(a){
   if(!P.cur||P.answered) return;
   const ms=Math.round(performance.now()-P.t0), c=P.cur, e=Ranges.exp(P.mode,c.pos,c.k);
-  if(a==='J'&&P.mode!=='vs3bet') return;
+  if(a==='J'&&!isSpot(P.mode)) return;
   const sized=cfg.sizeOn&&P.mode==='open';
   const g=judge(e,a), z=sizeJudge(e,a,sized?P.size:null);
   const rec={t:Date.now(),m:P.mode,p:c.pos,h:hcStr(c.cards),k:c.k,a,s:(a==='R'&&sized)?P.size:null,g,z,ms};
   Store.add(rec); P.answered=true;
   P.session.n++; if(g!=='na'){ P.session.j++; if((g==='ok'||g==='mix')&&z!==false) P.session.ok++; }
-  renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&P.mode==='vs3bet'&&e.has?`4ベット ${e.size}`:a==='J'?'オールイン 100':ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
+  renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&isSpot(P.mode)&&e.has?`${RAISE_NAME[P.mode]} ${e.size}`:a==='J'?'オールイン 100':ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
   setMsg(GRADE[g][1]+(z===false?'（サイズ違い）':''));
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
@@ -2817,7 +2839,7 @@ function renderStats(){
   h+=insightHTML(m,fp,A,byPos,byPK);
   // position table
   const posList=MODE_POS[m].filter(p=>byPos[p]);
-  h+=`<section class="block"><h2>${m==='vs3bet'?'スポット別':'ポジション別'}</h2><p class="sub">${m==='vs3bet'?'参加率（4ベット＋コール＋オールイン、オープンレンジ内）':'オープン率'}は「レンジ表の幅」に、回答済みハンドでのズレを組み合わせて推定。バーの灰色がレンジ、金線があなた。</p><div class="tscroll"><table class="t"><thead><tr><th>${m==='vs3bet'?'スポット':'ポジション'}</th><th>回答</th><th>正解率</th><th>サイズ</th><th>広すぎ</th><th>狭すぎ</th><th>種類違い</th><th>${m==='vs3bet'?'参加率':'オープン率'} レンジ→あなた</th><th>比較</th><th>判断</th></tr></thead><tbody>`;
+  h+=`<section class="block"><h2>${isSpot(m)?'スポット別':'ポジション別'}</h2><p class="sub">${m==='vs3bet'?'参加率（4ベット＋コール＋オールイン、オープンレンジ内）':m==='vsOpen'?'参加率（3ベット＋コール＋オールイン）':'オープン率'}は「レンジ表の幅」に、回答済みハンドでのズレを組み合わせて推定。バーの灰色がレンジ、金線があなた。</p><div class="tscroll"><table class="t"><thead><tr><th>${isSpot(m)?'スポット':'ポジション'}</th><th>回答</th><th>正解率</th><th>サイズ</th><th>広すぎ</th><th>狭すぎ</th><th>種類違い</th><th>${isSpot(m)?'参加率':'オープン率'} レンジ→あなた</th><th>比較</th><th>判断</th></tr></thead><tbody>`;
   const srcPK=fp?allAgg.byPK:byPK;
   posList.forEach(p=>{ const o=byPos[p]; const w=Ranges.has(m,p)?widthCompare(m,p,srcPK):null;
     h+=`<tr><td>${posLabel(p)}</td><td class="${o.n<30?'few':''}">${o.n}</td><td>${pct(acc(o))}</td><td>${o.szJ?pct(o.szOk/o.szJ,0):'—'}</td><td>${o.over}</td><td>${o.under}</td><td>${o.wrongType}</td>
@@ -2895,7 +2917,7 @@ function renderCompare(m,recs,fp){
     <div class="gtoggle" id="pf-cViewT">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${cView===v}">${l}</button>`).join('')}</div>
     <div class="${cView==='all'?'cmp3':''}">${cView==='all'?grid('ok')+grid('me')+grid('gap'):grid(cView)}</div>
     <div class="cellinfo" id="pf-cInfo">&nbsp;</div>
-    <div class="legend"><span><i style="background:var(--win)"></i>レイズ</span>${m==='vs3bet'?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
+    <div class="legend"><span><i style="background:var(--win)"></i>${rName(m)}</span>${isSpot(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
     <div class="insight" style="margin-top:10px">${list(looseL,'広すぎるハンド',f1)}${list(tightL,'狭すぎるハンド',f1)}${list(typL,'アクションの種類がずれるハンド',f2)}${!looseL.length&&!tightL.length&&!typL.length?(cov?'<p>回答済みのハンドでは、正解レンジと15pt以上ずれているものはありません。</p>':'<p>このポジションはまだ回答がありません。</p>'):''}</div>`;
   box.innerHTML=h;
   box.querySelectorAll('#pf-cPosT button').forEach(b=>b.onclick=()=>{ cPos=b.dataset.p; cSel=null; renderCompare(m,recs,null); });
@@ -2940,7 +2962,7 @@ function insightHTML(m,fp,A,byPos,byPK){
     gap+=`誤答${errN}件の内訳は、広すぎ${A.over}件・狭すぎ${A.under}件・種類違い${A.wrongType}件で、主なズレは${main}です。`; }
   if(A.szJ>=10&&A.szOk/A.szJ<0.9) gap+=`レイズのサイズ一致率は${pct(A.szOk/A.szJ,0)}にとどまり、アクションは合っていてもサイズを取り違えています。`;
   const ws=MODE_POS[m].filter(p=>(!fp||p===fp)&&Ranges.has(m,p)&&byPos[p]&&byPos[p].j>=15).map(p=>({p,...widthCompare(m,p,byPK)})).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
-  if(ws.length&&Math.abs(ws[0].diff)>=0.01) gap+=`推定${m==='vs3bet'?'参加率':'オープン率'}のズレが最も大きいのは${posLabel(ws[0].p)}で、レンジ${pct(ws[0].range)}に対しあなたは${pct(ws[0].you)}（${ws[0].diff>0?'+':''}${(ws[0].diff*100).toFixed(1)}pt）です。`;
+  if(ws.length&&Math.abs(ws[0].diff)>=0.01) gap+=`推定${isSpot(m)?'参加率':'オープン率'}のズレが最も大きいのは${posLabel(ws[0].p)}で、レンジ${pct(ws[0].range)}に対しあなたは${pct(ws[0].you)}（${ws[0].diff>0?'+':''}${(ws[0].diff*100).toFixed(1)}pt）です。`;
   if(gap) ps.push('<b>課題：</b>'+gap);
   const top=Object.values(byPK).filter(o=>o.j&&o.j>o.ok).sort((a,b)=>(b.j-b.ok)-(a.j-a.ok)).slice(0,4);
   if(top.length){ ps.push('<b>示唆：</b>'+`まず${top.map(o=>posLabel(o.p)+'の'+o.k).join('、')}を覚え直すのが効率的です。出題設定の「苦手ハンド中心」にすると、誤答の多いハンドが優先して出ます。誤答が1〜2回のハンドは偶然の可能性もあるので、同じハンドで3回以上間違えているかどうかで判断してください。`); }
@@ -2950,18 +2972,18 @@ function insightHTML(m,fp,A,byPos,byPK){
 /* =========================================================
    Range editor
    ========================================================= */
-const rName=m=>m==='vs3bet'?'4ベット':'レイズ';
+const rName=m=>RAISE_NAME[m]||'レイズ';
 function fillPosSelect(selId,m,key){
   const sel=document.getElementById(selId), prev=sel.value;
   sel.innerHTML=MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
   const saved=lsGet(key+'_'+m)||(m==='open'?lsGet('pflab_rpos'):null);
   if(MODE_POS[m].includes(prev)) sel.value=prev; else if(saved&&MODE_POS[m].includes(saved)) sel.value=saved;
 }
-function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${m==='vs3bet'?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
+function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${isSpot(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
 function rangeSumText(m,p){
   const R=Ranges.get(m,p); if(!R||!Object.keys(R.h).length) return '未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
   const w=Ranges.width(m,p), v3=m==='vs3bet', base=rangeBase(m,p);
-  return `${rName(m)} <b>${pct(w.r)}</b>　${v3?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?heroOf(p)+'のオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
+  return `${rName(m)} <b>${pct(w.r)}</b>　${isSpot(m)?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?heroOf(p)+'のオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
 }
 function rangeCells(m,p,selSet){
   const R=Ranges.get(m,p)||{h:{}}, v3=m==='vs3bet';
@@ -2974,7 +2996,7 @@ function rangeCells(m,p,selSet){
 function rState(){ return {m:document.getElementById('pf-rMode').value,p:document.getElementById('pf-rPos').value}; }
 function renderRange(){
   const {m,p}=rState(), R=Ranges.get(m,p)||{}, v3=m==='vs3bet';
-  document.getElementById('pf-rTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`+(v3&&R.vs?`（相手の3ベット ${R.vs}bb → こちらの4ベット ${R.size}bb）`:R.size?`（オープンサイズ ${R.size}bb）`:'');
+  document.getElementById('pf-rTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`+(isSpot(m)&&R.vs?`（相手の${v3?'3ベット':'オープン'} ${R.vs}bb → こちらの${rName(m)} ${R.size}bb）`:R.size?`（オープンサイズ ${R.size}bb）`:'');
   document.getElementById('pf-rGrid').innerHTML=rangeCells(m,p);
   document.getElementById('pf-rLegend').innerHTML=rangeLegend(m);
   document.getElementById('pf-rSum').innerHTML=rangeSumText(m,p);
@@ -3004,17 +3026,18 @@ function renderRangeEdit(){
   document.getElementById('pf-eGate').classList.toggle('hidden',unlocked); document.getElementById('pf-eBody').classList.toggle('hidden',!unlocked);
   if(!unlocked) return;
   const {m,p}=eState(), R=eSpot(), v3=m==='vs3bet';
-  document.querySelectorAll('#pf-tab-redit .jamUI').forEach(e=>e.classList.toggle('hidden',!v3));
+  document.querySelectorAll('#pf-tab-redit .jamUI').forEach(e=>e.classList.toggle('hidden',!isSpot(m)));
+  document.getElementById('pf-eVsLbl').textContent=v3?'相手の3ベット':'相手のオープン';
   document.querySelectorAll('#pf-tab-redit .rname').forEach(e=>e.textContent=rName(m));
   document.getElementById('pf-eRLbl').textContent=rName(m);
-  document.getElementById('pf-eSizeLbl').textContent=v3?'こちらの4ベットサイズ':'オープンサイズ';
+  document.getElementById('pf-eSizeLbl').textContent=isSpot(m)?`こちらの${rName(m)}サイズ`:'オープンサイズ';
   document.getElementById('pf-eTitle').textContent=`${MODE_NAME[m]}｜${posLabel(p)}`;
   document.getElementById('pf-eSize').value=R.size; document.getElementById('pf-eVs').value=R.vs||'';
   document.getElementById('pf-eGrid').innerHTML=rangeCells(m,p,ED.sel);
   document.getElementById('pf-eSum').innerHTML=rangeSumText(m,p);
   renderSelInfo(); renderSaveBar();
 }
-function readMix(){ const v=id=>Math.max(0,Math.min(100,Math.round(+document.getElementById(id).value||0))); const v3=eState().m==='vs3bet';
+function readMix(){ const v=id=>Math.max(0,Math.min(100,Math.round(+document.getElementById(id).value||0))); const v3=isSpot(eState().m);
   return {r:v('pf-eR'),c:v('pf-eC'),j:v3?v('pf-eJ'):0}; }
 function renderMixPreview(){
   const x=readMix(), f=100-x.r-x.c-x.j, el=document.querySelector('#pf-tab-redit .efold');
@@ -3115,7 +3138,7 @@ function applyTab(){
   if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='range') renderRange(); if(curTab==='redit') renderRangeEdit(); if(curTab==='play') renderPosChecks();
 }
 document.querySelectorAll('#tab-pf .subtabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
-const modeReady=m=>m==='open'||m==='vs3bet';
+const modeReady=m=>m==='open'||isSpot(m);
 function applyMode(){
   document.querySelectorAll('#pf-modes button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===P.mode?'true':'false'));
   const ready=modeReady(P.mode);
@@ -3155,7 +3178,7 @@ document.addEventListener('keydown',e=>{
   else if(k===' '&&P.answered){ e.preventDefault(); deal(); }
 });
 function fillStatPos(){ const m=document.getElementById('pf-fMode').value, sel=document.getElementById('pf-fPos'), prev=sel.value;
-  sel.innerHTML=`<option value="">${m==='vs3bet'?'全スポット':'全ポジション'}</option>`+MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
+  sel.innerHTML=`<option value="">${isSpot(m)?'全スポット':'全ポジション'}</option>`+MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
   if(MODE_POS[m].includes(prev)) sel.value=prev; }
 document.getElementById('pf-fMode').value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
 document.getElementById('pf-fPos').value=MODE_POS[document.getElementById('pf-fMode').value].includes(lsGet('pflab_fpos'))?lsGet('pflab_fpos'):''; document.getElementById('pf-fRange').value=lsGet('pflab_frange')||'0';
