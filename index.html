@@ -402,7 +402,33 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap:not(.onhome)>#home{display:none}
 #tab-pf.menu>:not(#pf-menu){display:none!important}
 #tab-pf:not(.menu)>#pf-menu{display:none}
-#home,#pf-menu{max-width:640px;margin:8px auto 0}
+#home,#pf-menu,#rp-menu{max-width:640px;margin:8px auto 0}
+.wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
+.wrap:not(.onrpm)>#rp-menu{display:none}
+.wrap.inrp #tab-ring>.subtabs{display:none}
+.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold){display:none}
+/* ring practice: size buttons, comparison panel, instructor comment box */
+.presets button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rpnote{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.5}
+.rpcmp{display:flex;flex-direction:column;gap:8px}
+.rph{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+.rpg{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline;font-size:15px}
+.rpg span{font-size:12px;color:var(--muted)}
+.rpg b{font-family:var(--num);font-size:17px}
+.rpv{font-weight:800;font-size:15px}
+.rpcmp.ok .rpv{color:var(--win)}.rpcmp.ng .rpv{color:var(--loss)}
+.rpc{border-left:3px solid var(--brass);background:var(--surface2);border-radius:0 8px 8px 0;padding:8px 10px;font-size:14px;line-height:1.55}
+.rpc small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+.rpwarn{font-size:12.5px;color:var(--loss);line-height:1.5}
+.rpcmbox{margin-top:10px}.rpcmbox label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.rpcmbox textarea,.rpsave textarea{width:100%;font:inherit;font-size:14px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);resize:vertical}
+.rpsave .rpst{margin:10px 0 3px;font-size:13px;font-weight:700}
+.rpsave .rpst small{display:block;font-weight:400;color:var(--muted)}
+.rpsum{width:100%;border-collapse:collapse;font-size:13px}
+.rpsum td,.rpsum th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.rpsum th{font-weight:500;color:var(--muted);font-size:12px}
+.rpsum .okc{color:var(--win);font-weight:800}.rpsum .ngc{color:var(--loss);font-weight:800}
+.rpcount{font-family:var(--num);font-size:30px;font-weight:700}
 .nv-resume{display:block;width:100%;text-align:left;border:1px dashed var(--brass);background:var(--surface);border-radius:12px;padding:10px 14px;margin-bottom:12px}
 .nv-resume small{display:block;color:var(--muted);font-size:11px;letter-spacing:.06em}
 .nv-resume b{font-size:15px}
@@ -452,6 +478,10 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
         <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span></span>
       </button>
+      <button class="nv-card" data-nv="rp-menu" type="button">
+        <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H10l-5 4z"/><path d="M9 9h6M9 12h4"/></svg></span>
+        <span><span class="t">リング練習</span><span class="d">講師と同じ場面をプレー。ストリートごとに自分との違いがわかる</span></span>
+      </button>
       <button class="nv-card" data-nv="pf-menu" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
         <span><span class="t">プリフロ練習</span><span class="d">GTOのレンジで反復。ハンド別マスター、レンジ推定も</span></span>
@@ -462,6 +492,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       </button>
     </div>
   </div>
+
+  <!-- RING PRACTICE MENU -->
+  <div id="rp-menu"><div id="rp-menu-body"></div></div>
 
   <!-- RING GAME -->
   <div id="tab-ring">
@@ -1111,6 +1144,8 @@ const BOTS=[
   {name:'Sora',loose:1.05,aggr:1.1,three:1.1},
   {name:'Rui',loose:1.0,aggr:1.2,three:1.35},
 ];
+/* ring practice (リング練習): the instructor's saved games replayed for students. RP.on = the ring table is driven by it. */
+const RP={on:false,mode:null,games:[],loaded:false,idx:0,game:null,follow:false,cursor:0,rec:null,cm:['','','',''],cmpLog:[],shownCm:[false,false,false,false],saved:null};
 const S={players:[],button:Math.floor(Math.random()*6),board:[],deck:[],street:0,currentBet:0,minRaise:BB,raiseCount:0,
   cursor:0,pfAggr:-1,lastAggr:-1,prevStreetAggr:-1,acting:-1,running:false,showdown:false,
   heroDec:[],heroSaw:[true,false,false,false],log:[],winners:[],heroResolve:null,autoHero:false,session:{n:0,net:0},heroProfile:{loose:1,filter:1}};
@@ -1260,13 +1295,13 @@ function computeHeroProfile(){
    Hand flow
    ========================================================= */
 function setupHand(){
-  S.button=(S.button+1)%6;
-  S.deck=shuffleDeck(); S.board=[]; S.street=0; S.showdown=false; S.winners=[]; S.done=false; S.lastActor=-1; S.soleWin=new Set(); S.shared=new Set();
+  if(RP.on) RP.deal(); else { S.button=(S.button+1)%6; S.deck=shuffleDeck(); }
+  S.board=[]; S.street=0; S.showdown=false; S.winners=[]; S.done=false; S.lastActor=-1; S.soleWin=new Set(); S.shared=new Set();
   S.heroDec=[]; S.heroSaw=[true,false,false,false]; S.log=[[],[],[],[]]; S.flopSeats=[];
   S.pfAggr=-1; S.lastAggr=-1; S.prevStreetAggr=-1; S.pfRaises=null; S.heroIPflop=null;
   computeHeroProfile();
   // beginner mode carries stacks over between hands (a busted player re-buys for 200点); normal mode always starts at 100bb
-  const carry=isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
+  const carry=!RP.on&&isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
   S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
   document.getElementById('advice').classList.add('hidden');
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
@@ -1306,6 +1341,7 @@ async function playHand(){
       await sleep(delay()*0.8);
     }
     await bettingRound();
+    if(S.abort){ RP.aborted(); return; }
     // beginner: keep the street's closing action (call / check / fold) on screen before the next street or the result
     const la=S.lastActor>=0&&S.players[S.lastActor].la;
     if(isBeginner()&&!S.fastFold&&!S.autoFolded&&la&&la.st===S.street) await sleep(1100);
@@ -1316,19 +1352,20 @@ async function playHand(){
     while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
-  settle(); S.done=true; const rec=buildRecord(); await Store.add(rec);
+  settle(); S.done=true; const rec=buildRecord(); if(!RP.on) await Store.add(rec);
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
-  S.session.n++; S.session.net+=rec.net;
-  if(isBeginner()) Prefs.saveStacks(S.players.map(p=>p.stack));
+  if(!RP.on){ S.session.n++; S.session.net+=rec.net; }
+  if(isBeginner()&&!RP.on) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
   const txt=netTxt(rec.net);
   const wtxt=S.showdown&&!isPhone()?S.winners.map(i=>(i===0?'あなた':S.players[i].name)+'（'+handName(i)+'）').join('・')+'の勝ち｜':'';
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜'+wtxt+'あなた '+txt):('あなた '+txt));
+  if(RP.on){ RP.handEnd(); return; }
   renderControls();
-  if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); return; }
-  if(document.getElementById('optAuto').checked){ const slow=isBeginner()?1.6:1; await sleep(((S.showdown||S.heroSaw[1])?2600:1500)*slow); if(!S.running&&!S.heroResolve&&curTab==='play') playHand(); }
+  if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play'&&!RP.on) playHand(); return; }
+  if(document.getElementById('optAuto').checked){ const slow=isBeginner()?1.6:1; await sleep(((S.showdown||S.heroSaw[1])?2600:1500)*slow); if(!S.running&&!S.heroResolve&&curTab==='play'&&!RP.on) playHand(); }
 }
 function dealBoard(){
   if(S.board.length===0){S.board.push(S.deck.pop(),S.deck.pop(),S.deck.pop()); S.flopSeats=S.players.map((q,i)=>q.folded?-1:i).filter(i=>i>=0);}
@@ -1348,7 +1385,7 @@ function needsAction(p){return !p.folded&&!p.allIn&&(!p.acted||p.bet<S.currentBe
 async function bettingRound(){
   let guard=0;
   while(guard++<200){
-    if(active().length<=1) return;
+    if(S.abort||active().length<=1) return;
     const actors=S.players.filter(p=>!p.folded&&!p.allIn);
     if(actors.length===0) return;
     if(actors.length===1&&actors[0].bet>=S.currentBet) return;
@@ -1358,7 +1395,8 @@ async function bettingRound(){
     S.acting=seat; render();
     const p=S.players[seat];
     let dec;
-    if(p.isHero&&!S.autoHero&&document.getElementById('optAutoFold').checked&&autoFoldHero(p)){ dec={act:'fold'}; S.autoFolded=true; }
+    if(RP.on){ dec=await RP.decide(seat); if(S.abort) return; }
+    else if(p.isHero&&!S.autoHero&&document.getElementById('optAutoFold').checked&&autoFoldHero(p)){ dec={act:'fold'}; S.autoFolded=true; }
     else if(p.isHero&&!S.autoHero){ dec=await heroDecide(); }
     else { await sleep(delay()); dec=botDecide(seat); }
     applyAction(seat,dec);
@@ -1372,6 +1410,11 @@ function delay(){if(S.autoFolded||S.fastFold) return 0; if(isBeginner()) return 
 
 function sanitize(seat,dec){
   const p=S.players[seat], toCall=S.currentBet-p.bet;
+  if(dec.exact){   // ring practice: a replayed / pre-sized action is applied exactly as recorded
+    if(dec.act==='check'&&toCall>0) return {act:'fold'};
+    if((dec.act==='fold'||dec.act==='call')&&toCall===0) return {act:'check'};
+    return dec;
+  }
   if(dec.act==='check'&&toCall>0) dec={act:'fold'};
   if(dec.act==='fold'&&toCall===0) dec={act:'check'};
   if(dec.act==='call'&&toCall===0) dec={act:'check'};
@@ -1411,6 +1454,7 @@ function applyAction(seat,dec){
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
+  if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0});
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
@@ -1857,6 +1901,7 @@ function setMsg(t){document.getElementById('msg').textContent=t;}
 function setStatus(t){const e=document.getElementById('session'); e.dataset.status=t; renderSession();}
 function renderSession(){
   const e=document.getElementById('session');
+  if(RP.on){ e.innerHTML=RP.sessionText(); return; }
   const modeTxt={cloud:'クラウド保存中（どの端末から開いても同じ記録）',local:'クラウドに接続できないため、この端末のブラウザに一時保存中。次にクラウド接続できたとき自動で同期します',memory:'記録は保存されません（このセッションのみ）'}[Store.mode];
   const s=S.session;
   e.innerHTML=`今回 <b>${s.n}</b> ハンド／<b class="${s.net>=0?'pos-c':'neg-c'}">${netTxt(s.net).replace(/(bb|点)$/,'')}</b> ${isBeginner()?'点':'bb'}　累計 <b>${Store.hands.length}</b> ハンド<br>${e.dataset.status||modeTxt}`;
@@ -1864,9 +1909,10 @@ function renderSession(){
 
 /* ---------- hero controls ---------- */
 function heroDecide(){ return new Promise(res=>{S.heroResolve=res; renderControls();}); }
-function heroChoose(dec){ const r=S.heroResolve; S.heroResolve=null; document.getElementById('actArea').innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; if(r) r(dec); }
+function heroChoose(dec){ const r=S.heroResolve; S.heroResolve=null; if(!RP.on) document.getElementById('actArea').innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; if(r) r(dec); }
 function renderControls(){
   const area=document.getElementById('actArea');
+  if(RP.on){ RP.controls(area); return; }
   if(!S.heroResolve){
     if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; return; }
     area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
@@ -2337,6 +2383,257 @@ document.getElementById('adminUnlock').onclick=()=>{
 document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('adminUnlock').click(); };
 
 /* =========================================================
+   Ring practice (リング練習)
+   The instructor (owner's Google account) plays hands at the ring table and saves the ones worth teaching: seat, deck order and every
+   action of every player (+ a comment per street). Students replay a saved game in order with exactly the same deal and the same
+   opponent actions; at each of their decisions they see their action next to the instructor's, and may follow the instructor or go
+   their own way (after which the opponents play live and there are no more comments).
+   Saved games: Firestore docs shared/rpg_* ({kind:'rpgame',t,g}). Everyone signed in reads; only the admin writes (firestore.rules).
+   ========================================================= */
+const RP_ST=['プリフロップ','フロップ','ターン','リバー'], RP_KEY='pflab_rp_done';
+const rp50=v=>Math.round(v/50)*50;
+const rpEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RP_WAIT='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>';
+Object.assign(RP,{
+  isOwner(){ try{ const u=firebase.auth().currentUser; return !!(u&&!u.isAnonymous&&String(u.email||'').toLowerCase()===OWNER_EMAIL); }catch(e){ return false; } },
+  done(){ try{ return Math.max(0,parseInt(localStorage.getItem(RP_KEY)||'0',10)||0); }catch(e){ return 0; } },
+  setDone(n){ lsSetSafe(RP_KEY,String(n)); },
+  async load(){
+    const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
+    const snap=await c.db.collection('shared').where('kind','==','rpgame').get();
+    this.games=snap.docs.map(d=>{ const x=JSON.parse(JSON.stringify(d.data())); return Object.assign({id:d.id,t:x.t},x.g); }).sort((a,b)=>a.t-b.t);
+    this.loaded=true;
+  },
+  async save(rec){
+    const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
+    const t=Date.now(), id='rpg_'+t+'_'+Math.random().toString(36).slice(2,6);
+    await c.db.doc('shared/'+id).set({kind:'rpgame',t,g:rec});
+    this.games.push(Object.assign({id,t},rec));
+  },
+  /* ---- menu ---- */
+  async renderMenu(){
+    const el=document.getElementById('rp-menu-body');
+    el.innerHTML='<div class="empty">保存されているゲームを読み込み中…</div>';
+    try{ await this.load(); }
+    catch(e){ el.innerHTML=`<div class="empty">読み込みに失敗しました（${rpEsc(e&&e.code||e&&e.message||e)}）</div><div class="toolbar"><button class="btn" id="rpRetry">再読み込み</button></div>`; document.getElementById('rpRetry').onclick=()=>this.renderMenu(); return; }
+    if(Nav.screen!=='rp-menu') return;
+    const n=this.games.length, d=Math.min(this.done(),n), owner=this.isOwner();
+    el.innerHTML=`
+      <div class="nv-sec">リング練習</div>
+      <p class="rpnote">講師が実際にプレーしたゲームを、配られるカードも相手の動きも同じ状況で再現します。ストリートごとに、あなたのプレーと講師のプレーを見比べられます。設定（初心者モードなど）はリングゲームと同じです。ベットサイズは、ポットの33%・50%・75%・100%・200%とオールインから選びます。</p>
+      <section class="block">
+        <h2>練習する</h2>
+        <p class="sub">講師が保存したゲームだけをプレーできます。ゲームは1番から順に出ます。</p>
+        <div><span class="rpcount">${n}</span> ゲームが保存されています</div>
+        ${n?`<p class="sub" style="margin-top:6px">あなたの進み具合：${d>=n?'すべて終了しました（'+n+'／'+n+'）':d+'ゲーム終了／次は '+(d+1)+' ゲーム目'}</p>`:'<p class="sub" style="margin-top:6px">まだ講師のゲームが保存されていません。</p>'}
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn main" id="rpGo" ${n&&d<n?'':'disabled'}>${d>0&&d<n?'続きから始める（'+(d+1)+'ゲーム目）':'1ゲーム目から始める'}</button>
+          ${d>0?'<button class="btn" id="rpRestart">最初からやり直す</button>':''}
+        </div>
+      </section>
+      ${owner?`<section class="block"><h2>講師用</h2><p class="sub">実際にプレーして、練習問題にするゲームを記録します。配られるのは、レンジに入りうるハンドだけです。ストリートごとにコメントを付けて、1ゲームごとに保存するかどうかを選べます。</p><div class="toolbar"><button class="btn main" id="rpTeach">講師として記録する</button></div></section>`:''}`;
+    const go=document.getElementById('rpGo'); if(go) go.onclick=()=>this.start('play');
+    const rs=document.getElementById('rpRestart'); if(rs) rs.onclick=()=>{ this.setDone(0); this.renderMenu(); };
+    const te=document.getElementById('rpTeach'); if(te) te.onclick=()=>this.start('teach');
+  },
+  async start(mode){
+    await this.stopRing();
+    this.saved=S.players.map(p=>p.stack); this.mode=mode; this.on=true; this.leaving=false; this.game=null; this.rec=null; this.waitResolve=null; S.abort=false;
+    Nav.setScreen('rp');
+    this.clearTable(); this.idle();
+  },
+  async stopRing(){   // a ring-game hand left running behind the menu is dropped
+    if(!S.running) return;
+    S.abort=true; if(S.heroResolve){ const r=S.heroResolve; S.heroResolve=null; r({act:'fold'}); }
+    for(let i=0;i<150&&S.running;i++) await sleep(30);
+  },
+  clearTable(){
+    S.players.forEach(p=>{ p.hole=[]; p.folded=true; p.bet=0; p.contrib=0; p.allIn=false; p.la=null; p.acted=false; p.stack=START; p.start=START; p.shown=false; p.reveal=false; });
+    S.board=[]; S.done=false; S.winners=[]; S.acting=-1; S.street=0; S.lastActor=-1; S.soleWin=new Set(); S.shared=new Set(); S.flopSeats=[];
+    document.getElementById('advice').classList.add('hidden');
+    setMsg(this.on?(this.mode==='teach'?'講師モード':'ゲームを始めましょう'):'');
+    render(); renderSession();
+  },
+  leave(){   // the screen changed away from the practice table
+    if(!this.on) return;
+    this.leaving=true;
+    if(S.running){
+      S.abort=true;
+      if(S.heroResolve){ const r=S.heroResolve; S.heroResolve=null; r({act:'fold'}); }
+      if(this.waitResolve){ const w=this.waitResolve; this.waitResolve=null; w(); }
+    } else this.finishLeave();
+  },
+  aborted(){ S.abort=false; S.running=false; S.autoFolded=false; S.fastFold=false; if(this.leaving) this.finishLeave(); },
+  finishLeave(){
+    this.leaving=false; this.on=false; this.mode=null; this.game=null; this.rec=null; this.waitResolve=null;
+    this.clearTable();
+    if(this.saved) S.players.forEach((p,i)=>{ const v=this.saved[i]; if(isFinite(v)){ p.stack=v; p.start=v; } });
+    render(); renderSession(); renderControls();
+  },
+  sessionText(){
+    const n=this.games.length;
+    return this.mode==='teach'?`講師モード（記録用）　保存済み <b>${n}</b> ゲーム`:`ゲーム <b>${this.game?this.gameNo:Math.min(this.done()+1,n)}</b> ／ 保存されているゲーム <b>${n}</b>`;
+  },
+  /* ---- dealing ---- */
+  inRange(pos,k){   // can this hand ever be in the range at this seat (open range; the big blind: any defend range)?
+    const ex=(m,p)=>window.PFRanges?window.PFRanges.exp(m,p,k):{has:false}, pl=e=>e.r+e.c+(e.j||0)>0;
+    if(pos!=='BB'){ const e=ex('open',pos); if(e.has) return pl(e); const ch=CH.open[pos]; return !!ch&&freqOf(ch.r,k)>0; }
+    let have=false, any=false;
+    for(const o of ['UTG','HJ','CO','BTN','SB']){ const e=ex('vsOpen','BBvs'+o); if(e.has){ have=true; if(pl(e)) any=true; } }
+    if(have) return any;
+    return Object.values(CH.vsOpen.BB).some(sp=>freqOf(sp.r,k)>0||freqOf(sp.c,k)>0);
+  },
+  deal(){   // called from setupHand: fixes the button and the deck order
+    document.getElementById('actArea').innerHTML=RP_WAIT;
+    this.cm=['','','','']; this.sel=null;
+    if(this.mode==='play'){
+      const g=this.game; S.button=g.button; S.deck=g.deck.slice();
+      this.follow=true; this.cursor=0; this.cmpLog=[]; this.shownCm=[false,false,false,false]; this.rec=null; return;
+    }
+    let btn, deck, tries=0;
+    do{ btn=Math.floor(Math.random()*6); deck=shuffleDeck(); tries++;
+      if(this.inRange(POS[(6-btn)%6],classKey(deck[51],deck[50]))) break;
+    }while(tries<500);
+    S.button=btn; S.deck=deck;
+    this.rec={v:1,button:btn,deck:deck.slice(),acts:[],pos:POS[(6-btn)%6],hc:[deck[51],deck[50]].map(cardStr).join('')};
+  },
+  /* ---- decisions ---- */
+  toDec(e){ return {act:e.a,to:e.to,pct:e.pct,exact:true}; },
+  async decide(seat){
+    const p=S.players[seat];
+    if(p.isHero){
+      const mine=await heroDecide();
+      if(S.abort) return {act:'fold'};
+      if(this.mode==='teach'||!this.follow) return mine;
+      return await this.compare(mine);
+    }
+    await sleep(delay());
+    if(S.abort) return {act:'fold'};
+    if(this.mode==='play'&&this.follow){
+      const e=this.game.acts[this.cursor];
+      if(e&&e.s===seat){ this.cursor++; return this.toDec(e); }
+      this.follow=false;   // out of step with the recording: carry on live
+    }
+    return botDecide(seat);
+  },
+  desc(e){
+    if(e.a==='fold') return 'フォールド';
+    if(e.a==='check') return 'チェック';
+    if(e.a==='call') return 'コール '+amtLong(e.c);
+    if(e.ai) return 'オールイン '+amtLong(e.to);
+    return (e.bt?'ベット ':'レイズ ')+amtLong(e.to)+'('+e.pct+'%)';
+  },
+  controls(area){ if(S.heroResolve) this.pick(area); },
+  pick(area){
+    const p=S.players[0], toCall=S.currentBet-p.bet, maxTo=p.bet+p.stack, pot=potTotal(), st=S.street;
+    const canRaise=maxTo>S.currentBet&&S.players.some((q,i)=>i>0&&!q.folded&&!q.allIn);
+    const minTo=Math.min(S.currentBet+S.minRaise,maxTo), bet=S.currentBet===0, verb=bet?'ベット':'レイズ';
+    const opts=[33,50,75,100,200].map(pc=>{ let to=bet?rp50(pot*pc/100):S.currentBet+rp50((pot+toCall)*pc/100); to=clamp(to,minTo,maxTo); return {pc,to,ai:to>=maxTo}; });
+    opts.push({pc:0,to:maxTo,ai:true});
+    const lbl=o=>o.pc===0?'オールイン '+amtLong(o.to):amtLong(o.to)+'('+o.pc+'%)';
+    let sel=null;
+    area.innerHTML=`
+      <div class="row">
+        <button class="btn fold grow" id="bF" ${toCall===0?'disabled':''}>フォールド</button>
+        <button class="btn grow" id="bC">${toCall===0?'チェック':'コール '+amtLong(Math.min(toCall,p.stack))}</button>
+        <button class="btn main grow" id="bR" disabled>${verb}</button>
+      </div>
+      ${canRaise?`<div class="presets">${opts.map((o,i)=>`<button data-i="${i}" aria-pressed="false">${lbl(o)}</button>`).join('')}</div>`:''}
+      ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この場面（${RP_ST[st]}）のコメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="2" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.cm[st])}</textarea></div>`:''}`;
+    const bR=document.getElementById('bR');
+    area.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
+      sel=opts[+b.dataset.i];
+      area.querySelectorAll('.presets button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+      bR.disabled=false; bR.textContent=verb+' '+lbl(sel);
+    });
+    const cmEl=document.getElementById('rpCm'); if(cmEl) cmEl.oninput=()=>{ this.cm[st]=cmEl.value; };
+    document.getElementById('bF').onclick=()=>heroChoose({act:'fold',exact:true});
+    document.getElementById('bC').onclick=()=>heroChoose({act:toCall===0?'check':'call',exact:true});
+    bR.onclick=()=>{ if(sel) heroChoose({act:'raise',to:sel.to,pct:sel.pc,exact:true}); };
+  },
+  compare(mine){   // student: show my action next to the instructor's; resolves with the action to play
+    return new Promise(resolve=>{
+      const st=S.street, e=this.game.acts[this.cursor], p=S.players[0], toCall=S.currentBet-p.bet, maxTo=p.bet+p.stack;
+      if(!e||e.s!==0||e.st!==st){ this.follow=false; resolve(mine); return; }
+      const m={a:mine.act,st,bt:S.currentBet===0?1:0,to:mine.to||0,c:mine.act==='call'?Math.min(toCall,p.stack):0,pct:mine.pct||0,ai:mine.act==='raise'&&mine.to>=maxTo?1:0};
+      const ok=e.a===m.a&&(e.a!=='raise'||e.to===m.to);
+      const first=!this.shownCm[st]; this.shownCm[st]=true;
+      const cm=first&&this.game.cm&&this.game.cm[st]?this.game.cm[st]:'';
+      const area=document.getElementById('actArea');
+      const fin=(dec,kept)=>{ this.waitResolve=null; this.cmpLog.push({st,mine:this.desc(m),inst:this.desc(e),ok,kept}); if(kept) this.follow=false; else this.cursor++; resolve(dec); };
+      this.waitResolve=()=>resolve(mine);
+      area.innerHTML=`<div class="rpcmp ${ok?'ok':'ng'}">
+        <div class="rph">${RP_ST[st]}｜あなたと講師の比較</div>
+        <div class="rpg"><span>あなた</span><b>${this.desc(m)}</b><span>講師</span><b>${this.desc(e)}</b></div>
+        <div class="rpv">${ok?'✓ 講師と同じプレーです':'✗ 講師と違うプレーです'}</div>
+        ${cm?`<div class="rpc"><small>講師のコメント</small>${rpEsc(cm).replace(/\n/g,'<br>')}</div>`:(first?'<div class="rpnote" style="margin:0">（このストリートの講師コメントはありません）</div>':'')}
+        ${ok?`<div class="row"><button class="btn main grow" id="rpNext">次へ進む</button></div>`
+          :`<div class="rpwarn">「自分のアクションで進む」を選ぶと、これ以降は講師のコメントが表示されません（相手の動きも、自分のプレーに合わせて変わります）。</div>
+            <div class="row"><button class="btn main grow" id="rpAdopt">講師のアクションで進む</button><button class="btn grow" id="rpKeep">自分のアクションで進む</button></div>`}
+      </div>`;
+      if(ok) document.getElementById('rpNext').onclick=()=>{ area.innerHTML=RP_WAIT; fin(this.toDec(e),false); };
+      else{
+        document.getElementById('rpAdopt').onclick=()=>{ area.innerHTML=RP_WAIT; fin(this.toDec(e),false); };
+        document.getElementById('rpKeep').onclick=()=>{ area.innerHTML=RP_WAIT; setMsg('ここから先は自分のプレーで進みます（講師コメントなし）'); fin(mine,true); };
+      }
+    });
+  },
+  /* ---- idle / end of hand ---- */
+  idle(){
+    const area=document.getElementById('actArea');
+    if(this.mode==='teach'){
+      area.innerHTML=`<div class="rpnote">配られるのは、そのポジションのレンジに入りうるハンドだけです。保存済み：<b>${this.games.length}</b> ゲーム</div><div class="row"><button class="btn main grow" id="rpDeal">ハンドを配る</button></div>`;
+      document.getElementById('rpDeal').onclick=()=>{ if(!S.running) playHand(); };
+      return;
+    }
+    const n=this.games.length, d=this.done();
+    if(d>=n){
+      area.innerHTML=`<div class="rpnote">すべてのゲーム（${n}ゲーム）が終わりました。</div><div class="row"><button class="btn main grow" id="rpAgain">最初からやり直す</button></div>`;
+      document.getElementById('rpAgain').onclick=()=>{ this.setDone(0); this.idle(); renderSession(); };
+      return;
+    }
+    area.innerHTML=`<div class="rpnote">ゲーム <b>${d+1}</b> ／ 保存されているゲーム <b>${n}</b></div><div class="row"><button class="btn main grow" id="rpStart">${d+1}ゲーム目を始める</button></div>`;
+    document.getElementById('rpStart').onclick=()=>{ if(S.running) return; this.game=this.games[d]; this.gameNo=d+1; renderSession(); playHand(); };
+  },
+  handEnd(){
+    if(S.abort){ this.aborted(); return; }
+    const area=document.getElementById('actArea');
+    if(this.mode==='teach') return this.savePanel(area);
+    const n=this.games.length, g=this.game, L=this.cmpLog, okN=L.filter(x=>x.ok).length;
+    this.setDone(Math.max(this.done(),this.gameNo));
+    area.innerHTML=`<div class="rpcmp">
+      <div class="rph">ゲーム ${this.gameNo} ／ ${n} 終了</div>
+      ${L.length?`<div class="rpv">講師と同じプレー：${okN} ／ ${L.length}</div>
+        <table class="rpsum"><tr><th></th><th>あなた</th><th>講師</th><th></th></tr>${L.map(x=>`<tr><td>${RP_ST[x.st]}</td><td>${x.mine}</td><td>${x.inst}</td><td class="${x.ok?'okc':'ngc'}">${x.ok?'✓':'✗'}</td></tr>`).join('')}</table>`:'<div class="rpnote" style="margin:0">このゲームで、あなたが判断する場面はありませんでした。</div>'}
+      ${this.follow?'':'<div class="rpwarn">途中から自分のプレーで進めたため、結果は講師と異なる場合があります。</div>'}
+      <div class="rpnote" style="margin:0">講師の結果：${netTxt((g.inet||0)/BB)}</div>
+      <div class="row">${this.done()<n?`<button class="btn main grow" id="rpNextGame">${this.done()+1}ゲーム目へ</button>`:`<button class="btn main grow" id="rpFinish">すべて終了（最初に戻る）</button>`}</div>
+    </div>`;
+    const nx=document.getElementById('rpNextGame'); if(nx) nx.onclick=()=>this.idle();
+    const fi=document.getElementById('rpFinish'); if(fi) fi.onclick=()=>{ Nav.setScreen('rp-menu'); };
+    renderSession();
+  },
+  savePanel(area){   // instructor: keep this game or not, with a comment for each street where there was a decision
+    const hs=this.rec.acts.filter(a=>a.s===0), sts=[...new Set(hs.map(a=>a.st))];
+    area.innerHTML=`<div class="rpsave">
+      <div class="rph">このゲームを保存しますか？（${this.rec.pos}／${this.games.length}ゲーム保存済み）</div>
+      ${sts.length?sts.map(st=>`<div class="rpst">${RP_ST[st]}：${hs.filter(a=>a.st===st).map(a=>this.desc(a)).join(' → ')}<small>コメント（任意）</small></div><textarea rows="2" data-st="${st}">${rpEsc(this.cm[st])}</textarea>`).join(''):'<div class="rpnote">あなたの判断がないゲームです。</div>'}
+      <div class="row" style="margin-top:10px"><button class="btn main grow" id="rpSave">保存する</button><button class="btn grow" id="rpDrop">保存しない</button></div>
+      <div class="rpnote" id="rpSaveMsg" style="margin:8px 0 0"></div>
+    </div>`;
+    const msg=document.getElementById('rpSaveMsg'), bs=document.getElementById('rpSave'), bd=document.getElementById('rpDrop');
+    area.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{ this.cm[+t.dataset.st]=t.value; });
+    bd.onclick=()=>this.idle();
+    bs.onclick=async()=>{
+      bs.disabled=bd.disabled=true; msg.textContent='保存中…';
+      const h=S.players[0], rec=Object.assign({},this.rec,{cm:this.cm.map(x=>String(x||'').trim()),inet:Math.round(h.stack-h.start)});
+      try{ await this.save(rec); renderSession(); area.innerHTML=`<div class="rpnote">保存しました。保存済み：<b>${this.games.length}</b> ゲーム</div><div class="row"><button class="btn main grow" id="rpDeal">次のハンドを配る</button></div>`; document.getElementById('rpDeal').onclick=()=>{ if(!S.running) playHand(); }; }
+      catch(e){ bs.disabled=bd.disabled=false; msg.textContent='保存に失敗しました（'+(e&&e.code||e&&e.message||e)+'）。講師のGoogleアカウントでログインしているか確認してください'; }
+    };
+  }
+});
+
+/* =========================================================
    Tabs & init
    ========================================================= */
 // top tabs: ring / pf / admin. curTab = the visible ring sub-tab ('play','stats','hist'), or the top tab while the ring game is hidden
@@ -2363,27 +2660,30 @@ let pfBootP=Promise.resolve();
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
-    const ok=(this.screen==='ring'&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu')&&topTab==='pf');
+    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu')&&topTab==='pf');
     if(!ok) this.screen=topTab; this.apply(); },
-  setScreen(s){ this.screen=s;
-    const need=s==='home'?null:s==='ring'?'ring':s==='admin'?'admin':'pf';
+  setScreen(s){ if(RP.on&&s!=='rp') RP.leave(); this.screen=s;
+    if(s==='rp') ringTab='play';
+    const need=s==='home'||s==='rp-menu'?null:s==='ring'||s==='rp'?'ring':s==='admin'?'admin':'pf';
     if(need&&topTab!==need) document.querySelector('.tabs button[data-tab="'+need+'"]').click();
-    if(s==='ring') applyRingTab(); else if(s==='home'&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
-    this.apply(); },
-  title(){ return this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
+    if(s==='ring'||s==='rp') applyRingTab(); else if((s==='home'||s==='rp-menu')&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
+    this.apply(); if(s==='rp-menu') RP.renderMenu(); },
+  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
   apply(){
     const s=this.screen, el=id=>document.getElementById(id);
     document.querySelector('.wrap').classList.toggle('onhome',s==='home');
+    document.querySelector('.wrap').classList.toggle('onrpm',s==='rp-menu');
+    document.querySelector('.wrap').classList.toggle('inrp',s==='rp');
     el('tab-pf').classList.toggle('menu',s==='pf-menu');
     el('navbar').classList.toggle('hidden',s==='home');
-    el('navBack').textContent=s==='pf'?'← メニュー':'← トップ'; el('navTitle').textContent=this.title();
+    el('navBack').textContent=s==='pf'||s==='rp'?'← メニュー':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
     el('nvAdminCard').classList.toggle('hidden',!owner); el('nvPfAdmin').classList.toggle('hidden',!owner);
-    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:s==='pf-menu'?'pf-menu':s,t:this.title()}));
+    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:s==='pf-menu'?'pf-menu':s==='rp'?'rp-menu':s,t:this.title()}));
     let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){}
     const show=s==='home'&&last&&last.s&&(last.s!=='admin'||owner);
     el('nvResume').classList.toggle('hidden',!show);
-    if(show) el('nvResumeLbl').textContent=({ring:'リングゲーム',admin:'管理者','pf-menu':'プリフロ練習'}[last.s])||('プリフロ練習 ・ '+last.t);
+    if(show) el('nvResumeLbl').textContent=({ring:'リングゲーム',admin:'管理者','pf-menu':'プリフロ練習','rp-menu':'リング練習'}[last.s])||('プリフロ練習 ・ '+last.t);
   },
   async pfGo(kind,arg){
     this.setScreen('pf'); await pfBootP;
@@ -2395,7 +2695,7 @@ const Nav={screen:'home',
 function lsSetSafe(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 document.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>Nav.setScreen(b.dataset.nv));
 document.getElementById('nvResume').onclick=()=>{ let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){} Nav.setScreen(last&&last.s==='pf-menu'?'pf-menu':last&&last.s||'home'); };
-document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-menu':'home');
+document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
 document.querySelector('.brand h1').onclick=()=>Nav.setScreen('home');
 document.querySelectorAll('[data-pfmode]').forEach(b=>b.onclick=()=>Nav.pfGo('mode',b.dataset.pfmode));
 document.querySelectorAll('[data-pfspecial]').forEach(b=>b.onclick=()=>Nav.pfGo('special',b.dataset.pfspecial));
