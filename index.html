@@ -2390,12 +2390,14 @@ document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document
    their own way (after which the opponents play live and there are no more comments).
    Saved games: Firestore docs shared/rpg_* ({kind:'rpgame',t,g}). Everyone signed in reads; only the admin writes (firestore.rules).
    ========================================================= */
+const RP_TEACHERS=[OWNER_EMAIL,'kentonov@gmail.com'];
 const RP_ST=['プリフロップ','フロップ','ターン','リバー'], RP_KEY='pflab_rp_done';
 const rp50=v=>Math.round(v/50)*50;
 const rpEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RP_WAIT='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>';
 Object.assign(RP,{
-  isOwner(){ try{ const u=firebase.auth().currentUser; return !!(u&&!u.isAnonymous&&String(u.email||'').toLowerCase()===OWNER_EMAIL); }catch(e){ return false; } },
+  // Google accounts that may record games (keep in step with isTeacher() in firestore.rules)
+  isOwner(){ try{ const u=firebase.auth().currentUser; return !!(u&&!u.isAnonymous&&RP_TEACHERS.includes(String(u.email||'').toLowerCase())); }catch(e){ return false; } },
   done(){ try{ return Math.max(0,parseInt(localStorage.getItem(RP_KEY)||'0',10)||0); }catch(e){ return 0; } },
   setDone(n){ lsSetSafe(RP_KEY,String(n)); },
   async load(){

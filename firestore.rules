@@ -6,6 +6,11 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && request.auth.uid == '8AdyXls5j7ZHzzzzpBLXKX2fQxz1';
     }
+    // Instructor accounts (Google, verified email) allowed to record ring-practice games. Keep in step with RP_TEACHERS in index.html.
+    function isTeacher() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.email in ['sho30647@gmail.com', 'kentonov@gmail.com'];
+    }
     // Each account can only read/write its own data; the admin can read everyone's.
     match /data/users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
@@ -20,6 +25,8 @@ service cloud.firestore {
     match /shared/{doc} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+      // Ring-practice games (shared/rpg_*): the instructors may add new ones (the admin can also edit / delete via the rule above).
+      allow create: if isTeacher() && doc.matches('rpg_.*');
     }
   }
 }
