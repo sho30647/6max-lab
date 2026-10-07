@@ -406,7 +406,8 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
 .wrap:not(.onrpm)>#rp-menu{display:none}
 .wrap.inrp #tab-ring>.subtabs{display:none}
-.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold),.wrap.inrp label:has(#optBeginner),.wrap.inrp #begNote{display:none!important}
+.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold),.wrap.inrp label:has(#optBeginner),.wrap.inrp label:has(#optRange),.wrap.inrp #begNote{display:none!important}
+.rvj{font-size:14px;line-height:1.7;margin-bottom:8px}.rvj .badge{margin-right:6px}
 /* ring practice: size buttons, comparison panel, instructor comment box */
 .presets button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .rpnote{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.5}
@@ -428,6 +429,8 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .rpsum td,.rpsum th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .rpsum th{font-weight:500;color:var(--muted);font-size:12px}
 .rpsum .okc{color:var(--win);font-weight:800}.rpsum .ngc{color:var(--loss);font-weight:800}
+.rpml{font-size:13px;line-height:1.7;padding:4px 0;border-top:1px dashed var(--line)}.rpml .card{width:24px;height:33px;font-size:14px;vertical-align:middle}.rpml .card i{font-size:11px}
+.hitem .mini .card{width:26px;height:36px;font-size:15px}.hitem .mini .card i{font-size:12px}
 .rpcount{font-family:var(--num);font-size:30px;font-weight:700}
 .nv-resume{display:block;width:100%;text-align:left;border:1px dashed var(--brass);background:var(--surface);border-radius:12px;padding:10px 14px;margin-bottom:12px}
 .nv-resume small{display:block;color:var(--muted);font-size:11px;letter-spacing:.06em}
@@ -523,6 +526,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <label><input type="checkbox" id="optAuto" checked> ハンド終了後に自動で次へ</label>
         <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
         <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
+        <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
       </div>
       <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、持ち点は次のハンドに引き継がれます（0点になったら200点で再スタート）。ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）
         <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点に戻す</button></div></div>
@@ -833,7 +837,7 @@ const FirebaseGate=(()=>{
    them to the cloud on every change, and on load lets the cloud copy win (one reload when it differs).
    ========================================================= */
 const Prefs=(()=>{
-  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto)$/.test(k);
+  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto|range)$/.test(k);
   const snapshot=()=>{ const o={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(isPref(k)) o[k]=localStorage.getItem(k); } }catch(e){} return o; };
   const same=(a,b)=>{ const ka=Object.keys(a).sort(), kb=Object.keys(b).sort(); return ka.length===kb.length&&ka.every((k,i)=>k===kb[i]&&a[k]===b[k]); };
   const rawSet=Storage.prototype.setItem, rawDel=Storage.prototype.removeItem;
@@ -1399,12 +1403,38 @@ async function bettingRound(){
     else if(p.isHero&&!S.autoHero&&document.getElementById('optAutoFold').checked&&autoFoldHero(p)){ dec={act:'fold'}; S.autoFolded=true; }
     else if(p.isHero&&!S.autoHero){ dec=await heroDecide(); }
     else { await sleep(delay()); dec=botDecide(seat); }
+    const rv=(!RP.on&&p.isHero&&S.street===0&&!S.autoFolded&&document.getElementById('optRange').checked)?pfReviewSpot(seat,dec):null;   // the spot as it stands before the action
     applyAction(seat,dec);
     S.cursor=(seat+1)%6;
     render();
+    if(rv) await pfReviewShow(rv);
     // beginner: after the hero folds, let the fold show for a moment, then play out the rest instantly and show just the result
     if(p.isHero&&p.folded&&!S.autoFolded&&isBeginner()){ await sleep(1000); S.fastFold=true; }
   }
+}
+/* optional: after each of the hero's preflop actions, show the range chart of the spot and judge the action (same data as the preflop trainer) */
+function pfReviewSpot(seat,dec){
+  const p=S.players[seat], pos=posOf(seat), rc=S.raiseCount;
+  let m,sp;
+  if(rc===1){ if(pos==='BB'||limperCount()>0) return null; m='open'; sp=pos; }
+  else if(rc===2){ if(S.firstRaiser<0||S.firstRaiser===seat) return null;
+    if(S.players.some((q,i)=>i!==S.firstRaiser&&i!==seat&&!q.folded&&q.bet===S.currentBet)) return null;   // a caller in between: the chart assumes heads-up
+    m='vsOpen'; sp=pos+'vs'+posOf(S.firstRaiser); }
+  else if(rc===3&&p.raisedPre&&S.firstRaiser===seat&&S.threeBettor>=0){ m='vs3bet'; sp=pos+'vs'+posOf(S.threeBettor); }
+  else return null;
+  const allIn=dec.act==='raise'&&dec.to>=p.bet+p.stack;
+  const a=dec.act==='fold'?'F':(dec.act==='call'||dec.act==='check')?'C':(allIn&&m!=='open')?'J':'R';
+  return {m,p:sp,a,k:classKey(p.hole[0],p.hole[1])};
+}
+function pfReviewShow(rv){
+  return new Promise(res=>{
+    const r=window.PFRanges&&window.PFRanges.review(rv.m,rv.p,rv.k,rv.a); if(!r){ res(); return; }
+    const box=document.getElementById('tablebox'), area=document.getElementById('actArea');
+    const o=document.createElement('div'); o.className='rov'; o.id='ring-rov'; o.innerHTML=r.html; box.appendChild(o); r.bind(o);
+    area.innerHTML=`<div class="rvj">${r.verdict}</div><div class="row"><button class="btn main grow" id="rvNext">次へ進む</button></div>`;
+    const done=()=>{ S.reviewRes=null; o.remove(); area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; res(); };
+    S.reviewRes=done; document.getElementById('rvNext').onclick=done;
+  });
 }
 function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
 
@@ -2392,7 +2422,7 @@ document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document
    ========================================================= */
 const RP_TEACHERS=[OWNER_EMAIL,'kentonov@gmail.com'];
 const RP_ST=['プリフロップ','フロップ','ターン','リバー'], RP_KEY='pflab_rp_done';
-const rp50=v=>Math.round(v/50)*50;
+const rp50=v=>Math.round(v/50)*50, rpAmt=ch=>pts(ch)+'点';
 const rpEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RP_WAIT='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>';
 Object.assign(RP,{
@@ -2403,14 +2433,14 @@ Object.assign(RP,{
   async load(){
     const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
     const snap=await c.db.collection('shared').where('kind','==','rpgame').get();
-    this.games=snap.docs.map(d=>{ const x=JSON.parse(JSON.stringify(d.data())); return Object.assign({id:d.id,t:x.t},x.g); }).sort((a,b)=>a.t-b.t);
+    this.games=snap.docs.map(d=>{ const x=JSON.parse(JSON.stringify(d.data())); return Object.assign({id:d.id,t:x.t,uid:x.uid||''},x.g); }).sort((a,b)=>a.t-b.t);
     this.loaded=true;
   },
   async save(rec){
     const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
     const t=Date.now(), id='rpg_'+t+'_'+Math.random().toString(36).slice(2,6);
-    await c.db.doc('shared/'+id).set({kind:'rpgame',t,g:rec});
-    this.games.push(Object.assign({id,t},rec));
+    await c.db.doc('shared/'+id).set({kind:'rpgame',t,uid:c.uid,g:rec});
+    this.games.push(Object.assign({id,t,uid:c.uid},rec));
   },
   /* ---- menu ---- */
   async renderMenu(){
@@ -2433,10 +2463,67 @@ Object.assign(RP,{
           ${d>0?'<button class="btn" id="rpRestart">最初からやり直す</button>':''}
         </div>
       </section>
-      ${owner?`<section class="block"><h2>講師用</h2><p class="sub">実際にプレーして、練習問題にするゲームを記録します。配られるのは、レンジに入りうるハンドだけです。ストリートごとにコメントを付けて、1ゲームごとに保存するかどうかを選べます。</p><div class="toolbar"><button class="btn main" id="rpTeach">講師として記録する</button></div></section>`:''}`;
+      ${owner?`<section class="block"><h2>講師用</h2><p class="sub">実際にプレーして、練習問題にするゲームを記録します。配られるのは、レンジに入りうるハンドだけです。ストリートごとにコメントを付けて、1ゲームごとに保存するかどうかを選べます。</p><div class="toolbar"><button class="btn main" id="rpTeach">講師として記録する</button></div>
+        <h2 style="margin-top:14px">講師管理モード</h2><p class="sub">保存したゲームのコメントを直したり、ゲームを削除したりできます。</p><div class="toolbar"><button class="btn" id="rpManage">講師管理モードを開く</button></div></section>`:''}`;
     const go=document.getElementById('rpGo'); if(go) go.onclick=()=>this.start('play');
     const rs=document.getElementById('rpRestart'); if(rs) rs.onclick=()=>{ this.setDone(0); this.renderMenu(); };
     const te=document.getElementById('rpTeach'); if(te) te.onclick=()=>this.start('teach');
+    const mg=document.getElementById('rpManage'); if(mg) mg.onclick=()=>this.renderManage();
+  },
+  /* ---- instructor management: fix the comments of saved games, or delete games ---- */
+  canManage(g){ try{ const u=firebase.auth().currentUser; if(!u) return false; return String(u.email||'').toLowerCase()===OWNER_EMAIL||(!!g.uid&&g.uid===u.uid); }catch(e){ return false; } },
+  async renderManage(){
+    const el=document.getElementById('rp-menu-body');
+    el.innerHTML='<div class="empty">保存されているゲームを読み込み中…</div>';
+    try{ await this.load(); }
+    catch(e){ el.innerHTML=`<div class="empty">読み込みに失敗しました（${rpEsc(e&&e.code||e&&e.message||e)}）</div><div class="toolbar"><button class="btn" id="rpmBack">← リング練習メニュー</button></div>`; document.getElementById('rpmBack').onclick=()=>this.renderMenu(); return; }
+    const back=`<div class="toolbar"><button class="btn" id="rpmBack">← リング練習メニュー</button></div>`;
+    const d2=n=>String(n).padStart(2,'0'), when=t=>{ const d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+' '+d2(d.getHours())+':'+d2(d.getMinutes()); };
+    const card=c=>`<span class="card s${c&3}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`;
+    const item=(g,i)=>{
+      const can=this.canManage(g), pos=s=>POS[(s-g.button+6)%6], maxSt=Math.max(0,...g.acts.map(a=>a.st));
+      const bd=[g.deck[39],g.deck[38],g.deck[37],g.deck[36],g.deck[35]].slice(0,maxSt===0?0:maxSt+2);
+      const hs=g.acts.filter(a=>a.s===0), sts=[...new Set(hs.map(a=>a.st))];
+      const lines=[0,1,2,3].filter(st=>g.acts.some(a=>a.st===st)).map(st=>`<div class="rpml"><b>${RP_ST[st]}</b>${st===1?' '+bd.slice(0,3).map(card).join(''):st===2?' '+card(bd[3]):st===3?' '+card(bd[4]):''}<br>${g.acts.filter(a=>a.st===st).map(a=>`${pos(a.s)}${a.s===0?'(講師)':''} ${this.desc(a)}`).join('　→　')}</div>`).join('');
+      return `<details class="hitem" data-i="${i}"><summary><span class="id">#${i+1}</span><span class="p">${g.pos}</span><span class="mini">${card(g.deck[51])}${card(g.deck[50])}</span><span class="vt">${rpEsc(this.tname(g))}　${when(g.t)}</span></summary>
+        <div class="vh">${lines}
+        ${sts.map(st=>`<div class="rpst">${RP_ST[st]}のコメント</div><textarea rows="2" data-st="${st}" ${can?'':'readonly'}>${rpEsc((g.cm||[])[st]||'')}</textarea>`).join('')}
+        ${can?`<div class="row" style="margin-top:8px"><button class="btn main" data-save="${i}">コメントを保存</button><button class="btn fold" data-del="${i}">このゲームを削除</button></div>`:'<div class="rpnote" style="margin-top:8px">他の講師のゲームは、編集・削除できません。</div>'}
+        <div class="rpnote rpmsg" style="margin:6px 0 0"></div></div></details>`;
+    };
+    el.innerHTML=`${back}<div class="nv-sec">講師管理モード</div>
+      <p class="rpnote">保存されているゲーム：<b>${this.games.length}</b>　ゲームを削除すると、それ以降のゲームの番号が1つずつ繰り上がります（生徒の「◯ゲーム目まで終了」の進み具合はそのままなので、1ゲーム分飛ばされる生徒が出ます）。</p>
+      <div class="hlist">${this.games.length?this.games.map(item).join(''):'<div class="empty">保存されたゲームはまだありません。</div>'}</div>`;
+    document.getElementById('rpmBack').onclick=()=>this.renderMenu();
+    el.querySelectorAll('details').forEach(det=>{
+      const g=this.games[+det.dataset.i], msg=det.querySelector('.rpmsg');
+      const sv=det.querySelector('[data-save]'), dl=det.querySelector('[data-del]');
+      if(sv) sv.onclick=async()=>{
+        const cm=['','','',''], old=g.cm||[]; det.querySelectorAll('textarea').forEach(t=>{ cm[+t.dataset.st]=t.value.trim(); });
+        [0,1,2,3].forEach(i=>{ if(!det.querySelector(`textarea[data-st="${i}"]`)) cm[i]=old[i]||''; });
+        sv.disabled=true; msg.textContent='保存中…';
+        try{ await this.updateComments(g,cm); msg.textContent='コメントを保存しました'; }
+        catch(e){ msg.textContent='保存に失敗しました（'+(e&&e.code||e&&e.message||e)+'）。firestore.rules のデプロイが済んでいるか確認してください'; }
+        sv.disabled=false;
+      };
+      if(dl){ let armed=false; dl.onclick=async()=>{
+        if(!armed){ armed=true; dl.textContent='もう一度押すと削除します'; setTimeout(()=>{ armed=false; dl.textContent='このゲームを削除'; },4000); return; }
+        dl.disabled=true; msg.textContent='削除中…';
+        try{ await this.remove(g); this.renderManage(); }
+        catch(e){ dl.disabled=false; armed=false; dl.textContent='このゲームを削除'; msg.textContent='削除に失敗しました（'+(e&&e.code||e&&e.message||e)+'）'; }
+      }; }
+    });
+  },
+  async updateComments(g,cm){
+    const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
+    const {id,t,uid,...rec}=g; rec.cm=cm;
+    await c.db.doc('shared/'+id).set(Object.assign({kind:'rpgame',t},uid?{uid}:{},{g:rec}));
+    g.cm=cm;
+  },
+  async remove(g){
+    const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
+    await c.db.doc('shared/'+g.id).delete();
+    this.games=this.games.filter(x=>x.id!==g.id);
   },
   async start(mode){
     await this.stopRing();
@@ -2446,7 +2533,7 @@ Object.assign(RP,{
   },
   async stopRing(){   // a ring-game hand left running behind the menu is dropped
     if(!S.running) return;
-    S.abort=true; if(S.heroResolve){ const r=S.heroResolve; S.heroResolve=null; r({act:'fold'}); }
+    S.abort=true; if(S.heroResolve){ const r=S.heroResolve; S.heroResolve=null; r({act:'fold'}); } if(S.reviewRes) S.reviewRes();
     for(let i=0;i<150&&S.running;i++) await sleep(30);
   },
   clearTable(){
@@ -2523,9 +2610,9 @@ Object.assign(RP,{
   desc(e){
     if(e.a==='fold') return 'フォールド';
     if(e.a==='check') return 'チェック';
-    if(e.a==='call') return 'コール '+amtLong(e.c);
-    if(e.ai) return 'オールイン '+amtLong(e.to);
-    return (e.bt?'ベット ':'レイズ ')+amtLong(e.to)+(e.pct<0?'('+(-e.pct)+'倍)':'('+e.pct+'%)');
+    if(e.a==='call') return 'コール '+rpAmt(e.c);
+    if(e.ai) return 'オールイン '+rpAmt(e.to);
+    return (e.bt?'ベット ':'レイズ ')+rpAmt(e.to)+(e.pct<0?'('+(-e.pct)+'倍)':e.pct>0?'('+e.pct+'%)':'');
   },
   controls(area){ if(S.heroResolve) this.pick(area); },
   pick(area){
@@ -2724,6 +2811,8 @@ document.getElementById('btnReset').onclick=async e=>{
 };
 try{ const f=localStorage.getItem('sixmaxlab_fast'); if(f) document.getElementById('optFast').checked=f==='1'; }catch(e){}
 document.getElementById('optFast').onchange=e=>{ try{localStorage.setItem('sixmaxlab_fast',e.target.checked?'1':'0');}catch(_){} };
+try{ const f=localStorage.getItem('sixmaxlab_range'); if(f) document.getElementById('optRange').checked=f==='1'; }catch(e){}
+document.getElementById('optRange').onchange=e=>{ try{localStorage.setItem('sixmaxlab_range',e.target.checked?'1':'0');}catch(_){} };
 try{ const f=localStorage.getItem('sixmaxlab_autofold'); if(f) document.getElementById('optAutoFold').checked=f==='1'; }catch(e){}
 document.getElementById('optAutoFold').onchange=e=>{ try{localStorage.setItem('sixmaxlab_autofold',e.target.checked?'1':'0');}catch(_){} };
 function applyBeginner(){
@@ -3815,6 +3904,17 @@ async function pfBoot(){
   if(modeReady(P.mode)) deal();
   applyTab();
 }
+/* ring game "range chart after each preflop action": the spot's range chart + a verdict for the action just taken */
+window.PFRanges.review=function(m,p,k,a){
+  if(!Ranges.data||!Ranges.has(m,p)) return null;
+  const e=Ranges.exp(m,p,k), g=judge(e,a), [gc,gl]=GRADE[g];
+  return {g,
+    verdict:`<span class="badge ${gc}">${gl}</span> あなた：<b>${actName(m,a)}</b>（${k}）　レンジ表：${expText(e)}`,
+    html:`<div class="rovhead"><b>${posLabel(p)}<span class="pcOnly"> のレンジ全体</span></b><span class="legend">${rangeLegend(m)}<span><i class="curmark"></i>${k}</span></span></div>
+      <div class="grid13">${rangeCells(m,p)}</div><div class="rovinfo">${rangeSumText(m,p)}</div>`,
+    bind(root){ const cur=root.querySelector(`.grid13 [data-k="${k}"]`); if(cur) cur.classList.add('cur');
+      root.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ root.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${expText(Ranges.exp(m,p,b.dataset.k))}`; }); }};
+};
 window.PF={ boot: pfBoot, onShow: function(){ renderSession(); },
   title: function(){ return curTab==='play'?(P.special==='master'?'ハンド別マスター':P.special==='range'?'相手のレンジ推定':MODE_NAME[P.mode]):({stats:'分析',hist:'履歴',range:'レンジ表',redit:'レンジ編集'}[curTab]||'プリフロ練習'); },
   refreshStats: function(){ if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); },   // admin view switched back to own data
