@@ -1484,7 +1484,7 @@ function applyAction(seat,dec){
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
-  if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0});
+  if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0,...(seat===0&&RP.mode==='teach'?{cm:RP.takeCm()}:{})});
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
@@ -1510,7 +1510,25 @@ function openAdvice(act){
 function limperCount(){ return S.players.filter((q,i)=>!q.folded&&q.bet===BB&&posOf(i)!=='BB'&&q.acted).length; }
 function facingAllIn(p){ return S.currentBet-p.bet>=p.stack*0.85; }
 // the chart that governs this seat's current preflop decision
+/* Bots play the preflop trainer's range tables (the shared, admin-edited charts: open / vsOpen / vs3bet) with the table's own
+   frequencies and raise sizes. Spots the tables don't cover (limpers, callers in between, 4bet+) keep the older built-in charts. */
+function tableSituation(seat){
+  if(!window.PFRanges||!window.PFRanges.spot) return null;
+  const p=S.players[seat], pos=posOf(seat), rc=S.raiseCount;
+  let m,sp,kind;
+  if(rc===1){ if(pos==='BB'||limperCount()>0) return null; m='open'; sp=pos; kind='open'; }
+  else if(rc===2){
+    if(S.firstRaiser<0||S.firstRaiser===seat||S.players.some((q,i)=>i!==S.firstRaiser&&i!==seat&&!q.folded&&q.bet===S.currentBet)) return null;
+    m='vsOpen'; sp=pos+'vs'+posOf(S.firstRaiser); kind='vsOpen'; }
+  else if(rc===3&&p.raisedPre&&S.firstRaiser===seat&&S.threeBettor>=0){ m='vs3bet'; sp=pos+'vs'+posOf(S.threeBettor); kind='vs3'; }
+  else return null;
+  const T=window.PFRanges.spot(m,sp); if(!T) return null;
+  const R=new Map(), C=new Map(), J=new Map();
+  for(const k in T.h){ const x=T.h[k]; if(+x.r>0) R.set(k,+x.r); if(+x.c>0) C.set(k,+x.c); if(+x.j>0) J.set(k,+x.j); }
+  return {sp:{r:R,c:C,j:J},kind,table:true,size:Math.round(T.size*BB)};
+}
 function preSituation(seat){
+  const tbl=tableSituation(seat); if(tbl) return tbl;
   const p=S.players[seat], pos=posOf(seat), rc=S.raiseCount;
   if(rc>=2&&facingAllIn(p)) return {sp:CH.vsJam,kind:'vsJam'};
   if(rc===1){
@@ -1562,12 +1580,13 @@ function preSize(seat,kind){
 function isIPvs(a,b){ const o=s=>(s-S.button+5)%6; return o(a)>o(b); }
 function botPreflop(seat){
   const p=S.players[seat], st=p.style, k=classKey(p.hole[0],p.hole[1]);
-  const {sp,kind}=preSituation(seat);
+  const sit=preSituation(seat), {sp,kind}=sit;
   const toCall=S.currentBet-p.bet;
-  const j=freqOf(sp.j,k), r=Math.min(1,freqOf(sp.r,k)*st.three), c=Math.min(1,freqOf(sp.c,k)*st.loose);
+  const tb=!!sit.table;   // table spots: the equilibrium frequencies as they are (no per-bot looseness)
+  const j=freqOf(sp.j,k), r=Math.min(1,freqOf(sp.r,k)*(tb?1:st.three)), c=Math.min(1,freqOf(sp.c,k)*(tb?1:st.loose));
   const u=Math.random();
   if(u<j) return {act:'raise',to:p.stack+p.bet};
-  if(u<j+r) return {act:'raise',to:preSize(seat,kind)};
+  if(u<j+r) return {act:'raise',to:tb?Math.min(sit.size,p.stack+p.bet):preSize(seat,kind)};
   if(u<j+r+c) return {act:'call'};
   if(kind==='bbOption'||toCall===0) return {act:'check'};
   return {act:'fold'};
@@ -1784,7 +1803,7 @@ function buildRecord(){
     pa:S.pfAggr===0, cbo, cb:cbo&&flopFirst.act==='raise',
     pb:post.filter(d=>d.act==='raise').length, pact:post.length,
     log:logStr, sh:sh.join(' '),
-    bv:BOT_VERSION,
+    bv:BOT_VERSION, sk:S.players.map((p,i)=>posOf(i)+':'+bbs(p.start)).join(' '),
     vh:S.players.map((p,i)=>i===0?null:posOf(i)+':'+p.hole.map(cardStr).join('')+(p.folded?'':(S.showdown?':SD':':W'))).filter(Boolean).join(' ')
   };
 }
@@ -2129,13 +2148,73 @@ function vhHTML(h){
     return `<div class="vhi${flag?' live':''}"><span class="vp">${pos}</span><span class="mini">${miniCards(cards)}</span><span class="vt">${tag}</span></div>`;}).join('');
   return `<div class="vh"><div class="vhh">相手のハンド</div>${items}</div>`;
 }
+/* "AIレビュー用" text: the hand as a plain-language play history that can be pasted into ChatGPT etc. */
+function handText(h){
+  const sym=c=>(c[0]==='T'?'10':c[0])+SUIT_SYM[SUITS.indexOf(c[1])];
+  const cards=str=>{ const o=[]; for(let i=0;i+1<(str||'').length;i+=2) o.push(sym(str.slice(i,i+2))); return o.join(' '); };
+  const num=v=>String(Math.round(v*100)/100);
+  const stacks=h.sk?h.sk.split(' ').map(t=>{ const [p,v]=t.split(':'); return [p,+v]; }):['UTG','HJ','CO','BTN','SB','BB'].map(p=>[p,100]);
+  const names={f:'フォールド',x:'チェック'}, lines=[], cur={SB:0.5,BB:1}; let pot=0, first=true;
+  (h.log||'').split('\n').forEach(ln=>{
+    const m=ln.match(/^([PFTR])(?: \[([^\]]+)\])?: ?(.*)$/); if(!m) return;
+    const st={P:'プリフロップ',F:'フロップ',T:'ターン',R:'リバー'}[m[1]];
+    if(!first){ Object.keys(cur).forEach(k=>{ pot+=cur[k]; delete cur[k]; }); }
+    first=false;
+    const board=m[1]==='P'?'':(m[1]==='F'?cards(h.board.slice(0,6)):m[1]==='T'?cards(h.board.slice(6,8)):cards(h.board.slice(8,10)));
+    const acts=m[3].split(', ').filter(Boolean).map(a=>{
+      const x=a.match(/^([A-Z]+)(\*?) ([fxcbr])([\d.]*)(\(AI\))?$/); if(!x) return a;
+      const [,pos,me,code,amt,ai]=x, who=pos+(me?'（私）':''), prev=cur[pos]||0;
+      if(code==='f'||code==='x') return `${who} ${names[code]}`;
+      const to=+amt; cur[pos]=to;
+      if(code==='c') return `${who} コール ${num(to-prev)}bb${ai?'（オールイン）':''}`;
+      return `${who} ${code==='b'?'ベット '+num(to)+'bb':'レイズ（合計 '+num(to)+'bb）'}${ai?'（オールイン）':''}`;
+    });
+    const potNow=m[1]==='P'?null:num(pot);
+    lines.push(`■ ${st}${board?' ['+board+']':''}${potNow!=null?'　ポット '+potNow+'bb':''}\n${acts.join(' → ')}`);
+  });
+  const bbRes=h.net>0?'+'+num(h.net):num(h.net);
+  return [
+    '【ハンドレビューのお願い】',
+    'ノーリミット・テキサスホールデム 6max キャッシュゲームです（SB 0.5bb／BB 1bb。金額はすべてbb単位）。',
+    `私のポジションは ${h.pos}、ハンドは ${cards(h.hc)} です。`,
+    '',
+    '■ ハンド開始時のスタック',
+    stacks.map(([p,v])=>`${p}${p===h.pos?'（私）':''} ${num(v)}bb`).join('／'),
+    '',
+    lines.join('\n\n'),
+    '',
+    '■ 結果',
+    `私の収支：${bbRes}bb${h.sh?'\nショーダウン：'+h.sh.split(' ').map(t=>{ const [p,c]=t.split(':'); return p+' '+cards(c); }).join('／'):''}`,
+    '',
+    '■ お願い',
+    '私のプレーについて、プリフロップから最後のストリートまで、判断ごとに良かった点と改善点を教えてください。相手のレンジ、ポットオッズ、ボードのテクスチャ、ベットサイズの観点からコメントをお願いします。'
+  ].join('\n');
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+  try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.remove(); return ok; }catch(e){ return false; }
+}
+let histMode=(()=>{ try{ return localStorage.getItem('sixmaxlab_histmode')||'all'; }catch(e){ return 'all'; } })();
+const HIST_MODES=[['all','全履歴（80ハンド）'],['win','大きく勝った（40ハンド）'],['lose','大きく負けた（40ハンド）']];
+function histList(){
+  const all=statsHands();
+  if(histMode==='win') return all.filter(h=>h.net>0).sort((a,b)=>b.net-a.net).slice(0,40);
+  if(histMode==='lose') return all.filter(h=>h.net<0).sort((a,b)=>a.net-b.net).slice(0,40);
+  return all.slice(-80).reverse();
+}
 function renderHist(){
   const body=document.getElementById('histBody');
   if(!statsHands().length){ body.innerHTML='<div class="empty">プレーしたハンドがここに新しい順で並びます。</div>'; return; }
-  const list=statsHands().slice(-80).reverse();
-  body.innerHTML=`<p class="sub" style="color:var(--muted);font-size:12px">直近80ハンドを表示（全${statsHands().length}ハンドは書き出しで取得できます）。* が自分のアクション。</p><div class="hlist">${list.map(h=>`
+  const list=histList(), note=histMode==='win'?'収支が大きくプラスだったハンド（上位40、収支の大きい順）':histMode==='lose'?'収支が大きくマイナスだったハンド（上位40、損失の大きい順）':'直近80ハンドを表示（全'+statsHands().length+'ハンドは書き出しで取得できます）';
+  body.innerHTML=`<div class="gtoggle" id="histModes">${HIST_MODES.map(([v,l])=>`<button data-v="${v}" aria-pressed="${histMode===v}">${l}</button>`).join('')}</div>
+    <p class="sub" style="color:var(--muted);font-size:12px">${note}。* が自分のアクション。</p>${list.length?'':'<div class="empty">該当するハンドはまだありません。</div>'}<div class="hlist">${list.map(h=>`
     <details class="hitem"><summary><span class="id">#${h.id}</span><span class="p">${h.pos}</span><span class="mini">${miniCards(h.hc)}</span><span class="mini" style="color:var(--muted)">${h.board?miniCards(h.board):'—'}</span><span class="net ${h.net>=0?'pos-c':'neg-c'}">${fmt(h.net)}</span></summary>
-    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb</div>${vhHTML(h)}</details>`).join('')}</div>`;
+    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb</div><div class="row" style="padding:0 12px 10px"><button class="btn" data-copy="${h.id}">AIレビュー用にコピー</button><span class="cpmsg" style="font-size:12px;color:var(--muted)"></span></div>${vhHTML(h)}</details>`).join('')}</div>`;
+  body.querySelectorAll('#histModes button').forEach(b=>b.onclick=()=>{ histMode=b.dataset.v; try{localStorage.setItem('sixmaxlab_histmode',histMode);}catch(e){} renderHist(); });
+  body.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
+    const h=statsHands().find(x=>String(x.id)===b.dataset.copy), msg=b.parentNode.querySelector('.cpmsg'); if(!h) return;
+    msg.textContent=(await copyText(handText(h)))?'コピーしました。ChatGPTなどに貼り付けてください':'コピーできませんでした';
+  });
 }
 const CSV_COLS=['id','t','pos','hc','cls','board','pf','vpip','pfr','o3','b3','f3o','f3f','sf','st','sr','sd','wsd','net','pot','np','tex_suit','tex_high','tex_conn','tex_paired','cat','ptype','fh','or','ip','pa','cbo','cb','pb','pact','log','sh','vh','bv'];
 function toCSV(noLog,hands=Store.hands,pre=[]){   // pre: extra leading columns (admin export: user, email)
@@ -2483,11 +2562,12 @@ Object.assign(RP,{
     const item=(g,i)=>{
       const can=this.canManage(g), pos=s=>POS[(s-g.button+6)%6], maxSt=Math.max(0,...g.acts.map(a=>a.st));
       const bd=[g.deck[39],g.deck[38],g.deck[37],g.deck[36],g.deck[35]].slice(0,maxSt===0?0:maxSt+2);
-      const hs=g.acts.filter(a=>a.s===0), sts=[...new Set(hs.map(a=>a.st))];
+      const hs=g.acts.filter(a=>a.s===0), perAction=g.acts.some(a=>'cm' in a), seenSt=new Set();
+      const initCm=a=>{ if(perAction) return a.cm||''; const first=!seenSt.has(a.st); seenSt.add(a.st); return first?((g.cm||[])[a.st]||''):''; };
       const lines=[0,1,2,3].filter(st=>g.acts.some(a=>a.st===st)).map(st=>`<div class="rpml"><b>${RP_ST[st]}</b>${st===1?' '+bd.slice(0,3).map(card).join(''):st===2?' '+card(bd[3]):st===3?' '+card(bd[4]):''}<br>${g.acts.filter(a=>a.st===st).map(a=>`${pos(a.s)}${a.s===0?'(講師)':''} ${this.desc(a)}`).join('　→　')}</div>`).join('');
       return `<details class="hitem" data-i="${i}"><summary><span class="id">#${i+1}</span><span class="p">${g.pos}</span><span class="mini">${card(g.deck[51])}${card(g.deck[50])}</span><span class="vt">${rpEsc(this.tname(g))}　${when(g.t)}</span></summary>
         <div class="vh">${lines}
-        ${sts.map(st=>`<div class="rpst">${RP_ST[st]}のコメント</div><textarea rows="2" data-st="${st}" ${can?'':'readonly'}>${rpEsc((g.cm||[])[st]||'')}</textarea>`).join('')}
+        ${hs.map((a,j)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断のコメント</small></div><textarea rows="2" data-j="${j}" ${can?'':'readonly'}>${rpEsc(initCm(a))}</textarea>`).join('')}
         ${can?`<div class="row" style="margin-top:8px"><button class="btn main" data-save="${i}">コメントを保存</button><button class="btn fold" data-del="${i}">このゲームを削除</button></div>`:'<div class="rpnote" style="margin-top:8px">他の講師のゲームは、編集・削除できません。</div>'}
         <div class="rpnote rpmsg" style="margin:6px 0 0"></div></div></details>`;
     };
@@ -2499,10 +2579,9 @@ Object.assign(RP,{
       const g=this.games[+det.dataset.i], msg=det.querySelector('.rpmsg');
       const sv=det.querySelector('[data-save]'), dl=det.querySelector('[data-del]');
       if(sv) sv.onclick=async()=>{
-        const cm=['','','',''], old=g.cm||[]; det.querySelectorAll('textarea').forEach(t=>{ cm[+t.dataset.st]=t.value.trim(); });
-        [0,1,2,3].forEach(i=>{ if(!det.querySelector(`textarea[data-st="${i}"]`)) cm[i]=old[i]||''; });
+        const cms=[...det.querySelectorAll('textarea')].map(t=>t.value.trim());
         sv.disabled=true; msg.textContent='保存中…';
-        try{ await this.updateComments(g,cm); msg.textContent='コメントを保存しました'; }
+        try{ await this.updateComments(g,cms); msg.textContent='コメントを保存しました'; }
         catch(e){ msg.textContent='保存に失敗しました（'+(e&&e.code||e&&e.message||e)+'）。firestore.rules のデプロイが済んでいるか確認してください'; }
         sv.disabled=false;
       };
@@ -2514,11 +2593,13 @@ Object.assign(RP,{
       }; }
     });
   },
-  async updateComments(g,cm){
+  async updateComments(g,cms){   // cms: one comment per hero action, in order. The result is a per-action game (the old street comments are dropped).
     const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
-    const {id,t,uid,...rec}=g; rec.cm=cm;
+    const {id,t,uid,...rec}=JSON.parse(JSON.stringify(g)); let j=0;
+    rec.acts.forEach(a=>{ if(a.s===0) a.cm=cms[j++]||''; });
+    delete rec.cm;
     await c.db.doc('shared/'+id).set(Object.assign({kind:'rpgame',t},uid?{uid}:{},{g:rec}));
-    g.cm=cm;
+    g.acts=rec.acts; delete g.cm;
   },
   async remove(g){
     const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
@@ -2574,7 +2655,7 @@ Object.assign(RP,{
   },
   deal(){   // called from setupHand: fixes the button and the deck order
     document.getElementById('actArea').innerHTML=RP_WAIT;
-    this.cm=['','','','']; this.sel=null;
+    this.cm=['','','','']; this.curCm=''; this.sel=null;
     if(this.mode==='play'){
       const g=this.game; S.button=g.button; S.deck=g.deck.slice();
       this.follow=true; this.cursor=0; this.cmpLog=[]; this.shownCm=[false,false,false,false]; this.rec=null; return;
@@ -2587,6 +2668,7 @@ Object.assign(RP,{
     this.rec={v:1,button:btn,deck:deck.slice(),acts:[],pos:POS[(6-btn)%6],hc:[deck[51],deck[50]].map(cardStr).join('')};
   },
   /* ---- decisions ---- */
+  takeCm(){ const c=String(this.curCm||'').trim(); this.curCm=''; return c; },
   tname(g){ return g&&g.by||'講師'; },
   teacherName(){ try{ const u=firebase.auth().currentUser; return String((u&&(u.displayName||u.email))||'講師').split('@')[0]; }catch(e){ return '講師'; } },
   toDec(e){ return {act:e.a,to:e.to,pct:e.pct,exact:true}; },
@@ -2634,7 +2716,7 @@ Object.assign(RP,{
         <button class="btn main grow" id="bR">${verb}</button>
       </div>
       ${canRaise?`<div class="presets">${opts.map((o,i)=>`<button data-i="${i}" aria-pressed="false">${lbl(o)}</button>`).join('')}</div>`:''}
-      ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この場面（${RP_ST[st]}）のコメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="2" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.cm[st])}</textarea></div>`:''}`;
+      ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この判断（${RP_ST[st]}）の考え方・コメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="2" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.curCm||'')}</textarea></div>`:''}`;
     const bR=document.getElementById('bR');
     const choose=i=>{
       sel=opts[i];
@@ -2643,7 +2725,7 @@ Object.assign(RP,{
     };
     area.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>choose(+b.dataset.i));
     if(canRaise) choose(Math.min(defIdx,opts.length-1)); else bR.disabled=true;
-    const cmEl=document.getElementById('rpCm'); if(cmEl) cmEl.oninput=()=>{ this.cm[st]=cmEl.value; };
+    const cmEl=document.getElementById('rpCm'); if(cmEl) cmEl.oninput=()=>{ this.curCm=cmEl.value; };
     document.getElementById('bF').onclick=()=>heroChoose({act:'fold',exact:true});
     document.getElementById('bC').onclick=()=>heroChoose({act:toCall===0?'check':'call',exact:true});
     bR.onclick=()=>{ if(sel) heroChoose({act:'raise',to:sel.to,pct:sel.pc,exact:true}); };
@@ -2655,7 +2737,9 @@ Object.assign(RP,{
       const m={a:mine.act,st,bt:S.currentBet===0?1:0,to:mine.to||0,c:mine.act==='call'?Math.min(toCall,p.stack):0,pct:mine.pct||0,ai:mine.act==='raise'&&mine.to>=maxTo?1:0};
       const ok=e.a===m.a&&(e.a!=='raise'||e.to===m.to);
       const first=!this.shownCm[st]; this.shownCm[st]=true;
-      const cm=first&&this.game.cm&&this.game.cm[st]?this.game.cm[st]:'';
+      const perAction=this.game.acts.some(a=>'cm' in a);   // games saved with per-action comments; older games only have street comments
+      const cm=perAction?(e.cm||''):(first&&this.game.cm&&this.game.cm[st]?this.game.cm[st]:'');
+      const noCm=perAction||first;
       const area=document.getElementById('actArea');
       const fin=(dec,kept)=>{ this.waitResolve=null; this.cmpLog.push({st,mine:this.desc(m),inst:this.desc(e),ok,kept}); if(kept) this.follow=false; else this.cursor++; resolve(dec); };
       this.waitResolve=()=>resolve(mine);
@@ -2663,7 +2747,7 @@ Object.assign(RP,{
         <div class="rph">${RP_ST[st]}｜あなたと講師（${rpEsc(this.tname(this.game))}）の比較</div>
         <div class="rpg"><span>あなた</span><b>${this.desc(m)}</b><span>講師 ${rpEsc(this.tname(this.game))}</span><b>${this.desc(e)}</b></div>
         <div class="rpv">${ok?'✓ 講師と同じプレーです':'✗ 講師と違うプレーです'}</div>
-        ${cm?`<div class="rpc"><small>講師 ${rpEsc(this.tname(this.game))} のコメント</small>${rpEsc(cm).replace(/\n/g,'<br>')}</div>`:(first?'<div class="rpnote" style="margin:0">（このストリートの講師コメントはありません）</div>':'')}
+        ${cm?`<div class="rpc"><small>講師 ${rpEsc(this.tname(this.game))} のコメント</small>${rpEsc(cm).replace(/\n/g,'<br>')}</div>`:(noCm?`<div class="rpnote" style="margin:0">（この${perAction?'アクション':'ストリート'}の講師コメントはありません）</div>`:'')}
         ${ok?`<div class="row"><button class="btn main grow" id="rpNext">次へ進む</button></div>`
           :`<div class="rpwarn">「自分のアクションで進む」を選ぶと、これ以降は講師のコメントが表示されません（相手の動きも、自分のプレーに合わせて変わります）。</div>
             <div class="row"><button class="btn main grow" id="rpAdopt">講師のアクションで進む</button><button class="btn grow" id="rpKeep">自分のアクションで進む</button></div>`}
@@ -2710,20 +2794,21 @@ Object.assign(RP,{
     const fi=document.getElementById('rpFinish'); if(fi) fi.onclick=()=>{ Nav.setScreen('rp-menu'); };
     renderSession();
   },
-  savePanel(area){   // instructor: keep this game or not, with a comment for each street where there was a decision
-    const hs=this.rec.acts.filter(a=>a.s===0), sts=[...new Set(hs.map(a=>a.st))];
+  savePanel(area){   // instructor: keep this game or not, with a comment for each of the hero's own actions
+    const hs=this.rec.acts.filter(a=>a.s===0);
     area.innerHTML=`<div class="rpsave">
       <div class="rph">このゲームを保存しますか？（${this.rec.pos}／${this.games.length}ゲーム保存済み）</div>
-      ${sts.length?sts.map(st=>`<div class="rpst">${RP_ST[st]}：${hs.filter(a=>a.st===st).map(a=>this.desc(a)).join(' → ')}<small>コメント（任意）</small></div><textarea rows="2" data-st="${st}">${rpEsc(this.cm[st])}</textarea>`).join(''):'<div class="rpnote">あなたの判断がないゲームです。</div>'}
+      ${hs.length?hs.map((a,i)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断の考え方・コメント（任意）</small></div><textarea rows="2" data-i="${i}">${rpEsc(a.cm||'')}</textarea>`).join(''):'<div class="rpnote">あなたの判断がないゲームです。</div>'}
       <div class="row" style="margin-top:10px"><button class="btn main grow" id="rpSave">保存する</button><button class="btn grow" id="rpDrop">保存しない</button></div>
       <div class="rpnote" id="rpSaveMsg" style="margin:8px 0 0"></div>
     </div>`;
     const msg=document.getElementById('rpSaveMsg'), bs=document.getElementById('rpSave'), bd=document.getElementById('rpDrop');
-    area.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{ this.cm[+t.dataset.st]=t.value; });
+    area.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{ hs[+t.dataset.i].cm=t.value; });
     bd.onclick=()=>this.idle();
     bs.onclick=async()=>{
       bs.disabled=bd.disabled=true; msg.textContent='保存中…';
-      const h=S.players[0], rec=Object.assign({},this.rec,{by:this.teacherName(),cm:this.cm.map(x=>String(x||'').trim()),inet:Math.round(h.stack-h.start)});
+      const h=S.players[0], rec=Object.assign({},this.rec,{by:this.teacherName(),inet:Math.round(h.stack-h.start)});
+      rec.acts.forEach(a=>{ if(a.s===0) a.cm=String(a.cm||'').trim(); });
       try{ await this.save(rec); renderSession(); area.innerHTML=`<div class="rpnote">保存しました。保存済み：<b>${this.games.length}</b> ゲーム</div><div class="row"><button class="btn main grow" id="rpDeal">次のハンドを配る</button></div>`; document.getElementById('rpDeal').onclick=()=>{ if(!S.running) playHand(); }; }
       catch(e){ bs.disabled=bd.disabled=false; msg.textContent='保存に失敗しました（'+(e&&e.code||e&&e.message||e)+'）。講師のGoogleアカウントでログインしているか確認してください'; }
     };
@@ -2992,7 +3077,8 @@ const SharedRanges={data:null,updated:0,
 };
 SharedRanges.readCache(); Ranges.load();
 const rangesReady=SharedRanges.fetch().then(ch=>{ if(ch) Ranges.load(); });
-window.PFRanges={exp:(m,p,k)=>Ranges.data?Ranges.exp(m,p,k):{has:false}};   // read-only view for the ring game (beginner advice)
+window.PFRanges={exp:(m,p,k)=>Ranges.data?Ranges.exp(m,p,k):{has:false},
+  spot:(m,p)=>{ const R=Ranges.data&&Ranges.has(m,p)?Ranges.get(m,p):null; return R?{size:+R.size||2.5,h:R.h}:null; }};   // the whole spot, for the ring-game bots   // read-only view for the ring game (beginner advice)
 
 /* range text parser */
 function normTok(t){ t=t.trim(); if(!t) return ''; return t.slice(0,2).toUpperCase()+t.slice(2).toLowerCase(); }
@@ -3310,7 +3396,7 @@ function showEstOverlay(rec){
   const b=document.getElementById('pf-btnRng'); if(b) b.setAttribute('aria-pressed','true');
   const close=()=>{ hideRangeOverlay(); };
   if(EST.done){ renderEstResult(o,T,rec,close); return; }
-  const info=()=>{ let w=0,n=0; CLASSES.forEach(k=>{ const v=EST.cells[k]||0; if(v>0){ n++; w+=combos(k)*v; } }); o.querySelector('.rovinfo').textContent=`推定 ${n}マス／${(w/1326*100).toFixed(1)}%　タップ：全部→一部→なし（なぞり塗り可）`; };
+  const info=()=>{ let w=0,n=0; CLASSES.forEach(k=>{ const v=EST.cells[k]||0; if(v>0){ n++; w+=combos(k)*v; } }); o.querySelector('.rovinfo').textContent=`推定 ${n}マス／${(w/1326*100).toFixed(1)}%　タップ：100%→50%→25%→なし（なぞり塗り可）`; };
   o.innerHTML=`<div class="rovhead"><b>${T.label}を推定</b><button class="rovx" aria-label="閉じる">×</button></div>
     <div class="grid13 estgrid">${CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join('')}</div>
     <div class="rovinfo"></div>
@@ -3320,7 +3406,7 @@ function showEstOverlay(rec){
   const paint=b=>{ if(!b||!b.dataset.k) return; const k=b.dataset.k; EST.cells[k]=drag; if(!drag) delete EST.cells[k];
     const bg=estBg(drag); b.classList.toggle('mixf',drag>0.001&&drag<0.999); b.style.background=bg; b.style.color=bg?'#fff':''; info(); };   // edited in place so touch-drag keeps its target
   const cellAt=e=>{ const el=document.elementFromPoint(e.clientX,e.clientY); return el&&el.closest&&el.closest('.estgrid button'); };
-  g.addEventListener('pointerdown',e=>{ const b=cellAt(e); if(!b) return; e.preventDefault(); const cur=EST.cells[b.dataset.k]||0; drag=cur===0?1:cur>=0.999?0.5:0; paint(b); });
+  g.addEventListener('pointerdown',e=>{ const b=cellAt(e); if(!b) return; e.preventDefault(); const cur=EST.cells[b.dataset.k]||0; drag=cur===0?1:cur>=0.999?0.5:cur>=0.499?0.25:0; paint(b); });
   g.addEventListener('pointermove',e=>{ if(drag===null) return; const b=cellAt(e); if(b&&(EST.cells[b.dataset.k]||0)!==drag) paint(b); });
   const stop=()=>{ drag=null; };
   g.addEventListener('pointerup',stop); g.addEventListener('pointercancel',stop); g.addEventListener('pointerleave',stop);
