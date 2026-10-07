@@ -391,6 +391,36 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .tablebox:has(.rov) .seat,.tablebox:has(.rov) .betchip{visibility:hidden}
 #pf-btnRng[aria-pressed="true"]{background:var(--surface2)}
 @media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} }
+/* ===== navigation: home screen, preflop menu, back bar (replaces the top tab bar and the preflop mode/sub-tab rows) ===== */
+header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
+.brand h1{cursor:pointer}
+.nv-resume.hidden,.nv-card.hidden,.navbar.hidden{display:none!important}
+.navbar{display:flex;align-items:center;gap:10px;min-width:0}
+.navbar button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap}
+.navbar b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrap.onhome>#tab-ring,.wrap.onhome>#tab-pf,.wrap.onhome>#tab-admin{display:none!important}
+.wrap:not(.onhome)>#home{display:none}
+#tab-pf.menu>:not(#pf-menu){display:none!important}
+#tab-pf:not(.menu)>#pf-menu{display:none}
+#home,#pf-menu{max-width:640px;margin:8px auto 0}
+.nv-resume{display:block;width:100%;text-align:left;border:1px dashed var(--brass);background:var(--surface);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.nv-resume small{display:block;color:var(--muted);font-size:11px;letter-spacing:.06em}
+.nv-resume b{font-size:15px}
+.nv-cards{display:grid;gap:10px}
+.nv-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:14px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px}
+.nv-card:hover,.nv-tile:hover{border-color:var(--brass)}
+.nv-card .t{display:block;font-family:var(--num);font-size:24px;font-weight:700;line-height:1.1}
+.nv-card .d{display:block;font-size:12.5px;color:var(--muted)}
+.nv-chip{width:56px;height:56px;border-radius:50%;background:var(--felt);display:grid;place-items:center;box-shadow:inset 0 0 0 4px var(--felt2),inset 0 0 0 6px color-mix(in srgb,var(--brass) 70%,transparent)}
+.nv-chip svg{width:26px;height:26px;fill:none;stroke:#f4efe0;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nv-card.admin .nv-chip{background:var(--ink)}
+.nv-sec{margin:16px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.nv-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nv-tiles.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.nv-tile{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 10px 11px;text-align:left}
+.nv-tile b{display:block;font-size:14px;line-height:1.3}
+.nv-tile small{display:block;color:var(--muted);font-size:11px;margin-top:2px;line-height:1.35}
+@media (max-width:600px){ .navbar{order:3;width:100%} .navbar button{padding:4px 12px;font-size:13.5px} #home,#pf-menu{margin-top:4px} }
 </style>
 </head>
 <body>
@@ -410,8 +440,28 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
       <button role="tab" aria-selected="false" data-tab="pf">プリフロ練習</button>
       <button role="tab" aria-selected="false" data-tab="admin">管理者</button>
     </div>
+    <div class="navbar hidden" id="navbar"><button id="navBack" type="button">← トップ</button><b id="navTitle"></b></div>
     <div class="userChip" id="cloudChip">ログイン中: <b id="cloudChipStatus">確認中…</b><button id="cloudLogoutBtn" class="hidden">ログアウト</button></div>
   </header>
+
+  <!-- HOME -->
+  <div id="home">
+    <button class="nv-resume hidden" id="nvResume" type="button"><small>続きから</small><b id="nvResumeLbl"></b></button>
+    <div class="nv-cards">
+      <button class="nv-card" data-nv="ring" type="button">
+        <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
+        <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span></span>
+      </button>
+      <button class="nv-card" data-nv="pf-menu" type="button">
+        <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
+        <span><span class="t">プリフロ練習</span><span class="d">GTOのレンジで反復。ハンド別マスター、レンジ推定も</span></span>
+      </button>
+      <button class="nv-card admin hidden" id="nvAdminCard" data-nv="admin" type="button">
+        <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg></span>
+        <span><span class="t">管理者</span><span class="d">メンバーの成績、レンジ編集</span></span>
+      </button>
+    </div>
+  </div>
 
   <!-- RING GAME -->
   <div id="tab-ring">
@@ -486,6 +536,31 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 
   <!-- PREFLOP PRACTICE -->
   <div id="tab-pf" class="hidden">
+    <div id="pf-menu">
+      <div class="nv-sec">練習する</div>
+      <div class="nv-tiles">
+        <button class="nv-tile" data-pfmode="open" type="button"><b>オープン</b><small>最初に入る</small></button>
+        <button class="nv-tile" data-pfmode="vsOpen" type="button"><b>vsオープン</b><small>オープンに対応</small></button>
+        <button class="nv-tile" data-pfmode="vs3bet" type="button"><b>vs3bet</b><small>3ベットに対応</small></button>
+      </div>
+      <div class="nv-sec">じっくり学ぶ</div>
+      <div class="nv-tiles two">
+        <button class="nv-tile" data-pfspecial="master" type="button"><b>ハンド別マスター</b><small>1つのハンドを全場面で通して練習</small></button>
+        <button class="nv-tile" data-pfspecial="range" type="button"><b>相手のレンジ推定</b><small>空の表を埋めて答え合わせ</small></button>
+      </div>
+      <div class="nv-sec">振り返る</div>
+      <div class="nv-tiles">
+        <button class="nv-tile" data-pftab="stats" type="button"><b>分析</b><small>正解率、苦手ハンド</small></button>
+        <button class="nv-tile" data-pftab="hist" type="button"><b>履歴</b><small>回答の一覧</small></button>
+        <button class="nv-tile" data-pftab="range" type="button"><b>レンジ表</b><small>正解レンジを見る</small></button>
+      </div>
+      <div class="hidden" id="nvPfAdmin">
+        <div class="nv-sec">管理者</div>
+        <div class="nv-tiles">
+          <button class="nv-tile" data-pftab="redit" type="button"><b>レンジ編集</b><small>全員のレンジを更新</small></button>
+        </div>
+      </div>
+    </div>
     <div class="subtabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="play">ゲーム開始</button>
       <button role="tab" aria-selected="false" data-tab="stats">分析</button>
@@ -2166,7 +2241,7 @@ function downloadBlob(filename,text){
 async function registerProfile(conn){
   if(conn.user&&!conn.user.isAnonymous&&String(conn.user.email||'').toLowerCase()===OWNER_EMAIL){   // the owner skips the passcode
     try{ sessionStorage.setItem('sixmaxlab_admin_ok','1'); }catch(e){}
-    try{ renderAdmin(); }catch(e){}
+    try{ renderAdmin(); Nav.apply(); }catch(e){}
   }
   try{
     const ref=conn.db.doc('profiles/'+conn.uid), now=Date.now(), snap=await ref.get();
@@ -2278,8 +2353,53 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   ['ring','pf','admin'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==topTab));
   applyRingTab();
   if(topTab==='admin') renderAdmin();
-  if(topTab==='pf'){ if(!pfBooted){ pfBooted=true; window.PF.boot(); } else { window.PF.onShow(); } }
+  if(topTab==='pf'){ if(!pfBooted){ pfBooted=true; pfBootP=window.PF.boot(); pfBootP.then(()=>Nav.apply()); } else { window.PF.onShow(); } }
+  Nav.sync();
 });
+/* Navigation: home -> (ring | preflop menu -> preflop screen | admin). The old tab bars stay in the DOM (other code clicks them)
+   but are hidden; this layer decides which screen is showing. */
+let pfBootP=Promise.resolve();
+const Nav={screen:'home',
+  isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
+  sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
+    const ok=(this.screen==='ring'&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu')&&topTab==='pf');
+    if(!ok) this.screen=topTab; this.apply(); },
+  setScreen(s){ this.screen=s;
+    const need=s==='home'?null:s==='ring'?'ring':s==='admin'?'admin':'pf';
+    if(need&&topTab!==need) document.querySelector('.tabs button[data-tab="'+need+'"]').click();
+    if(s==='ring') applyRingTab(); else if(s==='home'&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
+    this.apply(); },
+  title(){ return this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
+  apply(){
+    const s=this.screen, el=id=>document.getElementById(id);
+    document.querySelector('.wrap').classList.toggle('onhome',s==='home');
+    el('tab-pf').classList.toggle('menu',s==='pf-menu');
+    el('navbar').classList.toggle('hidden',s==='home');
+    el('navBack').textContent=s==='pf'?'← メニュー':'← トップ'; el('navTitle').textContent=this.title();
+    const owner=this.isOwner();
+    el('nvAdminCard').classList.toggle('hidden',!owner); el('nvPfAdmin').classList.toggle('hidden',!owner);
+    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:s==='pf-menu'?'pf-menu':s,t:this.title()}));
+    let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){}
+    const show=s==='home'&&last&&last.s&&(last.s!=='admin'||owner);
+    el('nvResume').classList.toggle('hidden',!show);
+    if(show) el('nvResumeLbl').textContent=({ring:'リングゲーム',admin:'管理者','pf-menu':'プリフロ練習'}[last.s])||('プリフロ練習 ・ '+last.t);
+  },
+  async pfGo(kind,arg){
+    this.setScreen('pf'); await pfBootP;
+    const q=sel=>document.querySelector(sel);
+    if(kind==='mode'||kind==='special'){ q('#tab-pf .subtabs button[data-tab="play"]').click(); q(kind==='mode'?'#pf-modes button[data-mode="'+arg+'"]':'#pf-modes2 button[data-special="'+arg+'"]').click(); }
+    else q('#tab-pf .subtabs button[data-tab="'+arg+'"]').click();
+    this.apply(); }
+};
+function lsSetSafe(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+document.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>Nav.setScreen(b.dataset.nv));
+document.getElementById('nvResume').onclick=()=>{ let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){} Nav.setScreen(last&&last.s==='pf-menu'?'pf-menu':last&&last.s||'home'); };
+document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-menu':'home');
+document.querySelector('.brand h1').onclick=()=>Nav.setScreen('home');
+document.querySelectorAll('[data-pfmode]').forEach(b=>b.onclick=()=>Nav.pfGo('mode',b.dataset.pfmode));
+document.querySelectorAll('[data-pfspecial]').forEach(b=>b.onclick=()=>Nav.pfGo('special',b.dataset.pfspecial));
+document.querySelectorAll('[data-pftab]').forEach(b=>b.onclick=()=>Nav.pfGo('tab',b.dataset.pftab));
+Nav.setScreen('home');
 document.getElementById('fPos').onchange=renderStats;
 document.getElementById('fRange').onchange=renderStats;
 document.getElementById('fBot').onchange=renderStats;
@@ -3307,6 +3427,7 @@ function applyTab(){
   document.querySelectorAll('#tab-pf .subtabs button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===curTab?'true':'false'));
   ['play','stats','range','redit','hist'].forEach(t=>document.getElementById('pf-tab-'+t).classList.toggle('hidden',t!==curTab));
   if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); if(curTab==='range') renderRange(); if(curTab==='redit') renderRangeEdit(); if(curTab==='play') renderPosChecks();
+  try{ Nav.apply(); }catch(e){}
 }
 document.querySelectorAll('#tab-pf .subtabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
 const modeReady=m=>m==='open'||isSpot(m);
@@ -3379,6 +3500,7 @@ async function pfBoot(){
   applyTab();
 }
 window.PF={ boot: pfBoot, onShow: function(){ renderSession(); },
+  title: function(){ return curTab==='play'?(P.special==='master'?'ハンド別マスター':P.special==='range'?'相手のレンジ推定':MODE_NAME[P.mode]):({stats:'分析',hist:'履歴',range:'レンジ表',redit:'レンジ編集'}[curTab]||'プリフロ練習'); },
   refreshStats: function(){ if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); },   // admin view switched back to own data
   recsCSV: (recs,pre)=>toCSV(recs,pre) };   // admin: everyone's answers as one CSV
 
