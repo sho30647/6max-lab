@@ -591,12 +591,13 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       <div class="controls" id="pf-controls">
         <p class="lbl sizeUI">レイズサイズ（bb）</p>
         <div class="chips sizeUI" id="pf-chips"></div>
-        <div class="row">
+        <div class="row" id="pf-actRow">
           <button class="btn fold grow" data-a="F">フォールド</button>
           <button class="btn call grow" data-a="C" id="pf-btnCall">コール<br><small>（リンプ）</small></button>
           <button class="btn raise grow" data-a="R" id="pf-btnRaise">レイズ</button>
           <button class="btn jam grow hidden" data-a="J" id="pf-btnJam">オールイン<br><small>100bb</small></button>
         </div>
+        <div class="row" id="pf-nextRow" style="display:none"><button class="btn main grow" id="pf-btnNext" type="button">次のハンド</button></div>
         <div class="fb hidden" id="pf-fb"></div>
       </div>
       <details class="setbox" id="pf-setbox">
@@ -2987,7 +2988,13 @@ function renderChips(){
   document.getElementById('pf-chips').innerHTML=SIZES.map(s=>`<button data-s="${s}" aria-pressed="${s===P.size}">${s}</button>`).join('');
   document.getElementById('pf-btnRaise').innerHTML=`レイズ<br><small>${P.size}bb</small>`;
 }
-function renderButtons(){ document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.disabled=P.answered||!P.cur); }
+function renderButtons(){ document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.disabled=P.answered||!P.cur); syncNext(false); }
+/* after an answer the action buttons give way to the next button in the same spot (not while an auto-advance is about to fire) */
+function syncNext(hold){
+  const ans=P.answered&&!hold, btn=document.getElementById('pf-btnNext');
+  document.getElementById('pf-actRow').style.display=ans?'none':''; document.getElementById('pf-nextRow').style.display=ans?'':'none';
+  btn.textContent=P.special==='master'&&P.master&&P.master.i<P.master.queue.length-1?'次のアクションへ':'次のハンド';
+}
 function setMsg(t){ document.getElementById('pf-msg').textContent=t; }
 
 function answer(a){
@@ -3005,7 +3012,7 @@ function answer(a){
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
   const lastOfMaster=P.special==='master'&&P.master&&P.master.i===P.master.queue.length-1;   // always stop on the last pattern to show the hand's score
-  if(P.special!=='range'&&!lastOfMaster&&document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)) P.timer=setTimeout(deal,cfg.speed);
+  if(P.special!=='range'&&!lastOfMaster&&document.getElementById('pf-optAuto').checked&&(g==='ok'||g==='mix')&&z!==false&&!(cfg.stopMix&&mixed)){ P.timer=setTimeout(deal,cfg.speed); syncNext(true); }
   else if(P.special==='range'||lsGet('pflab_fbrange')!=='0') showRangeOverlay(rec);
 }
 function renderFeedback(rec,e){
@@ -3022,9 +3029,7 @@ function renderFeedback(rec,e){
     <div class="fbsub">レンジ表：${expText(e)}</div>${freqBar(e)}${sz}
     <div class="fbsub">このハンドの通算（${posLabel(rec.p)}・${rec.k}）：${hist.length}回中 ${hok}回正解　判断 ${(rec.ms/1000).toFixed(1)}秒</div>
     ${msum}
-    <div class="row nextrow" style="margin-top:10px"><button class="btn main grow" id="pf-btnNext">次のハンド</button></div>`;
-  document.getElementById('pf-btnNext').onclick=deal;
-  if(P.special==='master'&&P.master&&P.master.i<P.master.queue.length-1) document.getElementById('pf-btnNext').textContent='次のアクションへ';
+`;
   const rb=document.getElementById('pf-btnRng');
   if(rb) rb.onclick=()=>{ const on=!document.getElementById('pf-rov'); if(P.special==='range'){ on?showEstOverlay(rec):hideRangeOverlay(); return; } lsSet('pflab_fbrange',on?'1':'0'); on?showRangeOverlay(rec):hideRangeOverlay(); };
 }
@@ -3442,6 +3447,7 @@ document.querySelectorAll('#pf-modes button').forEach(b=>b.onclick=()=>{ P.speci
 document.querySelectorAll('#pf-modes2 button').forEach(b=>b.onclick=()=>{ P.special=b.dataset.special; P.master=null; lsSet('pflab_special',P.special); applyMode(); renderPosChecks(); renderFarInfo(); deal(); });
 document.getElementById('pf-chips').onclick=e=>{ const b=e.target.closest('[data-s]'); if(!b) return; P.size=+b.dataset.s; lsSet('pflab_size',P.size); renderChips(); };
 document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.onclick=()=>answer(b.dataset.a));
+document.getElementById('pf-btnNext').onclick=deal;
 const setPos=s=>{ if(P.special){ cfg.mpos=new Set(s); lsSet('pflab_mpos',JSON.stringify([...cfg.mpos])); return; }
   cfg.pos=new Set([...cfg.pos].filter(p=>!MODE_POS[P.mode].includes(p)).concat(s)); lsSet('pflab_pos',JSON.stringify([...cfg.pos])); };   // keep the other modes' selections
 document.getElementById('pf-posChecks').onchange=()=>setPos([...document.querySelectorAll('#pf-posChecks input:checked')].map(x=>x.value));
