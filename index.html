@@ -406,7 +406,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
 .wrap:not(.onrpm)>#rp-menu{display:none}
 .wrap.inrp #tab-ring>.subtabs{display:none}
-.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold){display:none}
+.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold),.wrap.inrp label:has(#optBeginner),.wrap.inrp #begNote{display:none!important}
 /* ring practice: size buttons, comparison panel, instructor comment box */
 .presets button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .rpnote{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.5}
@@ -1250,7 +1250,7 @@ const bbs=ch=>{const v=Math.round(ch)/100; return (Math.round(v*100)/100).toStri
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 /* beginner mode: amounts shown as points (SB 1点, BB 2点, start 200点) and bets kept in whole points */
 const PT=50; // chips per point
-const isBeginner=()=>document.getElementById('optBeginner').checked;
+const isBeginner=()=>RP.on||document.getElementById('optBeginner').checked;   // the practice table always uses the beginner-mode table (points, bubbles, chips)
 const pts=ch=>Math.round(ch/PT*10)/10;
 const amtShort=ch=>isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
 const amtLong=ch=>isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
@@ -1406,7 +1406,7 @@ async function bettingRound(){
     if(p.isHero&&p.folded&&!S.autoFolded&&isBeginner()){ await sleep(1000); S.fastFold=true; }
   }
 }
-function delay(){if(S.autoFolded||S.fastFold) return 0; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
+function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
 
 function sanitize(seat,dec){
   const p=S.players[seat], toCall=S.currentBet-p.bet;
@@ -1436,7 +1436,7 @@ function applyAction(seat,dec){
   const sit=(st===0&&dec.act!=='fold')?preSituation(seat):null;
   const potBefore=potTotal();
   let code='';
-  if(p.isHero&&st===0&&rcBefore===1&&limperCount()===0&&isBeginner()) openAdvice(dec.act);
+  if(p.isHero&&st===0&&rcBefore===1&&limperCount()===0&&isBeginner()&&!RP.on) openAdvice(dec.act);
   if(p.isHero) S.heroDec.push({st,rc:rcBefore,toCall,act:dec.act,unbet:S.currentBet===0});
   if(dec.act==='fold'){p.folded=true;p.la={k:'fold'};code='f';}
   else if(dec.act==='check'){p.la={k:'check'};code='x';}
@@ -2472,7 +2472,7 @@ Object.assign(RP,{
   },
   sessionText(){
     const n=this.games.length;
-    return this.mode==='teach'?`講師モード（記録用）　保存済み <b>${n}</b> ゲーム`:`ゲーム <b>${this.game?this.gameNo:Math.min(this.done()+1,n)}</b> ／ 保存されているゲーム <b>${n}</b>`;
+    return this.mode==='teach'?`講師モード（記録用）　保存済み <b>${n}</b> ゲーム`:`ゲーム <b>${this.game?this.gameNo:Math.min(this.done()+1,n)}</b> ／ 保存されているゲーム <b>${n}</b>${this.game?'　講師：<b>'+rpEsc(this.tname(this.game))+'</b>':''}`;
   },
   /* ---- dealing ---- */
   inRange(pos,k){   // can this hand ever be in the range at this seat (open range; the big blind: any defend range)?
@@ -2498,6 +2498,8 @@ Object.assign(RP,{
     this.rec={v:1,button:btn,deck:deck.slice(),acts:[],pos:POS[(6-btn)%6],hc:[deck[51],deck[50]].map(cardStr).join('')};
   },
   /* ---- decisions ---- */
+  tname(g){ return g&&g.by||'講師'; },
+  teacherName(){ try{ const u=firebase.auth().currentUser; return String((u&&(u.displayName||u.email))||'講師').split('@')[0]; }catch(e){ return '講師'; } },
   toDec(e){ return {act:e.a,to:e.to,pct:e.pct,exact:true}; },
   async decide(seat){
     const p=S.players[seat];
@@ -2535,20 +2537,23 @@ Object.assign(RP,{
     opts.push({pc:0,to:maxTo});
     const lbl=o=>o.pc===0?'オールイン '+amtLong(o.to):amtLong(o.to)+(o.pc<0?'('+(-o.pc)+'倍)':'('+o.pc+'%)');
     let sel=null;
+    const defIdx=st===0?0:1;   // preflop: the 3x raise; postflop: 50% of the pot
     area.innerHTML=`
       <div class="row">
         <button class="btn fold grow" id="bF" ${toCall===0?'disabled':''}>フォールド</button>
         <button class="btn grow" id="bC">${toCall===0?'チェック':'コール '+amtLong(Math.min(toCall,p.stack))}</button>
-        <button class="btn main grow" id="bR" disabled>${verb}</button>
+        <button class="btn main grow" id="bR">${verb}</button>
       </div>
       ${canRaise?`<div class="presets">${opts.map((o,i)=>`<button data-i="${i}" aria-pressed="false">${lbl(o)}</button>`).join('')}</div>`:''}
       ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この場面（${RP_ST[st]}）のコメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="2" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.cm[st])}</textarea></div>`:''}`;
     const bR=document.getElementById('bR');
-    area.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
-      sel=opts[+b.dataset.i];
-      area.querySelectorAll('.presets button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    const choose=i=>{
+      sel=opts[i];
+      area.querySelectorAll('.presets button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.i===i?'true':'false'));
       bR.disabled=false; bR.textContent=verb+' '+lbl(sel);
-    });
+    };
+    area.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>choose(+b.dataset.i));
+    if(canRaise) choose(Math.min(defIdx,opts.length-1)); else bR.disabled=true;
     const cmEl=document.getElementById('rpCm'); if(cmEl) cmEl.oninput=()=>{ this.cm[st]=cmEl.value; };
     document.getElementById('bF').onclick=()=>heroChoose({act:'fold',exact:true});
     document.getElementById('bC').onclick=()=>heroChoose({act:toCall===0?'check':'call',exact:true});
@@ -2566,10 +2571,10 @@ Object.assign(RP,{
       const fin=(dec,kept)=>{ this.waitResolve=null; this.cmpLog.push({st,mine:this.desc(m),inst:this.desc(e),ok,kept}); if(kept) this.follow=false; else this.cursor++; resolve(dec); };
       this.waitResolve=()=>resolve(mine);
       area.innerHTML=`<div class="rpcmp ${ok?'ok':'ng'}">
-        <div class="rph">${RP_ST[st]}｜あなたと講師の比較</div>
-        <div class="rpg"><span>あなた</span><b>${this.desc(m)}</b><span>講師</span><b>${this.desc(e)}</b></div>
+        <div class="rph">${RP_ST[st]}｜あなたと講師（${rpEsc(this.tname(this.game))}）の比較</div>
+        <div class="rpg"><span>あなた</span><b>${this.desc(m)}</b><span>講師 ${rpEsc(this.tname(this.game))}</span><b>${this.desc(e)}</b></div>
         <div class="rpv">${ok?'✓ 講師と同じプレーです':'✗ 講師と違うプレーです'}</div>
-        ${cm?`<div class="rpc"><small>講師のコメント</small>${rpEsc(cm).replace(/\n/g,'<br>')}</div>`:(first?'<div class="rpnote" style="margin:0">（このストリートの講師コメントはありません）</div>':'')}
+        ${cm?`<div class="rpc"><small>講師 ${rpEsc(this.tname(this.game))} のコメント</small>${rpEsc(cm).replace(/\n/g,'<br>')}</div>`:(first?'<div class="rpnote" style="margin:0">（このストリートの講師コメントはありません）</div>':'')}
         ${ok?`<div class="row"><button class="btn main grow" id="rpNext">次へ進む</button></div>`
           :`<div class="rpwarn">「自分のアクションで進む」を選ぶと、これ以降は講師のコメントが表示されません（相手の動きも、自分のプレーに合わせて変わります）。</div>
             <div class="row"><button class="btn main grow" id="rpAdopt">講師のアクションで進む</button><button class="btn grow" id="rpKeep">自分のアクションで進む</button></div>`}
@@ -2595,7 +2600,7 @@ Object.assign(RP,{
       document.getElementById('rpAgain').onclick=()=>{ this.setDone(0); this.idle(); renderSession(); };
       return;
     }
-    area.innerHTML=`<div class="rpnote">ゲーム <b>${d+1}</b> ／ 保存されているゲーム <b>${n}</b></div><div class="row"><button class="btn main grow" id="rpStart">${d+1}ゲーム目を始める</button></div>`;
+    area.innerHTML=`<div class="rpnote">ゲーム <b>${d+1}</b> ／ 保存されているゲーム <b>${n}</b>　講師：<b>${rpEsc(this.tname(this.games[d]))}</b></div><div class="row"><button class="btn main grow" id="rpStart">${d+1}ゲーム目を始める</button></div>`;
     document.getElementById('rpStart').onclick=()=>{ if(S.running) return; this.game=this.games[d]; this.gameNo=d+1; renderSession(); playHand(); };
   },
   handEnd(){
@@ -2605,11 +2610,11 @@ Object.assign(RP,{
     const n=this.games.length, g=this.game, L=this.cmpLog, okN=L.filter(x=>x.ok).length;
     this.setDone(Math.max(this.done(),this.gameNo));
     area.innerHTML=`<div class="rpcmp">
-      <div class="rph">ゲーム ${this.gameNo} ／ ${n} 終了</div>
+      <div class="rph">ゲーム ${this.gameNo} ／ ${n} 終了（講師：${rpEsc(this.tname(g))}）</div>
       ${L.length?`<div class="rpv">講師と同じプレー：${okN} ／ ${L.length}</div>
-        <table class="rpsum"><tr><th></th><th>あなた</th><th>講師</th><th></th></tr>${L.map(x=>`<tr><td>${RP_ST[x.st]}</td><td>${x.mine}</td><td>${x.inst}</td><td class="${x.ok?'okc':'ngc'}">${x.ok?'✓':'✗'}</td></tr>`).join('')}</table>`:'<div class="rpnote" style="margin:0">このゲームで、あなたが判断する場面はありませんでした。</div>'}
+        <table class="rpsum"><tr><th></th><th>あなた</th><th>${rpEsc(this.tname(g))}</th><th></th></tr>${L.map(x=>`<tr><td>${RP_ST[x.st]}</td><td>${x.mine}</td><td>${x.inst}</td><td class="${x.ok?'okc':'ngc'}">${x.ok?'✓':'✗'}</td></tr>`).join('')}</table>`:'<div class="rpnote" style="margin:0">このゲームで、あなたが判断する場面はありませんでした。</div>'}
       ${this.follow?'':'<div class="rpwarn">途中から自分のプレーで進めたため、結果は講師と異なる場合があります。</div>'}
-      <div class="rpnote" style="margin:0">講師の結果：${netTxt((g.inet||0)/BB)}</div>
+      <div class="rpnote" style="margin:0">${rpEsc(this.tname(g))}の結果：${netTxt((g.inet||0)/BB)}</div>
       <div class="row">${this.done()<n?`<button class="btn main grow" id="rpNextGame">${this.done()+1}ゲーム目へ</button>`:`<button class="btn main grow" id="rpFinish">すべて終了（最初に戻る）</button>`}</div>
     </div>`;
     const nx=document.getElementById('rpNextGame'); if(nx) nx.onclick=()=>this.idle();
@@ -2629,7 +2634,7 @@ Object.assign(RP,{
     bd.onclick=()=>this.idle();
     bs.onclick=async()=>{
       bs.disabled=bd.disabled=true; msg.textContent='保存中…';
-      const h=S.players[0], rec=Object.assign({},this.rec,{cm:this.cm.map(x=>String(x||'').trim()),inet:Math.round(h.stack-h.start)});
+      const h=S.players[0], rec=Object.assign({},this.rec,{by:this.teacherName(),cm:this.cm.map(x=>String(x||'').trim()),inet:Math.round(h.stack-h.start)});
       try{ await this.save(rec); renderSession(); area.innerHTML=`<div class="rpnote">保存しました。保存済み：<b>${this.games.length}</b> ゲーム</div><div class="row"><button class="btn main grow" id="rpDeal">次のハンドを配る</button></div>`; document.getElementById('rpDeal').onclick=()=>{ if(!S.running) playHand(); }; }
       catch(e){ bs.disabled=bd.disabled=false; msg.textContent='保存に失敗しました（'+(e&&e.code||e&&e.message||e)+'）。講師のGoogleアカウントでログインしているか確認してください'; }
     };
