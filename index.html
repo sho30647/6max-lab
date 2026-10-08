@@ -406,7 +406,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
 .wrap:not(.onrpm)>#rp-menu{display:none}
 .wrap.inrp #tab-ring>.subtabs{display:none}
-.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold),.wrap.inrp label:has(#optBeginner),.wrap.inrp label:has(#optRange),.wrap.inrp #begNote{display:none!important}
+.wrap.inrp label:has(#optAuto),.wrap.inrp label:has(#optAutoFold),.wrap.inrp label:has(#optBeginner),.wrap.inrp label:has(#optRange),.wrap.inrp #begNote,.wrap.inrp #stkNote{display:none!important}
 .rvj{font-size:14px;line-height:1.7;margin-bottom:8px}.rvj .badge{margin-right:6px}
 /* ring practice: size buttons, comparison panel, instructor comment box */
 .presets button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -422,7 +422,12 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .rpc small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
 .rpwarn{font-size:12.5px;color:var(--loss);line-height:1.5}
 .rpcmbox{margin-top:10px}.rpcmbox label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
-.rpcmbox textarea,.rpsave textarea{width:100%;font:inherit;font-size:14px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);resize:vertical}
+.rpcmbox textarea,.rpsave textarea,.vh textarea{width:100%;display:block;min-height:112px;font:inherit;font-size:16px;line-height:1.55;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);resize:vertical}
+.vh textarea{min-height:140px}
+.rpgrow{display:grid;grid-template-columns:auto auto 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 12px;font:inherit}
+.rpgrow .id{font-family:var(--num);color:var(--muted)}.rpgrow .p{font-family:var(--num);font-weight:700}.rpgrow .vt{font-size:12px;color:var(--muted)}
+.rpgrow .st{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.rpgrow .st.done{background:var(--win);border-color:var(--win);color:#fff}
 .rpsave .rpst{margin:10px 0 3px;font-size:13px;font-weight:700}
 .rpsave .rpst small{display:block;font-weight:400;color:var(--muted)}
 .rpsum{width:100%;border-collapse:collapse;font-size:13px}
@@ -431,6 +436,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .rpsum .okc{color:var(--win);font-weight:800}.rpsum .ngc{color:var(--loss);font-weight:800}
 .rpml{font-size:13px;line-height:1.7;padding:4px 0;border-top:1px dashed var(--line)}.rpml .card{width:24px;height:33px;font-size:14px;vertical-align:middle}.rpml .card i{font-size:11px}
 .hitem .mini .card{width:26px;height:36px;font-size:15px}.hitem .mini .card i{font-size:12px}
+.subh{font-size:13px;margin:16px 0 6px;color:var(--muted);font-weight:700}
 .rpcount{font-family:var(--num);font-size:30px;font-weight:700}
 .nv-resume{display:block;width:100%;text-align:left;border:1px dashed var(--brass);background:var(--surface);border-radius:12px;padding:10px 14px;margin-bottom:12px}
 .nv-resume small{display:block;color:var(--muted);font-size:11px;letter-spacing:.06em}
@@ -528,8 +534,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
         <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
       </div>
-      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、持ち点は次のハンドに引き継がれます（0点になったら200点で再スタート）。ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）
-        <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点に戻す</button></div></div>
+      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
+      <div class="begnote" id="stkNote">持ち点（スタック）は次のハンドに引き継がれます。最初は全員200点（＝100bb）で、0になった人は200点で再スタートします。
+        <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点（100bb）に戻す</button></div></div>
       </details>
     </div>
     <div class="session" id="session"></div>
@@ -1304,8 +1311,8 @@ function setupHand(){
   S.heroDec=[]; S.heroSaw=[true,false,false,false]; S.log=[[],[],[],[]]; S.flopSeats=[];
   S.pfAggr=-1; S.lastAggr=-1; S.prevStreetAggr=-1; S.pfRaises=null; S.heroIPflop=null;
   computeHeroProfile();
-  // beginner mode carries stacks over between hands (a busted player re-buys for 200点); normal mode always starts at 100bb
-  const carry=!RP.on&&isBeginner()&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
+  // stacks carry over between hands in both modes (a busted player re-buys for 200点 = 100bb); the practice table always starts every hand at 100bb
+  const carry=!RP.on&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
   S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
   document.getElementById('advice').classList.add('hidden');
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
@@ -1337,7 +1344,7 @@ function autoFoldHero(p){
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
 async function playHand(){
-  S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので200点で再スタート':'');
+  S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
   for(let st=0;st<4;st++){
     if(st>0){
       if(active().length<=1) break;
@@ -1360,7 +1367,7 @@ async function playHand(){
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
   if(!RP.on){ S.session.n++; S.session.net+=rec.net; }
-  if(isBeginner()&&!RP.on) Prefs.saveStacks(S.players.map(p=>p.stack));
+  if(!RP.on) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
   const txt=netTxt(rec.net);
@@ -2130,6 +2137,7 @@ function renderStats(){
       <section class="block"><h2>ペアボード／参加人数</h2><p class="sub">フロップ時点の人数は自分を含む。</p>${groupTable(by(flop,h=>TEX_LABEL.p[h.tex.p],['ノーペア','ペアボード']).concat(by(flop,h=>h.np>=3?'3人以上で見たフロップ':'ヘッズアップのフロップ')),'区分',20)}</section>
     </div>
     <section class="block"><h2>最終的な役別</h2><p class="sub">フロップを見たハンドで、ハンド終了時点の自分の役。</p>${groupTable(by(flop,h=>h.cat==null?null:CAT_NAMES[h.cat],CAT_NAMES),'役',20)}</section>
+    <section class="block"><h2>最後のストリートの動き</h2><p class="sub">ハンドが決着したストリートで、自分に何が起きたか。相手のハンドは、記録されている実際のカードと比べています（相手のハンドを記録する前の古いハンドは「判定できない」）。ハンドの強さは、そのストリートのボードでの自分の役です（ペアは自分のホールカードで判定。ハイカードは自分の一番高いホールカード）。</p>${lastStreetSection(hs)}</section>
     <section class="block"><h2>スターティングハンド別</h2><p class="sub">色は1ハンドあたりの収支（緑=プラス、赤=マイナス）。</p>${grid.html}</section>
   `;
   const gi=document.getElementById('grid13');
@@ -2138,6 +2146,93 @@ function renderStats(){
     const d=grid.m[b.dataset.k], info=document.getElementById('cellinfo');
     info.innerHTML=d?`<b style="color:var(--ink)">${b.dataset.k}</b>　${d.n}ハンド／収支 <span class="${d.net>=0?'pos-c':'neg-c'}">${fmt(d.net)}bb</span>／${fmt(d.net/d.n,2)} bb/ハンド`:`<b style="color:var(--ink)">${b.dataset.k}</b>　まだ配られていません`;
   });
+}
+
+/* =========================================================
+   Last-street flags: what happened to the hero on the street where the hand was decided, judged against the opponents' real
+   hands (recorded in vh / sh). Computed from the saved hand record, so old hands are covered as far as their data allows.
+   ========================================================= */
+const LS_FLAGS=[
+  ['fold-bad','自分より弱いハンドに降ろされた'],
+  ['fold-good','自分より強いハンドに降りた'],
+  ['call-lose','自分より強いハンドにコールしてしまった'],
+  ['call-win','自分より弱いハンドにコールした'],
+  ['bet-win','ベットして、自分より弱いハンドにコールしてもらえた'],
+  ['bet-lose','ベットして、自分より強いハンドにコールされてしまった'],
+  ['cc','チェックチェックで終わった'],
+  ['chop','チョップ'],
+  ['took-better','ベットで、自分より強いハンドを降ろした'],
+  ['took-weaker','ベットで、自分より弱いハンドを降ろした'],
+  ['pf-win','プリフロップで全員フォールド（勝ち）'],
+  ['pf-fold','プリフロップでフォールド'],
+  ['unknown','判定できない（相手のハンドの記録がない）']
+];
+const LS_NAME=Object.fromEntries(LS_FLAGS), LS_ORDER=LS_FLAGS.map(f=>f[1]);
+const STR_ORDER=['フルハウス以上','フラッシュ','ストレート','スリーカード','ツーペア','オーバーペア','トップペア','セカンドペア','サードペア以下','Aハイ','Kハイ','それ以下','ボードなし'];
+function strengthLabel(hole,board){   // the hero's hand class on this board (pairs are judged by the hero's own hole cards)
+  const full=evalHand(hole.concat(board))>>20, bc=evalHand(board)>>20;
+  if(full>bc){ if(full>=6) return 'フルハウス以上'; if(full===5) return 'フラッシュ'; if(full===4) return 'ストレート'; if(full===3) return 'スリーカード'; }
+  if(full===2&&bc===0) return 'ツーペア';
+  const h0=hole[0]>>2, h1=hole[1]>>2, br=[...new Set(board.map(c=>c>>2))].sort((a,b)=>b-a);
+  if((full===1&&bc===0)||(full===2&&bc===1)){
+    if(h0===h1) return h0>br[0]?'オーバーペア':h0>(br[1]==null?-1:br[1])?'セカンドペア':'サードペア以下';
+    const i0=br.indexOf(h0), i1=br.indexOf(h1), idx=Math.min(i0<0?99:i0,i1<0?99:i1);
+    return idx===0?'トップペア':idx===1?'セカンドペア':'サードペア以下';
+  }
+  const top=Math.max(h0,h1); return top===12?'Aハイ':top===11?'Kハイ':'それ以下';
+}
+const LS_CACHE=new WeakMap();
+function lastStreet(h){ if(LS_CACHE.has(h)) return LS_CACHE.get(h); let r=null; try{ r=lastStreetCalc(h); }catch(e){ r=null; } LS_CACHE.set(h,r); return r; }
+function lastStreetCalc(h){
+  if(!h||!h.log||!h.hc) return null;
+  const ST={P:0,F:1,T:2,R:3}, streets=[[],[],[],[]];
+  h.log.split('\n').forEach(ln=>{ const m=ln.match(/^([PFTR])(?: \[[^\]]*\])?: ?(.*)$/); if(!m) return;
+    m[2].split(', ').filter(Boolean).forEach(a=>{ const x=a.match(/^([A-Z]+)(\*?) ([fxcbr])/); if(x) streets[ST[m[1]]].push({pos:x[1],me:!!x[2],code:x[3]}); }); });
+  const cards=str=>{ const o=[]; for(let i=0;i+1<(str||'').length;i+=2) o.push(parseCard(str.slice(i,i+2))); return o; };
+  const hole=cards(h.hc), fullBoard=cards(h.board), opp={}, live={};
+  (h.vh||'').split(' ').filter(Boolean).forEach(t=>{ const [pos,c,flag]=t.split(':'); opp[pos]=cards(c); if(flag==='SD') live[pos]=1; });
+  (h.sh||'').split(' ').filter(Boolean).forEach(t=>{ const [pos,c]=t.split(':'); if(!opp[pos]) opp[pos]=cards(c); live[pos]=1; });
+  const bAt=st=>fullBoard.slice(0,st===0?0:2+st), val=(hand,b)=>evalHand(hand.concat(b));
+  const mk=(flag,b)=>({flag,str:b&&b.length>=3?strengthLabel(hole,b):'ボードなし'});
+  const heroActs=[]; streets.forEach((a,st)=>a.forEach(x=>{ if(x.me) heroActs.push({st,code:x.code}); }));
+  const fold=heroActs.find(a=>a.code==='f');
+  if(fold){
+    if(fold.st===0) return mk('pf-fold',[]);
+    const gone=new Set(); let liveOpp=null;   // opponents still in the hand at the moment the hero folded
+    for(let st=0;st<=fold.st&&!liveOpp;st++) for(const x of streets[st]){ if(x.me&&x.code==='f'){ liveOpp=POS_ORDER.filter(p=>p!==h.pos&&!gone.has(p)); break; } if(x.code==='f') gone.add(x.pos); }
+    const b=bAt(fold.st);
+    if(!liveOpp||!liveOpp.length||liveOpp.some(p=>!opp[p])) return mk('unknown',b);
+    return mk(val(hole,b)>Math.max(...liveOpp.map(p=>val(opp[p],b)))?'fold-bad':'fold-good',b);
+  }
+  if(!h.sd){   // the hero won because everyone else folded
+    if(fullBoard.length<3) return mk('pf-win',[]);
+    let ls=3; while(ls>0&&!streets[ls].length) ls--;
+    const folders=streets[ls].filter(x=>x.code==='f'&&!x.me).map(x=>x.pos), b=bAt(ls);
+    if(!folders.length||folders.some(p=>!opp[p])) return mk('unknown',b);
+    return mk(Math.max(...folders.map(p=>val(opp[p],b)))>val(hole,b)?'took-better':'took-weaker',b);
+  }
+  const sdOpp=Object.keys(live).filter(p=>p!==h.pos&&opp[p]), last=heroActs[heroActs.length-1];
+  if(!sdOpp.length||!last) return mk('unknown',fullBoard);
+  const hv=val(hole,fullBoard), best=Math.max(...sdOpp.map(p=>val(opp[p],fullBoard))), win=hv>best;
+  const flag=hv===best?'chop':(last.code==='b'||last.code==='r')?(win?'bet-win':'bet-lose'):last.code==='c'?(win?'call-win':'call-lose'):'cc';
+  return mk(flag,last.st===0?fullBoard:bAt(last.st));
+}
+function lastStreetLabel(h){ const l=lastStreet(h); return l?LS_NAME[l.flag]:null; }
+/* analysis: how often each pattern happens, what it costs / earns, and the same split by the strength of the hero's hand */
+function lastStreetSection(hs){
+  const rows=hs.map(h=>({h,l:lastStreet(h)})).filter(x=>x.l), n=rows.length;
+  if(!n) return '<p class="sub">まだデータがありません。</p>';
+  const flagRows=LS_FLAGS.map(([k,lab])=>({k,lab,hs:rows.filter(x=>x.l.flag===k).map(x=>x.h)})).filter(r=>r.hs.length);
+  const maxBb=Math.max(...flagRows.map(r=>Math.abs(agg(r.hs).bph)));
+  const head=`<div class="tscroll"><table class="t"><thead><tr><th>パターン</th><th>ハンド</th><th>割合</th><th>収支 bb</th><th>bb/ハンド</th><th></th></tr></thead><tbody>${flagRows.map(r=>{ const a=agg(r.hs);
+    return `<tr><td>${r.lab}</td><td class="${a.n<20?'few':''}">${a.n}</td><td>${(a.n/n*100).toFixed(1)}%</td><td class="${a.net>=0?'pos-c':'neg-c'}">${fmt(a.net)}</td><td class="${a.bph>=0?'pos-c':'neg-c'}">${fmt(a.bph,2)}</td><td>${barHTML(a.bph,maxBb)}</td></tr>`; }).join('')}</tbody></table></div>`;
+  const byFlag=flagRows.map(r=>`<details class="hitem"><summary><span class="p" style="width:auto;flex:1">${r.lab}</span><span class="id" style="width:auto">${r.hs.length}ハンド</span></summary><div style="padding:0 12px 10px">${groupTable(by(r.hs,h=>lastStreet(h).str,STR_ORDER),'ハンドの強さ',10)}</div></details>`).join('');
+  const strRows=STR_ORDER.map(k=>({k,hs:rows.filter(x=>x.l.str===k).map(x=>x.h)})).filter(r=>r.hs.length);
+  const byStr=strRows.map(r=>`<details class="hitem"><summary><span class="p" style="width:auto;flex:1">${r.k}</span><span class="id" style="width:auto">${r.hs.length}ハンド</span></summary><div style="padding:0 12px 10px">${groupTable(by(r.hs,h=>LS_NAME[lastStreet(h).flag],LS_ORDER),'パターン',10)}</div></details>`).join('');
+  return `<p class="sub">対象 ${n}ハンド（すべてのハンドが、必ずどれか1つのパターンに入ります）。灰色の数字は20ハンド未満です。</p>${head}
+    <h3 class="subh">パターンごとの、ハンドの強さ別</h3><div class="hlist">${byFlag}</div>
+    <h3 class="subh">ハンドの強さ別（全パターン合計）</h3>${groupTable(by(rows.map(x=>x.h),h=>lastStreet(h).str,STR_ORDER),'ハンドの強さ',10)}
+    <h3 class="subh">ハンドの強さごとの、パターン別</h3><div class="hlist">${byStr}</div>`;
 }
 
 /* ---------- history ---------- */
@@ -2209,7 +2304,7 @@ function renderHist(){
   body.innerHTML=`<div class="gtoggle" id="histModes">${HIST_MODES.map(([v,l])=>`<button data-v="${v}" aria-pressed="${histMode===v}">${l}</button>`).join('')}</div>
     <p class="sub" style="color:var(--muted);font-size:12px">${note}。* が自分のアクション。</p>${list.length?'':'<div class="empty">該当するハンドはまだありません。</div>'}<div class="hlist">${list.map(h=>`
     <details class="hitem"><summary><span class="id">#${h.id}</span><span class="p">${h.pos}</span><span class="mini">${miniCards(h.hc)}</span><span class="mini" style="color:var(--muted)">${h.board?miniCards(h.board):'—'}</span><span class="net ${h.net>=0?'pos-c':'neg-c'}">${fmt(h.net)}</span></summary>
-    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb</div><div class="row" style="padding:0 12px 10px"><button class="btn" data-copy="${h.id}">AIレビュー用にコピー</button><span class="cpmsg" style="font-size:12px;color:var(--muted)"></span></div>${vhHTML(h)}</details>`).join('')}</div>`;
+    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb${(()=>{ const l=lastStreet(h); return l?'\n最後のストリート: '+LS_NAME[l.flag]+'（ハンドの強さ: '+l.str+'）':''; })()}</div><div class="row" style="padding:0 12px 10px"><button class="btn" data-copy="${h.id}">AIレビュー用にコピー</button><span class="cpmsg" style="font-size:12px;color:var(--muted)"></span></div>${vhHTML(h)}</details>`).join('')}</div>`;
   body.querySelectorAll('#histModes button').forEach(b=>b.onclick=()=>{ histMode=b.dataset.v; try{localStorage.setItem('sixmaxlab_histmode',histMode);}catch(e){} renderHist(); });
   body.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
     const h=statsHands().find(x=>String(x.id)===b.dataset.copy), msg=b.parentNode.querySelector('.cpmsg'); if(!h) return;
@@ -2500,15 +2595,21 @@ document.getElementById('adminPass').onkeydown=e=>{ if(e.key==='Enter') document
    Saved games: Firestore docs shared/rpg_* ({kind:'rpgame',t,g}). Everyone signed in reads; only the admin writes (firestore.rules).
    ========================================================= */
 const RP_TEACHERS=[OWNER_EMAIL,'kentonov@gmail.com'];
-const RP_ST=['プリフロップ','フロップ','ターン','リバー'], RP_KEY='pflab_rp_done';
+const RP_ST=['プリフロップ','フロップ','ターン','リバー'], RP_KEY='pflab_rp_done', RP_SOLVED='pflab_rp_solved';
 const rp50=v=>Math.round(v/50)*50, rpAmt=ch=>pts(ch)+'点';
 const rpEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RP_WAIT='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>';
 Object.assign(RP,{
   // Google accounts that may record games (keep in step with isTeacher() in firestore.rules)
   isOwner(){ try{ const u=firebase.auth().currentUser; return !!(u&&!u.isAnonymous&&RP_TEACHERS.includes(String(u.email||'').toLowerCase())); }catch(e){ return false; } },
-  done(){ try{ return Math.max(0,parseInt(localStorage.getItem(RP_KEY)||'0',10)||0); }catch(e){ return 0; } },
-  setDone(n){ lsSetSafe(RP_KEY,String(n)); },
+  /* which scenarios the student has played to the end: {gameId:{ok,n}} (ok/n = same-as-instructor decisions), kept per account like the other settings */
+  solved(){ try{ const raw=localStorage.getItem(RP_SOLVED); if(raw) return JSON.parse(raw)||{};
+      const old=Math.max(0,parseInt(localStorage.getItem(RP_KEY)||'0',10)||0), o={};   // the old "n games done" counter: the first n games count as solved
+      this.games.slice(0,old).forEach(g=>{ o[g.id]={}; }); return o; }catch(e){ return {}; } },
+  markSolved(id,ok,n){ const o=this.solved(); o[id]={ok,n}; lsSetSafe(RP_SOLVED,JSON.stringify(o)); },
+  clearSolved(){ lsSetSafe(RP_SOLVED,'{}'); lsSetSafe(RP_KEY,'0'); },
+  nextUnsolved(after){ const o=this.solved(), n=this.games.length;
+    for(let k=1;k<=n;k++){ const i=((after==null?-1:after)+k)%n; if(!o[this.games[i].id]) return this.games[i]; } return null; },
   async load(){
     const c=await FirebaseGate.ready(); if(!c) throw {code:'unavailable'};
     const snap=await c.db.collection('shared').where('kind','==','rpgame').get();
@@ -2528,24 +2629,27 @@ Object.assign(RP,{
     try{ await this.load(); }
     catch(e){ el.innerHTML=`<div class="empty">読み込みに失敗しました（${rpEsc(e&&e.code||e&&e.message||e)}）</div><div class="toolbar"><button class="btn" id="rpRetry">再読み込み</button></div>`; document.getElementById('rpRetry').onclick=()=>this.renderMenu(); return; }
     if(Nav.screen!=='rp-menu') return;
-    const n=this.games.length, d=Math.min(this.done(),n), owner=this.isOwner();
+    const n=this.games.length, owner=this.isOwner(), sol=this.solved(), dn=this.games.filter(g=>sol[g.id]).length;
+    const row=(g,i)=>{ const r=sol[g.id]; return `<button class="hitem rpgrow" data-i="${i}"><span class="id">#${i+1}</span><span class="p">${g.pos}</span><span class="vt">講師：${rpEsc(this.tname(g))}${r&&r.n?'　一致 '+r.ok+' ／ '+r.n:''}</span><span class="st${r?' done':''}">${r?'解いた':'未'}</span></button>`; };
     el.innerHTML=`
       <div class="nv-sec">リング練習</div>
-      <p class="rpnote">講師が実際にプレーしたゲームを、配られるカードも相手の動きも同じ状況で再現します。ストリートごとに、あなたのプレーと講師のプレーを見比べられます。設定（初心者モードなど）はリングゲームと同じです。プリフロップのレイズは3倍（オープンは3bb、3ベット・4ベットは相手のベットの3倍）に固定、フロップ以降のベットはポットの33%・50%・75%・100%・200%とオールインから選びます。</p>
+      <p class="rpnote">講師が実際にプレーしたゲームを、配られるカードも相手の動きも同じ状況で再現します。自分の判断ごとに、あなたのプレーと講師のプレーを見比べられます。プリフロップのレイズは3倍（オープンは3bb、3ベット・4ベットは相手のベットの3倍）に固定、フロップ以降のベットはポットの33%・50%・75%・100%・200%とオールインから選びます。</p>
       <section class="block">
         <h2>練習する</h2>
-        <p class="sub">講師が保存したゲームだけをプレーできます。ゲームは1番から順に出ます。</p>
-        <div><span class="rpcount">${n}</span> ゲームが保存されています</div>
-        ${n?`<p class="sub" style="margin-top:6px">あなたの進み具合：${d>=n?'すべて終了しました（'+n+'／'+n+'）':d+'ゲーム終了／次は '+(d+1)+' ゲーム目'}</p>`:'<p class="sub" style="margin-top:6px">まだ講師のゲームが保存されていません。</p>'}
+        <p class="sub">解きたいゲームを選んでください。解いたことのあるゲームには「解いた」と出ます。</p>
+        <div><span class="rpcount">${n}</span> ゲームが保存されています${n?`　解いた：<b>${dn}</b> ／ ${n}`:''}</div>
+        ${n?'':'<p class="sub" style="margin-top:6px">まだ講師のゲームが保存されていません。</p>'}
         <div class="toolbar" style="margin-top:8px">
-          <button class="btn main" id="rpGo" ${n&&d<n?'':'disabled'}>${d>0&&d<n?'続きから始める（'+(d+1)+'ゲーム目）':'1ゲーム目から始める'}</button>
-          ${d>0?'<button class="btn" id="rpRestart">最初からやり直す</button>':''}
+          <button class="btn main" id="rpGo" ${n&&dn<n?'':'disabled'}>${dn<n?'まだ解いていないゲームから始める':'すべて解きました'}</button>
+          ${dn>0?'<button class="btn" id="rpRestart">「解いた」の印をすべて消す</button>':''}
         </div>
+        <div class="hlist" id="rpGames">${this.games.map(row).join('')}</div>
       </section>
-      ${owner?`<section class="block"><h2>講師用</h2><p class="sub">実際にプレーして、練習問題にするゲームを記録します。配られるのは、レンジに入りうるハンドだけです。ストリートごとにコメントを付けて、1ゲームごとに保存するかどうかを選べます。</p><div class="toolbar"><button class="btn main" id="rpTeach">講師として記録する</button></div>
+      ${owner?`<section class="block"><h2>講師用</h2><p class="sub">実際にプレーして、練習問題にするゲームを記録します。配られるのは、レンジに入りうるハンドだけです。自分の判断ごとにコメントを付けて、1ゲームごとに保存するかどうかを選べます。</p><div class="toolbar"><button class="btn main" id="rpTeach">講師として記録する</button></div>
         <h2 style="margin-top:14px">講師管理モード</h2><p class="sub">保存したゲームのコメントを直したり、ゲームを削除したりできます。</p><div class="toolbar"><button class="btn" id="rpManage">講師管理モードを開く</button></div></section>`:''}`;
-    const go=document.getElementById('rpGo'); if(go) go.onclick=()=>this.start('play');
-    const rs=document.getElementById('rpRestart'); if(rs) rs.onclick=()=>{ this.setDone(0); this.renderMenu(); };
+    const go=document.getElementById('rpGo'); if(go) go.onclick=()=>this.start('play',this.nextUnsolved());
+    const rs=document.getElementById('rpRestart'); if(rs) rs.onclick=()=>{ this.clearSolved(); this.renderMenu(); };
+    el.querySelectorAll('#rpGames .rpgrow').forEach(b=>b.onclick=()=>this.start('play',this.games[+b.dataset.i]));
     const te=document.getElementById('rpTeach'); if(te) te.onclick=()=>this.start('teach');
     const mg=document.getElementById('rpManage'); if(mg) mg.onclick=()=>this.renderManage();
   },
@@ -2567,12 +2671,12 @@ Object.assign(RP,{
       const lines=[0,1,2,3].filter(st=>g.acts.some(a=>a.st===st)).map(st=>`<div class="rpml"><b>${RP_ST[st]}</b>${st===1?' '+bd.slice(0,3).map(card).join(''):st===2?' '+card(bd[3]):st===3?' '+card(bd[4]):''}<br>${g.acts.filter(a=>a.st===st).map(a=>`${pos(a.s)}${a.s===0?'(講師)':''} ${this.desc(a)}`).join('　→　')}</div>`).join('');
       return `<details class="hitem" data-i="${i}"><summary><span class="id">#${i+1}</span><span class="p">${g.pos}</span><span class="mini">${card(g.deck[51])}${card(g.deck[50])}</span><span class="vt">${rpEsc(this.tname(g))}　${when(g.t)}</span></summary>
         <div class="vh">${lines}
-        ${hs.map((a,j)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断のコメント</small></div><textarea rows="2" data-j="${j}" ${can?'':'readonly'}>${rpEsc(initCm(a))}</textarea>`).join('')}
+        ${hs.map((a,j)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断のコメント</small></div><textarea rows="6" data-j="${j}" ${can?'':'readonly'}>${rpEsc(initCm(a))}</textarea>`).join('')}
         ${can?`<div class="row" style="margin-top:8px"><button class="btn main" data-save="${i}">コメントを保存</button><button class="btn fold" data-del="${i}">このゲームを削除</button></div>`:'<div class="rpnote" style="margin-top:8px">他の講師のゲームは、編集・削除できません。</div>'}
         <div class="rpnote rpmsg" style="margin:6px 0 0"></div></div></details>`;
     };
     el.innerHTML=`${back}<div class="nv-sec">講師管理モード</div>
-      <p class="rpnote">保存されているゲーム：<b>${this.games.length}</b>　ゲームを削除すると、それ以降のゲームの番号が1つずつ繰り上がります（生徒の「◯ゲーム目まで終了」の進み具合はそのままなので、1ゲーム分飛ばされる生徒が出ます）。</p>
+      <p class="rpnote">保存されているゲーム：<b>${this.games.length}</b>　ゲームを削除すると、それ以降のゲームの番号が1つずつ繰り上がります（生徒の「解いた」の印は、ゲームごとに付いているので、そのままです）。</p>
       <div class="hlist">${this.games.length?this.games.map(item).join(''):'<div class="empty">保存されたゲームはまだありません。</div>'}</div>`;
     document.getElementById('rpmBack').onclick=()=>this.renderMenu();
     el.querySelectorAll('details').forEach(det=>{
@@ -2606,11 +2710,13 @@ Object.assign(RP,{
     await c.db.doc('shared/'+g.id).delete();
     this.games=this.games.filter(x=>x.id!==g.id);
   },
-  async start(mode){
+  async start(mode,game){
     await this.stopRing();
     this.saved=S.players.map(p=>p.stack); this.mode=mode; this.on=true; this.leaving=false; this.game=null; this.rec=null; this.waitResolve=null; S.abort=false;
+    if(mode==='play'){ if(!game) game=this.games[0]; if(!game){ this.on=false; this.mode=null; return; } this.game=game; this.gameNo=this.games.indexOf(game)+1; }
     Nav.setScreen('rp');
-    this.clearTable(); this.idle();
+    this.clearTable();
+    if(mode==='play') playHand(); else this.idle();
   },
   async stopRing(){   // a ring-game hand left running behind the menu is dropped
     if(!S.running) return;
@@ -2642,7 +2748,7 @@ Object.assign(RP,{
   },
   sessionText(){
     const n=this.games.length;
-    return this.mode==='teach'?`講師モード（記録用）　保存済み <b>${n}</b> ゲーム`:`ゲーム <b>${this.game?this.gameNo:Math.min(this.done()+1,n)}</b> ／ 保存されているゲーム <b>${n}</b>${this.game?'　講師：<b>'+rpEsc(this.tname(this.game))+'</b>':''}`;
+    return this.mode==='teach'?`講師モード（記録用）　保存済み <b>${n}</b> ゲーム`:`ゲーム <b>${this.gameNo}</b> ／ 保存されているゲーム <b>${n}</b>${this.game?'　講師：<b>'+rpEsc(this.tname(this.game))+'</b>':''}`;
   },
   /* ---- dealing ---- */
   inRange(pos,k){   // can this hand ever be in the range at this seat (open range; the big blind: any defend range)?
@@ -2716,7 +2822,7 @@ Object.assign(RP,{
         <button class="btn main grow" id="bR">${verb}</button>
       </div>
       ${canRaise?`<div class="presets">${opts.map((o,i)=>`<button data-i="${i}" aria-pressed="false">${lbl(o)}</button>`).join('')}</div>`:''}
-      ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この判断（${RP_ST[st]}）の考え方・コメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="2" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.curCm||'')}</textarea></div>`:''}`;
+      ${this.mode==='teach'?`<div class="rpcmbox"><label for="rpCm">この判断（${RP_ST[st]}）の考え方・コメント（任意・生徒に表示されます）</label><textarea id="rpCm" rows="4" placeholder="例：BTNに対してIPなので、ここはコールでレンジを守る">${rpEsc(this.curCm||'')}</textarea></div>`:''}`;
     const bR=document.getElementById('bR');
     const choose=i=>{
       sel=opts[i];
@@ -2767,38 +2873,34 @@ Object.assign(RP,{
       document.getElementById('rpDeal').onclick=()=>{ if(!S.running) playHand(); };
       return;
     }
-    const n=this.games.length, d=this.done();
-    if(d>=n){
-      area.innerHTML=`<div class="rpnote">すべてのゲーム（${n}ゲーム）が終わりました。</div><div class="row"><button class="btn main grow" id="rpAgain">最初からやり直す</button></div>`;
-      document.getElementById('rpAgain').onclick=()=>{ this.setDone(0); this.idle(); renderSession(); };
-      return;
-    }
-    area.innerHTML=`<div class="rpnote">ゲーム <b>${d+1}</b> ／ 保存されているゲーム <b>${n}</b>　講師：<b>${rpEsc(this.tname(this.games[d]))}</b></div><div class="row"><button class="btn main grow" id="rpStart">${d+1}ゲーム目を始める</button></div>`;
-    document.getElementById('rpStart').onclick=()=>{ if(S.running) return; this.game=this.games[d]; this.gameNo=d+1; renderSession(); playHand(); };
+    Nav.setScreen('rp-menu');   // (play mode has no idle table: the list is the entrance)
   },
   handEnd(){
     if(S.abort){ this.aborted(); return; }
     const area=document.getElementById('actArea');
     if(this.mode==='teach') return this.savePanel(area);
     const n=this.games.length, g=this.game, L=this.cmpLog, okN=L.filter(x=>x.ok).length;
-    this.setDone(Math.max(this.done(),this.gameNo));
+    this.markSolved(g.id,okN,L.length);
+    const nxt=this.nextUnsolved(this.gameNo-1), left=this.games.filter(x=>!this.solved()[x.id]).length;
     area.innerHTML=`<div class="rpcmp">
       <div class="rph">ゲーム ${this.gameNo} ／ ${n} 終了（講師：${rpEsc(this.tname(g))}）</div>
       ${L.length?`<div class="rpv">講師と同じプレー：${okN} ／ ${L.length}</div>
         <table class="rpsum"><tr><th></th><th>あなた</th><th>${rpEsc(this.tname(g))}</th><th></th></tr>${L.map(x=>`<tr><td>${RP_ST[x.st]}</td><td>${x.mine}</td><td>${x.inst}</td><td class="${x.ok?'okc':'ngc'}">${x.ok?'✓':'✗'}</td></tr>`).join('')}</table>`:'<div class="rpnote" style="margin:0">このゲームで、あなたが判断する場面はありませんでした。</div>'}
       ${this.follow?'':'<div class="rpwarn">途中から自分のプレーで進めたため、結果は講師と異なる場合があります。</div>'}
       <div class="rpnote" style="margin:0">${rpEsc(this.tname(g))}の結果：${netTxt((g.inet||0)/BB)}</div>
-      <div class="row">${this.done()<n?`<button class="btn main grow" id="rpNextGame">${this.done()+1}ゲーム目へ</button>`:`<button class="btn main grow" id="rpFinish">すべて終了（最初に戻る）</button>`}</div>
+      <div class="row">${nxt?`<button class="btn main grow" id="rpNextGame">まだ解いていないゲームへ（残り${left}）</button>`:''}<button class="btn grow" id="rpAgainGame">もう一度このゲーム</button><button class="btn grow" id="rpToList">ゲーム一覧へ</button></div>
     </div>`;
-    const nx=document.getElementById('rpNextGame'); if(nx) nx.onclick=()=>this.idle();
-    const fi=document.getElementById('rpFinish'); if(fi) fi.onclick=()=>{ Nav.setScreen('rp-menu'); };
+    const go=g2=>{ if(!S.running){ this.game=g2; this.gameNo=this.games.indexOf(g2)+1; this.clearTable(); playHand(); } };
+    const nx=document.getElementById('rpNextGame'); if(nx) nx.onclick=()=>go(nxt);
+    document.getElementById('rpAgainGame').onclick=()=>go(g);
+    document.getElementById('rpToList').onclick=()=>Nav.setScreen('rp-menu');
     renderSession();
   },
   savePanel(area){   // instructor: keep this game or not, with a comment for each of the hero's own actions
     const hs=this.rec.acts.filter(a=>a.s===0);
     area.innerHTML=`<div class="rpsave">
       <div class="rph">このゲームを保存しますか？（${this.rec.pos}／${this.games.length}ゲーム保存済み）</div>
-      ${hs.length?hs.map((a,i)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断の考え方・コメント（任意）</small></div><textarea rows="2" data-i="${i}">${rpEsc(a.cm||'')}</textarea>`).join(''):'<div class="rpnote">あなたの判断がないゲームです。</div>'}
+      ${hs.length?hs.map((a,i)=>`<div class="rpst">${RP_ST[a.st]}：${this.desc(a)}<small>この判断の考え方・コメント（任意）</small></div><textarea rows="5" data-i="${i}">${rpEsc(a.cm||'')}</textarea>`).join(''):'<div class="rpnote">あなたの判断がないゲームです。</div>'}
       <div class="row" style="margin-top:10px"><button class="btn main grow" id="rpSave">保存する</button><button class="btn grow" id="rpDrop">保存しない</button></div>
       <div class="rpnote" id="rpSaveMsg" style="margin:8px 0 0"></div>
     </div>`;
@@ -2925,12 +3027,12 @@ function resetStacks(){ // applied at the next deal; shown right away when no ha
   S.resetStacks=true; Prefs.saveStacks(S.players.length?S.players.map(()=>START):null);
   if(!S.running&&S.players.length){ S.players.forEach(p=>{p.stack=START; p.start=START; p.la=null;}); S.done=false; render(); }
 }
-document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.running) setMsg('次のハンドから全員200点に戻します'); };
+document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.running) setMsg('次のハンドから全員200点（100bb）に戻します'); };
 
 (async function init(){
   await UserGate.ready; await Prefs.ready;
   initPlayers();
-  if(isBeginner()&&Prefs.stacks) S.players.forEach((p,i)=>{ const v=+Prefs.stacks[i]; if(isFinite(v)&&v>=0) p.stack=v; });   // beginner-mode points follow the account
+  if(Prefs.stacks) S.players.forEach((p,i)=>{ const v=+Prefs.stacks[i]; if(isFinite(v)&&v>=0) p.stack=v; });   // the carried-over stacks follow the account
   render();
   setTimeout(()=>{ buildPreflop(); },0);
   try{ await Store.init(); }
