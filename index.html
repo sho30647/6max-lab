@@ -550,7 +550,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <option value="">全ポジション</option><option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
       </select>
       <select id="fBot" aria-label="対戦ボット">
-        <option value="">全ボット</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
+        <option value="">全ボット</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
       </select>
       <select id="fRange" aria-label="対象期間">
         <option value="0">全ハンド</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
@@ -1164,7 +1164,7 @@ const S={players:[],button:Math.floor(Math.random()*6),board:[],deck:[],street:0
    Preflop charts (6-max 100bb, GTO-based; vs-3bet spots follow the user's Notion notes)
    notation: "77+", "99-66", "A2s+", "A5s-A2s", "ATo+", "KQs", "AK"(both), ":0.5" = frequency
    ========================================================= */
-const BOT_VERSION=2;
+const BOT_VERSION=3;
 function parseRange(str){
   const m=new Map(), R=RANKS;
   const add=(k,f)=>{ m.set(k,Math.min(1,(m.get(k)||0)+f)); };
@@ -1706,7 +1706,7 @@ function isIP(seat){
   return S.players.every((q,i)=>q.folded||i===seat||o(i)<me);
 }
 function botDecide(seat){ return S.street===0?botPreflop(seat):botPostflop(seat); }
-function botPostflop(seat){
+function botPostflopV2(seat){   // the previous postflop logic (kept for comparison: a player with .ver===2 plays it)
   const p=S.players[seat], st=p.style, R=Math.random;
   const opps=S.players.filter((q,i)=>i!==seat&&!q.folded), n=opps.length;
   const e=equity(seat,opps,n>=3?170:250);
@@ -1748,6 +1748,73 @@ function botPostflop(seat){
     if(street===1&&dr&&R()<0.28*st.aggr) return raiseTo();
     if(street===2&&dr&&R()<0.12*st.aggr) return raiseTo();
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo();
+  }
+  const byOdds=e+implied>=potOdds;
+  const byMDF=!reraise&&q>=foldCut&&e>=potOdds*0.55;
+  if(byOdds||byMDF) return {act:'call'};
+  return {act:'fold'};
+}
+
+
+/* Bot postflop v3: sizes from 33% to 200% of the pot, and bets whose size tells the range apart.
+   Betting range = value hands + bluffs. The strongest value hands ("nutted") bet BIG, merged value bets SMALL/MEDIUM.
+   Bluffs are chosen from the weakest hands (and, flop/turn, draws) in the amount that makes the bet size indifferent for the
+   opponent: bluffs / all bets of a size = s / (1 + 2s) (s = bet as a fraction of the pot). Big bets are therefore nuts + air. */
+const wPick=items=>{ let t=0; items.forEach(x=>t+=x[1]); let r=Math.random()*t; for(const [v,w] of items){ r-=w; if(r<=0) return v; } return items[items.length-1][0]; };
+const bluffShare=s=>s/(1+2*s);
+function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):botPostflopV3(seat); }
+function botPostflopV3(seat){
+  const p=S.players[seat], st=p.style, R=Math.random;
+  const opps=S.players.filter((q,i)=>i!==seat&&!q.folded), n=opps.length;
+  const e=equity(seat,opps,n>=3?170:250);
+  const s=strengthVal(p.hole[0],p.hole[1],S.board), q=percentileOf(p,s);
+  const dr=drawFlag(p.hole[0],p.hole[1],S.board);
+  const pot=potTotal(), toCall=S.currentBet-p.bet, ip=isIP(seat), street=S.street;
+  const tex=texture(S.board.slice(0,3)), wet=tex.s!=='rain'||tex.c==='conn';
+  const role=(street===1&&S.pfAggr===seat)||(street>1&&S.prevStreetAggr===seat);
+  const bet=f=>{ const amt=r5(pot*f); return amt>=p.stack*0.6?{act:'raise',to:p.stack+p.bet}:{act:'raise',to:amt}; };
+  if(toCall===0){
+    let F;   // how often the bot bets in this spot (as in v2)
+    if(role){
+      if(street===1) F=n===1?(ip?(wet?0.45:0.72):(wet?0.33:0.5)):0.3;
+      else if(street===2) F=n===1?0.5:0.3;
+      else F=n===1?0.45:0.25;
+    } else if(ip&&S.raiseCount===0){ F=street===1?0.42:street===2?0.38:0.32; if(n>1)F*=0.5; }
+    else F=0.06;
+    F=clamp(F*st.aggr,0,0.85);
+    // the sizes of this spot: BIG for the polar part, SMALL for merged value, MID for semi-bluffs
+    const big=street===1?wPick([[0.75,0.6],[1,0.4]]):street===2?wPick([[0.75,0.3],[1,0.45],[1.5,0.25]]):wPick([[1,0.4],[1.5,0.3],[2,0.3]]);
+    const small=street===1?(wet?wPick([[0.5,0.7],[0.75,0.3]]):wPick([[0.33,0.75],[0.5,0.25]])):street===2?wPick([[0.5,0.6],[0.75,0.4]]):wPick([[0.33,0.3],[0.5,0.7]]);
+    const mid=street===1?wPick([[0.5,0.5],[0.75,0.5]]):wPick([[0.5,0.4],[0.75,0.4],[1,0.2]]);
+    const valueFrac=F*0.62, nutFrac=valueFrac*0.4, thinFrac=valueFrac-nutFrac;
+    const bBig=big>0?nutFrac*bluffShare(big)/(1-bluffShare(big)):0, bSmall=thinFrac*bluffShare(small)/(1-bluffShare(small));   // bluff budget (share of the range) for each size
+    const eqMin=n===1?0.5:0.4;
+    if((q>=1-valueFrac&&e>eqMin)||e>0.8){
+      if(q>0.93&&street<3&&R()<0.18) return {act:'check'};   // trap
+      const nutted=(q>=1-nutFrac&&e>0.7)||e>0.88;
+      return bet(nutted?big:small);
+    }
+    if(street<3&&dr){   // draws: strong ones play like the nuts (big), the rest semi-bluff with a medium size
+      if(R()<Math.min(1,0.6*(bBig+bSmall)/0.2)) return bet(e>=0.45?big:mid);
+    }
+    if(q<0.35&&e<0.4){   // air: bluffs, with the big size as often as the nuts need them
+      const budget=(street<3?0.4:1)*(bBig+bSmall);
+      if(R()<Math.min(1,budget/0.35)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small);
+    }
+    return {act:'check'};
+  }
+  const potOdds=toCall/(pot+toCall), alpha=toCall/pot;
+  const foldCut=Math.pow(alpha,1/Math.max(1,n));
+  const implied=dr&&street<3&&p.stack>toCall*3?0.06:0;
+  const reraise=S.raiseCount>=2;
+  const raiseTo=f=>{ const to=S.currentBet+r5((pot+toCall)*f); return (to-p.bet)>p.stack*0.45?{act:'raise',to:p.stack+p.bet}:{act:'raise',to}; };   // raise to (bet + f x the pot after calling)
+  const Rv=street===1?0.12:street===2?0.1:0.08;
+  if(!reraise&&q>=1-Rv&&e>0.6&&R()<0.75) return raiseTo(street===1?wPick([[0.75,0.5],[1,0.5]]):wPick([[1,0.6],[1.5,0.4]]));
+  if(reraise&&q>0.95&&e>0.7) return {act:'raise',to:p.stack+p.bet};
+  if(!reraise&&n===1){
+    if(street===1&&dr&&R()<0.28*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
+    if(street===2&&dr&&R()<0.12*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
+    if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }
   const byOdds=e+implied>=potOdds;
   const byMDF=!reraise&&q>=foldCut&&e>=potOdds*0.55;
