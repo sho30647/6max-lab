@@ -402,7 +402,13 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap:not(.onhome)>#home{display:none}
 #tab-pf.menu>:not(#pf-menu){display:none!important}
 #tab-pf:not(.menu)>#pf-menu{display:none}
-#home,#pf-menu,#rp-menu{max-width:640px;margin:8px auto 0}
+#home,#pf-menu,#pf-gate,#rp-menu{max-width:640px;margin:8px auto 0}
+#tab-pf.gate>:not(#pf-gate){display:none!important}
+#tab-pf:not(.gate)>#pf-gate{display:none}
+.nv-tiles.five{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+.nv-tile.nodata{opacity:.7}
+.tablebox.t8 .seat{width:96px}
+@media (max-width:600px){ .tablebox.t8 .seat{width:72px} .tablebox.t8 .seat .nm{font-size:10px} .tablebox.t8 .seat .stk{font-size:12px} .tablebox.t8 .seat .act{font-size:9px} .tablebox.t8 .card{width:23px;height:32px;font-size:13px} .tablebox.t8 .seat .cards{height:32px} }
 .wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
 .wrap:not(.onrpm)>#rp-menu{display:none}
 .wrap.inrp #tab-ring>.subtabs{display:none}
@@ -580,7 +586,20 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 
   <!-- PREFLOP PRACTICE -->
   <div id="tab-pf" class="hidden">
+    <div id="pf-gate">
+      <div class="nv-sec">ゲームの種類を選ぶ</div>
+      <div class="nv-cards">
+        <button class="nv-card" data-pfgame="cash" type="button">
+          <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
+          <span><span class="t">Cash</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
+        </button>
+      </div>
+      <div class="nv-sec">MTT（8人テーブル・BBアンティ）　スタック量を選ぶ</div>
+      <div class="nv-tiles five" id="pfMttTiles"></div>
+      <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。Cashと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
+    </div>
     <div id="pf-menu">
+      <div class="nv-sec" id="pfCtxLbl"></div>
       <div class="nv-sec">練習する</div>
       <div class="nv-tiles">
         <button class="nv-tile" data-pfmode="open" type="button"><b>オープン</b><small>最初に入る</small></button>
@@ -678,7 +697,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       </details>
       <div class="session" id="pf-session"></div>
     </div>
-    <div class="soon hidden" id="pf-playSoon"><div class="empty">このモードは準備中です。レンジ表の追加後に実装します。</div></div>
+    <div class="soon hidden" id="pf-playSoon"><div class="empty">この箱には、このモードのレンジ表がまだ登録されていません。管理者が「レンジ編集」から登録します。</div></div>
   </div>
 
   <div id="pf-tab-stats" class="hidden">
@@ -3011,7 +3030,7 @@ let pfBootP=Promise.resolve();
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
-    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu')&&topTab==='pf');
+    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu'||this.screen==='pf-box')&&topTab==='pf');
     if(!ok) this.screen=topTab; this.apply(); },
   setScreen(s){ if(RP.on&&s!=='rp') RP.leave(); this.screen=s;
     if(s==='rp') ringTab='play';
@@ -3019,18 +3038,19 @@ const Nav={screen:'home',
     if(need&&topTab!==need) document.querySelector('.tabs button[data-tab="'+need+'"]').click();
     if(s==='ring'||s==='rp') applyRingTab(); else if((s==='home'||s==='rp-menu')&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
     this.apply(); if(s==='rp-menu') RP.renderMenu(); },
-  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
+  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':this.screen==='pf-box'?(window.PF&&window.PF.ctx?window.PF.ctx().name:'プリフロ練習'):(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
   apply(){
     const s=this.screen, el=id=>document.getElementById(id);
     document.querySelector('.wrap').classList.toggle('onhome',s==='home');
     document.querySelector('.wrap').classList.toggle('onrpm',s==='rp-menu');
     document.querySelector('.wrap').classList.toggle('inrp',s==='rp');
-    el('tab-pf').classList.toggle('menu',s==='pf-menu');
+    el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu');
+    if(s==='pf-menu'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
     el('navbar').classList.toggle('hidden',s==='home');
-    el('navBack').textContent=s==='pf'||s==='rp'?'← メニュー':'← トップ'; el('navTitle').textContent=this.title();
+    el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
     el('nvAdminCard').classList.toggle('hidden',!owner); el('nvPfAdmin').classList.toggle('hidden',!owner);
-    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:s==='pf-menu'?'pf-menu':s==='rp'?'rp-menu':s,t:this.title()}));
+    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:(s==='pf'||s==='pf-box'||s==='pf-menu')?'pf-menu':s==='rp'?'rp-menu':s,t:this.title()}));
     let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){}
     const show=s==='home'&&last&&last.s&&(last.s!=='admin'||owner);
     el('nvResume').classList.toggle('hidden',!show);
@@ -3046,7 +3066,13 @@ const Nav={screen:'home',
 function lsSetSafe(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 document.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>Nav.setScreen(b.dataset.nv));
 document.getElementById('nvResume').onclick=()=>{ let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){} Nav.setScreen(last&&last.s==='pf-menu'?'pf-menu':last&&last.s||'home'); };
-document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
+document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-box':Nav.screen==='pf-box'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
+document.getElementById('pf-gate').onclick=async e=>{   // choose a box: Cash or MTT at a stack depth
+  const b=e.target.closest('[data-pfgame],[data-pfmtt]'); if(!b) return;
+  await pfBootP;
+  if(b.dataset.pfgame) await window.PF.setCtx('cash'); else await window.PF.setCtx('mtt',+b.dataset.pfmtt);
+  Nav.setScreen('pf-box');
+};
 document.querySelector('.brand h1').onclick=()=>Nav.setScreen('home');
 document.querySelectorAll('[data-pfmode]').forEach(b=>b.onclick=()=>Nav.pfGo('mode',b.dataset.pfmode));
 document.querySelectorAll('[data-pfspecial]').forEach(b=>b.onclick=()=>Nav.pfGo('special',b.dataset.pfspecial));
@@ -3117,8 +3143,15 @@ document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.runn
    Constants & hand classes
    ========================================================= */
 const RANKS='23456789TJQKA', SUIT_SYM=['♠','♥','♦','♣'], SUITS='shdc';
-const POS=['UTG','HJ','CO','BTN','SB','BB'];
-const MODE_POS={open:['UTG','HJ','CO','BTN','SB'],vsOpen:['HJvsUTG','COvsUTG','COvsHJ','BTNvsUTG','BTNvsHJ','BTNvsCO','SBvsUTG','SBvsHJ','SBvsCO','SBvsBTN','BBvsUTG','BBvsHJ','BBvsCO','BBvsBTN','BBvsSB'],vs3bet:['UTGvsHJ','UTGvsCO','UTGvsBTN','UTGvsSB','UTGvsBB','HJvsCO','HJvsBTN','HJvsSB','HJvsBB','COvsBTN','COvsSB','COvsBB','BTNvsSB','BTNvsBB','SBvsBB']};
+const POS6=['UTG','HJ','CO','BTN','SB','BB'], POS8=['UTG','UTG1','LJ','HJ','CO','BTN','SB','BB'];
+let POS=POS6;   // the seats of the current box (Cash: 6, MTT: 8), in action order
+function buildModePos(pos){   // every spot of a table: open (all but the BB), vsOpen (hero after an opener), vs3bet (an opener against a later 3bettor)
+  const n=pos.length, open=pos.slice(0,n-1), vsOpen=[], vs3bet=[];
+  for(let i=1;i<n;i++) for(let j=0;j<i&&j<=n-2;j++) vsOpen.push(pos[i]+'vs'+pos[j]);
+  for(let i=0;i<n-1;i++) for(let v=i+1;v<n;v++) vs3bet.push(pos[i]+'vs'+pos[v]);
+  return {open,vsOpen,vs3bet};
+}
+let MODE_POS=buildModePos(POS6);
 const posLabel=p=>String(p).replace('vs',' vs ');   // 'UTGvsBB' -> 'UTG vs BB' (vs3bet spots: hero position + 3bettor)
 const MODE_NAME={open:'オープン',vsOpen:'vsオープン',vs3bet:'vs3bet'};
 const isSpot=m=>m==='vs3bet'||m==='vsOpen';   // modes whose spots are 'HEROvsVILLAIN' with a villain raise size (vs) and an all-in option
@@ -3143,6 +3176,15 @@ const pct=(x,d=1)=>x==null||isNaN(x)?'—':(Math.round(x*1000)/10).toFixed(d)+'%
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,v);return true;}catch(e){return false;}};
+/* Games ("boxes"): Cash (6-max, 100bb) and MTT (8-handed, big-blind ante, one box per stack depth). Ranges, answers and the
+   position settings are kept apart per box; CTX is the box that is open. */
+const MTT_DEPTHS=[10,15,20,30,40];   // stack depths (bb) that get an MTT box
+const GAMES={cash:{name:'Cash',pos:POS6,ante:0},mtt:{name:'MTT',pos:POS8,ante:1}};
+const CTX={game:'cash',depth:null,key:'cash',suffix:''};
+const stackBB=()=>CTX.game==='mtt'?CTX.depth:100;
+const K=k=>k+CTX.suffix;   // per-box localStorage key
+const ctxName=()=>CTX.game==='mtt'?'MTT '+CTX.depth+'bb':'Cash';
+const hasJam=m=>isSpot(m)||CTX.game==='mtt';   // MTT stacks are short: the open spots have an all-in answer too
 
 /* =========================================================
    Range tables (the "box")
@@ -3200,14 +3242,21 @@ const DEFAULT_RANGES={
     SBvsBB:{size:21,vs:10,h:{"AA":{"r":1},"AKs":{"r":1},"AQs":{"r":1},"AJs":{"j":0.05,"c":0.95},"ATs":{"c":1},"A9s":{"r":0.15,"c":0.85},"A8s":{"c":1},"A7s":{"r":0.2,"c":0.8},"A6s":{"r":0.35,"c":0.65},"A5s":{"r":0.35,"c":0.65},"A4s":{"r":0.65,"c":0.35},"A3s":{"r":0.45,"c":0.55},"A2s":{"r":0.5,"c":0.4},"AKo":{"r":0.4,"j":0.6},"KK":{"r":1},"KQs":{"j":0.45,"c":0.55},"KJs":{"j":0.35,"c":0.65},"KTs":{"r":0.15,"c":0.85},"K9s":{"r":0.35,"c":0.65},"K8s":{"c":1},"K7s":{"r":0.25,"c":0.45},"K6s":{"r":0.2,"c":0.2},"K5s":{"r":0.2},"AQo":{"r":0.25,"j":0.45,"c":0.3},"KQo":{"r":0.65,"c":0.35},"QQ":{"r":1},"QJs":{"j":0.2,"c":0.8},"QTs":{"r":0.2,"c":0.8},"Q9s":{"r":0.35,"c":0.65},"Q8s":{"c":0.15},"AJo":{"r":0.85,"c":0.15},"KJo":{"r":0.45,"c":0.15},"JJ":{"r":0.85,"j":0.15},"JTs":{"r":0.25,"c":0.75},"J9s":{"r":0.35,"c":0.65},"J8s":{"r":0.1,"c":0.2},"ATo":{"r":0.6},"KTo":{"r":0.15},"TT":{"r":0.75,"c":0.25},"T9s":{"r":0.35,"c":0.65},"T8s":{"r":0.4,"c":0.6},"99":{"r":0.25,"c":0.75},"98s":{"r":0.45,"c":0.55},"97s":{"c":0.05},"88":{"r":0.15,"c":0.85},"87s":{"c":0.25},"77":{"r":0.2,"c":0.8},"76s":{"c":0.35},"66":{"r":0.2,"c":0.8},"65s":{"c":0.1},"55":{"r":0.1,"c":0.75},"54s":{"c":0.25},"44":{"c":0.45},"33":{"c":0.2}}}
   }
 };
+/* MTT default range tables, per stack depth. 20bb open: read from GTO Wizard MTT 20bb 8-handed charts (colours measured, rounded to 5%);
+   call = limp (complete) in the open spots, j = all-in. Other depths / spots: add through the range editor (shared/ranges_mtt_<depth>). */
+const MTT_DEFAULTS={20:{open:{"UTG":{"size":2,"h":{"AA":{"r":1.0},"AKs":{"r":1.0},"AQs":{"r":1.0},"AJs":{"r":1.0},"ATs":{"r":1.0},"A9s":{"r":1.0},"A8s":{"r":1.0},"A7s":{"r":1.0},"A6s":{"r":1.0},"A5s":{"r":1.0},"A4s":{"r":1.0},"AKo":{"r":1.0},"KK":{"r":1.0},"KQs":{"r":1.0},"KJs":{"r":1.0},"KTs":{"r":1.0},"K9s":{"r":1.0},"K8s":{"r":1.0},"K7s":{"r":0.05},"AQo":{"r":1.0},"KQo":{"r":1.0},"QQ":{"r":1.0},"QJs":{"r":1.0},"QTs":{"r":1.0},"Q9s":{"r":1.0},"Q8s":{"r":0.65},"AJo":{"r":1.0},"KJo":{"r":1.0},"QJo":{"r":0.45},"JJ":{"r":1.0},"JTs":{"r":1.0},"J9s":{"r":1.0},"ATo":{"r":1.0},"KTo":{"r":0.1},"TT":{"r":1.0},"T9s":{"r":1.0},"T8s":{"r":0.35},"A9o":{"r":0.3},"99":{"r":1.0},"98s":{"r":0.9},"88":{"r":1.0},"77":{"r":1.0},"66":{"r":1.0}}},"UTG1":{"size":2,"h":{"AA":{"r":1.0},"AKs":{"r":1.0},"AQs":{"r":1.0},"AJs":{"r":1.0},"ATs":{"r":1.0},"A9s":{"r":1.0},"A8s":{"r":1.0},"A7s":{"r":1.0},"A6s":{"r":1.0},"A5s":{"r":1.0},"A4s":{"r":1.0},"AKo":{"r":1.0},"KK":{"r":1.0},"KQs":{"r":1.0},"KJs":{"r":1.0},"KTs":{"r":1.0},"K9s":{"r":1.0},"K8s":{"r":1.0},"K7s":{"r":0.4},"AQo":{"r":1.0},"KQo":{"r":1.0},"QQ":{"r":1.0},"QJs":{"r":1.0},"QTs":{"r":1.0},"Q9s":{"r":1.0},"Q8s":{"r":1.0},"AJo":{"r":1.0},"KJo":{"r":1.0},"QJo":{"r":1.0},"JJ":{"r":1.0},"JTs":{"r":1.0},"J9s":{"r":1.0},"ATo":{"r":1.0},"KTo":{"r":0.3},"TT":{"r":1.0},"T9s":{"r":1.0},"T8s":{"r":1.0},"A9o":{"r":0.55},"99":{"r":1.0},"98s":{"r":1.0},"88":{"r":1.0},"77":{"r":1.0},"66":{"r":1.0},"55":{"r":0.5}}},"LJ":{"size":2,"h":{"AA":{"r":1.0},"AKs":{"r":1.0},"AQs":{"r":1.0},"AJs":{"r":1.0},"ATs":{"r":1.0},"A9s":{"r":1.0},"A8s":{"r":1.0},"A7s":{"r":1.0},"A6s":{"r":1.0},"A5s":{"r":1.0},"A4s":{"r":1.0},"A3s":{"r":1.0},"AKo":{"r":1.0},"KK":{"r":1.0},"KQs":{"r":1.0},"KJs":{"r":1.0},"KTs":{"r":1.0},"K9s":{"r":1.0},"K8s":{"r":1.0},"K7s":{"r":1.0},"K6s":{"r":0.6},"AQo":{"r":1.0},"KQo":{"r":1.0},"QQ":{"r":1.0},"QJs":{"r":1.0},"QTs":{"r":1.0},"Q9s":{"r":1.0},"Q8s":{"r":1.0},"AJo":{"r":1.0},"KJo":{"r":1.0},"QJo":{"r":1.0},"JJ":{"r":1.0},"JTs":{"r":1.0},"J9s":{"r":1.0},"J8s":{"r":1.0},"ATo":{"r":1.0},"KTo":{"r":0.8},"QTo":{"r":0.25},"JTo":{"r":0.2},"TT":{"r":1.0},"T9s":{"r":1.0},"T8s":{"r":1.0},"A9o":{"r":1.0},"99":{"r":1.0},"98s":{"r":1.0},"97s":{"r":0.15},"88":{"r":1.0},"87s":{"r":1.0},"77":{"r":1.0},"66":{"r":1.0},"55":{"r":1.0}}},"HJ":{"size":2,"h":{"AA":{"r":1.0},"AKs":{"r":1.0},"AQs":{"r":1.0},"AJs":{"r":1.0},"ATs":{"r":1.0},"A9s":{"r":1.0},"A8s":{"r":1.0},"A7s":{"r":1.0},"A6s":{"r":1.0},"A5s":{"r":1.0},"A4s":{"r":1.0},"A3s":{"r":1.0},"A2s":{"r":1.0},"AKo":{"r":1.0},"KK":{"r":1.0},"KQs":{"r":1.0},"KJs":{"r":1.0},"KTs":{"r":1.0},"K9s":{"r":1.0},"K8s":{"r":1.0},"K7s":{"r":1.0},"K6s":{"r":1.0},"K5s":{"r":1.0},"AQo":{"r":1.0},"KQo":{"r":1.0},"QQ":{"r":1.0},"QJs":{"r":1.0},"QTs":{"r":1.0},"Q9s":{"r":1.0},"Q8s":{"r":1.0},"Q7s":{"r":1.0},"Q6s":{"r":0.15},"AJo":{"r":1.0},"KJo":{"r":1.0},"QJo":{"r":1.0},"JJ":{"r":1.0},"JTs":{"r":1.0},"J9s":{"r":1.0},"J8s":{"r":1.0},"J7s":{"r":0.05},"ATo":{"r":1.0},"KTo":{"r":1.0},"QTo":{"r":1.0},"JTo":{"r":1.0},"TT":{"r":1.0},"T9s":{"r":1.0},"T8s":{"r":1.0},"T7s":{"r":0.2},"A9o":{"r":1.0},"99":{"r":1.0},"98s":{"r":1.0},"97s":{"r":1.0},"A8o":{"r":1.0},"88":{"r":1.0},"87s":{"r":1.0},"86s":{"r":0.1},"A7o":{"r":0.05},"77":{"r":1.0},"76s":{"r":1.0},"66":{"r":1.0},"55":{"r":1.0},"44":{"r":0.35}}},"CO":{"size":2,"h":{"AA":{"r":1.0},"AKs":{"r":1.0},"AQs":{"r":0.95,"c":0.05},"AJs":{"r":1.0},"ATs":{"r":1.0},"A9s":{"r":1.0},"A8s":{"r":0.85,"c":0.15},"A7s":{"r":0.8,"c":0.2},"A6s":{"r":1.0},"A5s":{"r":0.7,"c":0.3},"A4s":{"r":0.9,"c":0.1},"A3s":{"r":0.95,"c":0.05},"A2s":{"r":0.4,"c":0.6},"AKo":{"r":1.0},"KK":{"r":1.0},"KQs":{"r":1.0},"KJs":{"r":0.85,"c":0.15},"KTs":{"r":0.85,"c":0.15},"K9s":{"r":0.85,"c":0.15},"K8s":{"r":0.95,"c":0.05},"K7s":{"r":0.9,"c":0.1},"K6s":{"r":0.95,"c":0.05},"K5s":{"r":1.0},"K4s":{"r":0.95,"c":0.05},"K3s":{"c":0.1},"AQo":{"r":1.0},"KQo":{"r":1.0},"QQ":{"r":1.0},"QJs":{"r":0.8,"c":0.2},"QTs":{"r":0.7,"c":0.3},"Q9s":{"r":1.0},"Q8s":{"r":1.0},"Q7s":{"r":0.95,"c":0.05},"Q6s":{"r":1.0},"Q5s":{"r":0.9,"c":0.1},"AJo":{"r":0.9,"c":0.1},"KJo":{"r":1.0},"QJo":{"r":0.95,"c":0.05},"JJ":{"r":1.0},"JTs":{"r":0.8,"c":0.2},"J9s":{"r":1.0},"J8s":{"r":1.0},"J7s":{"r":1.0},"J6s":{"r":0.3,"c":0.05},"ATo":{"r":0.85,"c":0.15},"KTo":{"r":0.95,"c":0.05},"QTo":{"r":0.95,"c":0.05},"JTo":{"r":1.0},"TT":{"r":0.9,"c":0.1},"T9s":{"r":0.95,"c":0.05},"T8s":{"r":1.0},"T7s":{"r":1.0},"A9o":{"r":0.95,"c":0.05},"K9o":{"r":0.9,"c":0.1},"Q9o":{"r":0.3,"c":0.15},"J9o":{"r":0.3,"c":0.1},"T9o":{"r":0.45,"c":0.1},"99":{"r":1.0},"98s":{"r":0.95,"c":0.05},"97s":{"r":1.0},"A8o":{"r":1.0},"88":{"r":1.0},"87s":{"r":0.9,"c":0.1},"86s":{"r":0.85,"c":0.15},"A7o":{"r":1.0},"77":{"r":1.0},"76s":{"r":0.9,"c":0.1},"75s":{"c":0.05},"A6o":{"r":0.55,"c":0.05},"66":{"r":1.0},"65s":{"r":0.9,"c":0.1},"A5o":{"r":1.0},"55":{"r":0.95,"c":0.05},"44":{"r":0.9,"c":0.1},"33":{"c":0.15}}},"BTN":{"size":2,"h":{"AA":{"r":0.85,"c":0.15},"AKs":{"r":1.0},"AQs":{"r":0.8,"c":0.2},"AJs":{"r":0.7,"c":0.3},"ATs":{"r":0.5,"c":0.5},"A9s":{"r":1.0},"A8s":{"r":0.95,"c":0.05},"A7s":{"r":0.5,"c":0.5},"A6s":{"r":0.45,"c":0.55},"A5s":{"r":0.25,"c":0.75},"A4s":{"j":1.0},"A3s":{"j":1.0},"A2s":{"j":1.0},"AKo":{"r":0.85,"c":0.15},"KK":{"r":0.9,"c":0.1},"KQs":{"r":0.9,"c":0.1},"KJs":{"r":0.95,"c":0.05},"KTs":{"r":0.35,"c":0.65},"K9s":{"r":0.25,"c":0.75},"K8s":{"r":0.45,"c":0.55},"K7s":{"r":0.5,"c":0.5},"K6s":{"r":0.7,"c":0.3},"K5s":{"r":1.0},"K4s":{"r":0.95,"c":0.05},"K3s":{"r":0.6,"c":0.4},"K2s":{"c":1.0},"AQo":{"r":0.8,"c":0.2},"KQo":{"r":0.65,"c":0.15,"j":0.2},"QQ":{"r":0.9,"c":0.1},"QJs":{"r":1.0},"QTs":{"r":0.2,"c":0.25,"j":0.55},"Q9s":{"r":0.3,"c":0.7},"Q8s":{"r":0.7,"c":0.3},"Q7s":{"r":0.8,"c":0.2},"Q6s":{"r":0.95,"c":0.05},"Q5s":{"r":1.0},"Q4s":{"r":0.65,"c":0.35},"Q3s":{"c":1.0},"AJo":{"r":0.8,"c":0.2},"KJo":{"r":0.55,"c":0.25,"j":0.2},"QJo":{"r":0.65,"c":0.35},"JJ":{"r":0.85,"c":0.15},"JTs":{"c":0.3,"j":0.7},"J9s":{"r":0.5,"c":0.5},"J8s":{"r":0.85,"c":0.15},"J7s":{"r":0.95,"c":0.05},"J6s":{"r":0.8,"c":0.2},"J5s":{"r":0.6,"c":0.4},"J4s":{"r":0.2,"c":0.8},"ATo":{"r":0.85,"c":0.15},"KTo":{"r":0.85,"c":0.15},"QTo":{"r":0.8,"c":0.2},"JTo":{"r":0.85,"c":0.15},"TT":{"r":0.75,"c":0.25},"T9s":{"r":0.55,"c":0.45},"T8s":{"r":0.9,"c":0.1},"T7s":{"r":0.85,"c":0.15},"T6s":{"r":0.5,"c":0.5},"T5s":{"c":0.35},"A9o":{"r":0.15,"c":0.25,"j":0.6},"K9o":{"r":0.75,"c":0.25},"Q9o":{"r":0.75,"c":0.25},"J9o":{"r":0.75,"c":0.25},"T9o":{"r":0.7,"c":0.3},"99":{"r":0.75,"c":0.25},"98s":{"r":0.85,"c":0.15},"97s":{"r":0.85,"c":0.15},"96s":{"r":0.7,"c":0.3},"A8o":{"r":0.1,"c":0.1,"j":0.8},"K8o":{"r":0.75,"c":0.25},"Q8o":{"r":0.35,"c":0.3},"J8o":{"r":0.3,"c":0.3},"T8o":{"r":0.3,"c":0.4},"98o":{"r":0.4,"c":0.35},"88":{"r":0.9,"c":0.1},"87s":{"r":0.65,"c":0.35},"86s":{"r":0.6,"c":0.4},"85s":{"r":0.8,"c":0.2},"A7o":{"r":0.3,"j":0.7},"K7o":{"r":0.6,"c":0.4},"77":{"r":1.0},"76s":{"r":0.7,"c":0.3},"75s":{"r":0.6,"c":0.4},"A6o":{"r":1.0},"66":{"r":0.95,"c":0.05},"65s":{"r":0.5,"c":0.5},"64s":{"c":0.05},"A5o":{"r":0.8,"j":0.2},"55":{"r":0.85,"c":0.15},"54s":{"r":0.4,"c":0.6},"A4o":{"r":0.7,"c":0.3},"44":{"j":1.0},"A3o":{"r":0.6,"c":0.4},"33":{"j":1.0},"A2o":{"r":0.2,"c":0.8},"22":{"j":1.0}}},"SB":{"size":3,"h":{"AA":{"r":1.0},"AKs":{"r":0.8,"c":0.2},"AQs":{"r":0.75,"c":0.25},"AJs":{"r":0.8,"c":0.2},"ATs":{"r":1.0},"A9s":{"r":0.7,"c":0.3},"A8s":{"r":0.65,"c":0.35},"A7s":{"r":1.0},"A6s":{"r":0.6,"c":0.4},"A5s":{"c":1.0},"A4s":{"c":1.0},"A3s":{"c":1.0},"A2s":{"c":1.0},"AKo":{"r":0.15,"c":0.85},"KK":{"r":0.9,"c":0.1},"KQs":{"r":0.65,"c":0.35},"KJs":{"r":0.45,"c":0.55},"KTs":{"r":0.1,"c":0.9},"K9s":{"r":0.3,"c":0.7},"K8s":{"c":1.0},"K7s":{"c":1.0},"K6s":{"c":1.0},"K5s":{"c":1.0},"K4s":{"c":1.0},"K3s":{"c":1.0},"K2s":{"c":1.0},"AQo":{"r":0.15,"c":0.85},"KQo":{"r":0.55,"c":0.45},"QQ":{"r":0.55,"c":0.45},"QJs":{"c":1.0},"QTs":{"c":1.0},"Q9s":{"c":1.0},"Q8s":{"c":1.0},"Q7s":{"c":1.0},"Q6s":{"c":1.0},"Q5s":{"c":1.0},"Q4s":{"c":1.0},"Q3s":{"c":1.0},"Q2s":{"c":1.0},"AJo":{"c":0.75,"j":0.25},"KJo":{"r":0.65,"c":0.35},"QJo":{"r":0.25,"c":0.75},"JJ":{"r":0.65,"c":0.35},"JTs":{"r":0.75,"c":0.25},"J9s":{"c":1.0},"J8s":{"c":1.0},"J7s":{"c":1.0},"J6s":{"c":1.0},"J5s":{"c":1.0},"J4s":{"r":0.7,"c":0.3},"J3s":{"r":0.95,"c":0.05},"J2s":{"r":0.55,"c":0.45},"ATo":{"c":0.65,"j":0.35},"KTo":{"r":0.7,"c":0.3},"QTo":{"r":0.25,"c":0.75},"JTo":{"c":1.0},"TT":{"r":0.9,"c":0.1},"T9s":{"r":1.0},"T8s":{"c":1.0},"T7s":{"c":0.7,"j":0.3},"T6s":{"c":1.0},"T5s":{"r":0.55,"c":0.45},"T4s":{"r":1.0},"T3s":{"r":0.95,"c":0.05},"T2s":{"r":0.35,"c":0.65},"A9o":{"j":1.0},"K9o":{"r":0.5,"c":0.5},"Q9o":{"r":0.45,"c":0.55},"J9o":{"r":0.35,"c":0.65},"T9o":{"c":1.0},"99":{"r":0.9,"c":0.1},"98s":{"c":1.0},"97s":{"c":1.0},"96s":{"c":1.0},"95s":{"r":0.7,"c":0.3},"94s":{"r":0.5,"c":0.5},"93s":{"r":0.55,"c":0.45},"92s":{"c":1.0},"A8o":{"j":1.0},"K8o":{"r":0.8,"c":0.2},"Q8o":{"r":0.55,"c":0.45},"J8o":{"r":0.45,"c":0.55},"T8o":{"r":0.35,"c":0.65},"98o":{"r":0.35,"c":0.65},"88":{"r":0.85,"c":0.15},"87s":{"j":1.0},"86s":{"c":1.0},"85s":{"r":0.3,"c":0.7},"84s":{"r":0.5,"c":0.5},"83s":{"c":1.0},"82s":{"c":1.0},"A7o":{"j":1.0},"K7o":{"r":0.6,"c":0.4},"Q7o":{"r":0.55,"c":0.45},"J7o":{"r":0.6,"c":0.4},"T7o":{"r":0.4,"c":0.6},"97o":{"r":0.3,"c":0.7},"87o":{"r":0.05,"c":0.75,"j":0.2},"77":{"r":0.65,"c":0.35},"76s":{"c":0.7,"j":0.3},"75s":{"c":1.0},"74s":{"r":0.2,"c":0.8},"73s":{"c":1.0},"72s":{"c":1.0},"A6o":{"j":1.0},"K6o":{"r":0.4,"c":0.5,"j":0.1},"Q6o":{"r":0.4,"c":0.25,"j":0.3},"J6o":{"r":0.05,"c":0.95},"T6o":{"r":0.2,"c":0.8},"96o":{"r":0.1,"c":0.9},"86o":{"r":0.25,"c":0.75},"76o":{"r":0.2,"c":0.8},"66":{"r":0.2,"c":0.8},"65s":{"c":1.0},"64s":{"r":0.25,"c":0.75},"63s":{"r":0.55,"c":0.45},"62s":{"c":1.0},"A5o":{"r":0.05,"j":0.95},"K5o":{"r":0.4,"c":0.45,"j":0.15},"Q5o":{"r":0.65,"c":0.25,"j":0.1},"J5o":{"r":0.15,"c":0.85},"T5o":{"c":1.0},"95o":{"c":1.0},"85o":{"c":1.0},"75o":{"c":1.0},"65o":{"r":0.1,"c":0.9},"55":{"c":1.0},"54s":{"c":1.0},"53s":{"r":0.1,"c":0.9},"52s":{"r":0.6,"c":0.4},"A4o":{"r":0.3,"j":0.7},"K4o":{"r":0.35,"c":0.5,"j":0.15},"Q4o":{"r":0.1,"c":0.9},"J4o":{"c":1.0},"T4o":{"c":1.0},"74o":{"c":0.2},"64o":{"c":0.7},"54o":{"r":0.1,"c":0.9},"44":{"j":1.0},"43s":{"r":0.25,"c":0.75},"42s":{"r":0.45,"c":0.55},"A3o":{"r":0.05,"j":0.95},"K3o":{"r":0.1,"c":0.9},"Q3o":{"c":1.0},"J3o":{"c":1.0},"T3o":{"c":1.0},"33":{"j":1.0},"32s":{"r":0.05,"c":0.95},"A2o":{"r":0.1,"j":0.9},"K2o":{"r":0.1,"c":0.9},"Q2o":{"c":1.0},"J2o":{"c":1.0},"22":{"j":1.0}}}}}};
+function ctxDefaults(){
+  if(CTX.game==='mtt'){ const d={v:1,open:{},vsOpen:{},vs3bet:{}}, b=MTT_DEFAULTS[CTX.depth]; if(b) for(const m in b) d[m]=JSON.parse(JSON.stringify(b[m])); return d; }
+  return JSON.parse(JSON.stringify(DEFAULT_RANGES));
+}
 const Ranges={
-  data:null,
+  data:null, cash:null,
   // Ranges are shared by every player: built-in defaults overlaid with the admin's saved table (SharedRanges).
   // (The per-user table that Store.init passes in is no longer used.)
   load(){
-    const d=JSON.parse(JSON.stringify(DEFAULT_RANGES)), saved=SharedRanges.data;
+    const d=ctxDefaults(), saved=SharedRanges.data;
     if(saved){ for(const m of ['open','vsOpen','vs3bet']){ const sm=saved[m]||{}; for(const p in sm){ const x=sm[p]; if(x&&x.h&&Object.keys(x.h).length){ d[m][p]={...(d[m][p]||{}),...(x.vs?{vs:+x.vs}:{}),size:+x.size||((d[m][p]||{}).size)||2.5,h:x.h}; } else if(x&&d[m][p]&&x.size){ d[m][p].size=+x.size; } } } }
-    this.data=d;
+    this.data=d; if(CTX.game==='cash') this.cash=d;
   },
   get(m,p){ return (this.data[m]||{})[p]||null; },
   has(m,p){ const r=this.get(m,p); return !!(r&&r.h&&Object.keys(r.h).length); },
@@ -3225,15 +3274,19 @@ function dealWeight(m,p,k){ if(m!=='vs3bet') return 1; return Ranges.exp('open',
 function rangeBase(m,p){ if(m!=='vs3bet') return 1326; let s=0; CLASSES.forEach(k=>s+=combos(k)*dealWeight(m,p,k)); return s||1; }
 /* The admin-edited range table, shared by all players: Firestore doc shared/ranges (when Firebase is available),
    cached in this browser so the game starts with the last known table even offline. */
-const SHARED_DOC='shared/ranges', LS_SHARED='pflab_shared_ranges';
+const sharedDoc=()=>CTX.game==='mtt'?'shared/ranges_mtt_'+CTX.depth:'shared/ranges', sharedLs=()=>CTX.game==='mtt'?'pflab_shared_ranges_mtt'+CTX.depth:'pflab_shared_ranges';
 async function sharedDb(){ if(typeof FirebaseGate==='undefined') return null; try{ const c=await FirebaseGate.ready(); return c&&c.db||null; }catch(e){ return null; } }
 const SharedRanges={data:null,updated:0,
-  readCache(){ try{ const x=JSON.parse(lsGet(LS_SHARED)||'null'); if(x&&x.data){ this.data=x.data; this.updated=+x.updated||0; } }catch(e){} },
-  writeCache(){ lsSet(LS_SHARED,JSON.stringify({data:this.data,updated:this.updated})); },
+  useCtx(){ this.data=null; this.updated=0; this.readCache(); },   // switch to the table of the open box
+  readCache(){ try{ const x=JSON.parse(lsGet(sharedLs())||'null'); if(x&&x.data){ this.data=x.data; this.updated=+x.updated||0; } }catch(e){} },
+  writeCache(){ lsSet(sharedLs(),JSON.stringify({data:this.data,updated:this.updated})); },
   async fetch(){ // newest table from the cloud; returns true when it changed
     const db=await sharedDb(); if(!db) return false;
-    try{ const s=await db.doc(SHARED_DOC).get(); if(!s.exists) return false; const x=s.data();
-      if(!x||!x.data||(+x.updated||0)<=this.updated) return false;
+    const key=CTX.key, doc=sharedDoc(), ls=sharedLs();
+    try{ const s=await db.doc(doc).get(); if(!s.exists) return false; const x=s.data();
+      if(!x||!x.data) return false;
+      if(key!==CTX.key){ lsSet(ls,JSON.stringify({data:JSON.parse(JSON.stringify(x.data)),updated:+x.updated||0})); return false; }   // another box was opened meanwhile: only cache it
+      if((+x.updated||0)<=this.updated) return false;
       this.data=JSON.parse(JSON.stringify(x.data)); this.updated=+x.updated||0; this.writeCache(); return true;
     }catch(e){ console.warn('shared ranges',e); return false; }
   },
@@ -3241,13 +3294,15 @@ const SharedRanges={data:null,updated:0,
     const u=Date.now(), data=JSON.parse(JSON.stringify(table)); delete data._u;
     this.data=data; this.updated=u; this.writeCache();
     const db=await sharedDb(); if(!db) return {ok:false,local:true};
-    try{ await db.doc(SHARED_DOC).set({data,updated:u}); return {ok:true}; }catch(e){ console.warn('shared ranges save',e); return {ok:false,err:e&&e.code||String(e)}; }
+    try{ await db.doc(sharedDoc()).set({data,updated:u}); return {ok:true}; }catch(e){ console.warn('shared ranges save',e); return {ok:false,err:e&&e.code||String(e)}; }
   }
 };
 SharedRanges.readCache(); Ranges.load();
 const rangesReady=SharedRanges.fetch().then(ch=>{ if(ch) Ranges.load(); });
-window.PFRanges={exp:(m,p,k)=>Ranges.data?Ranges.exp(m,p,k):{has:false},
-  spot:(m,p)=>{ const R=Ranges.data&&Ranges.has(m,p)?Ranges.get(m,p):null; return R?{size:+R.size||2.5,h:R.h}:null; }};   // the whole spot, for the ring-game bots   // read-only view for the ring game (beginner advice)
+/* the ring game always uses the Cash table, whatever box the trainer has open */
+const withCash=fn=>{ if(CTX.game==='cash'||!Ranges.cash) return fn(); const sd=Ranges.data, sg=CTX.game; Ranges.data=Ranges.cash; CTX.game='cash'; try{ return fn(); } finally{ Ranges.data=sd; CTX.game=sg; } };
+window.PFRanges={exp:(m,p,k)=>withCash(()=>Ranges.data?Ranges.exp(m,p,k):{has:false}),
+  spot:(m,p)=>withCash(()=>{ const R=Ranges.data&&Ranges.has(m,p)?Ranges.get(m,p):null; return R?{size:+R.size||2.5,h:R.h}:null; })};   // read-only views for the ring game (beginner advice, bots, range review)
 
 /* range text parser */
 function normTok(t){ t=t.trim(); if(!t) return ''; return t.slice(0,2).toUpperCase()+t.slice(2).toLowerCase(); }
@@ -3307,8 +3362,9 @@ function rangeToText(m){
    ========================================================= */
 const LS_RNG='pflab_ranges';
 const rkey=r=>r.t+'_'+r.h;
+const inCtx=r=>CTX.game==='mtt'?(r.gm==='mtt'&&+r.dp===CTX.depth):r.gm!=='mtt';   // answers belong to the box they were given in (g = the grade)
 // practice answers merged with the open decisions found in table-play logs (own data, or the member the admin is viewing)
-function combinedRecs(own,hands){ own=own||Store.recs; if(!cfg.useGameLog) return own; const glog=gameLogOpenRecords(hands); const seen=new Set(own.map(rkey)); const merged=own.slice(); glog.forEach(r=>{ const k=rkey(r); if(!seen.has(k)){ seen.add(k); merged.push(r); } }); merged.sort((a,b)=>a.t-b.t); return merged; }
+function combinedRecs(own,hands){ own=(own||Store.recs).filter(inCtx); if(CTX.game!=='cash'||!cfg.useGameLog) return own; const glog=gameLogOpenRecords(hands); const seen=new Set(own.map(rkey)); const merged=own.slice(); glog.forEach(r=>{ const k=rkey(r); if(!seen.has(k)){ seen.add(k); merged.push(r); } }); merged.sort((a,b)=>a.t-b.t); return merged; }
 const statsRecs=()=>window.AdminView&&window.AdminView.active?combinedRecs(window.AdminView.recs,window.AdminView.hands):combinedRecs();
 const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),doc:null,docRecs:[],synced:new Set(),rq:Promise.resolve(),
   lsRead(k,d){ try{const raw=localStorage.getItem(k); return raw?JSON.parse(raw):d;}catch(e){return d;} },
@@ -3354,9 +3410,12 @@ const Store={recs:[],mode:'memory',db:null,uid:null,cs:300,q:Promise.resolve(),d
     lsSet(LS_RNG,JSON.stringify(data));
     if(this.mode==='cloud'){ const path='data/users/'+this.uid+'/ranges'; this.rq=this.rq.then(()=>this.db.doc(path).set({data,updated:u})).catch(e=>console.warn('ranges',e)); }
   },
-  async reset(){
+  async reset(){   // deletes the answers of the open box only; the other boxes' answers are written back
+    const keep=this.recs.filter(r=>!inCtx(r));
     if(this.mode==='cloud'){ try{ const snap=await this.db.collection('data/users/'+this.uid).get(); for(const d of snap.docs){ if(d.id.startsWith('pf_')){ try{ await this.db.doc('data/users/'+this.uid+'/'+d.id).delete(); }catch(e){} } } }catch(e){} }
-    this.recs=[]; this.synced.clear(); this.doc=null; this.docRecs=[]; try{localStorage.removeItem(UserGate.pfRecsKey());}catch(e){}
+    this.recs=keep; this.synced.clear(); this.doc=null; this.docRecs=[]; try{localStorage.removeItem(UserGate.pfRecsKey());}catch(e){}
+    if(keep.length){ this.lsWrite();
+      if(this.mode==='cloud'){ for(let i=0;i<keep.length;i+=this.cs){ const part=keep.slice(i,i+this.cs), id='pf_w'+Date.now()+'_'+i; try{ await this.db.doc('data/users/'+this.uid+'/'+id).set({r:part,n:part.length,updated:Date.now()}); part.forEach(r=>this.synced.add(rkey(r))); }catch(e){ console.warn('rewrite',e); } } } }
   }
 };
 
@@ -3391,13 +3450,16 @@ function freqBar(e){
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
-const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+const SEAT8_XY=[[50,90],[22,77],[9,47],[22,16],[50,5],[78,16],[91,47],[78,77]];   // MTT (8 seats), hero at the bottom, clockwise
+const SEAT8_XY_M=[[50,87],[17,72],[13,47],[20,22],[50,13],[80,22],[87,47],[83,72]];
+const seatXY=i=>{ const ph=matchMedia("(max-width:600px)").matches; return (POS.length===8?(ph?SEAT8_XY_M:SEAT8_XY):(ph?SEAT_XY_M:SEAT_XY))[i]; };
 const SPOT_XY_M=[[50,70],[31,72],[31,34],[50,33],[69,34],[69,72]];   // phone: bet spots clear of the plates
+const SPOT8_XY_M=[[50,70],[33,63],[30,47],[34,33],[50,32],[66,33],[70,47],[67,63]];
 window.addEventListener("resize",()=>{ if(P.cur) renderTable(); });
 const P={mode:lsGet('pflab_mode')||'open',special:lsGet('pflab_special')||null,master:null,cur:null,answered:false,size:+(lsGet('pflab_size')||2.5),t0:0,session:{n:0,ok:0,j:0},timer:null,last:null};
 const DEF={far:true,sizeOn:false,speed:150,farD:3,useGameLog:true};
-const cfg={mpos:new Set(JSON.parse(lsGet('pflab_mpos')||'null')||[]),   // hero positions for the special menus (none = all)
-  pos:new Set(JSON.parse(lsGet('pflab_pos')||'null')||MODE_POS.open),deal:lsGet('pflab_deal')||'all',
+const cfg={mpos:new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]),   // hero positions for the special menus (none = all)
+  pos:new Set(JSON.parse(lsGet(K('pflab_pos'))||'null')||MODE_POS.open),deal:lsGet('pflab_deal')||'all',
   far:lsGet('pflab_far')===null?DEF.far:lsGet('pflab_far')==='1',
   sizeOn:lsGet('pflab_sizeon')===null?DEF.sizeOn:lsGet('pflab_sizeon')==='1',
   speed:lsGet('pflab_speed')===null?DEF.speed:+lsGet('pflab_speed'),
@@ -3477,6 +3539,7 @@ function pickWeighted(list){ const tot=list.reduce((s,x)=>s+x.w,0); let r=Math.r
 function deal(){
   clearTimeout(P.timer);
   if(P.special==='master') return dealMaster();
+  if(P.special?!anyRanges():!modeReady(P.mode)) return;   // a box without ranges for this mode has nothing to deal
   if(P.special==='range'){   // vs open / vs 3bet spots, hero position limited by the special-menu position checks
     const ms=['vsOpen','vs3bet'].filter(m=>MODE_POS[m].some(p=>heroOk(heroOf(p)))); const c=ms.length?ms:['vsOpen','vs3bet'];
     P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false; }
@@ -3502,12 +3565,12 @@ function spotMsg(pos){
   if(!Ranges.has(P.mode,pos)) return 'このポジションはレンジ未登録（記録のみ）';
   if(P.mode==='vs3bet'){ const R=Ranges.get('vs3bet',pos)||{}, s=spotOf(pos); return `あなたの${s.hero} ${openSize(s.hero)}bbオープンに ${s.vil} が ${R.vs||'?'}bb に3ベット`; }
   if(P.mode==='vsOpen'){ const R=Ranges.get('vsOpen',pos)||{}, s=spotOf(pos); return `${s.vil} が ${R.vs||'?'}bb でオープン`; }
-  const pi=POS.indexOf(pos); return pi===0?'あなたが最初のアクション':(POS.slice(0,pi).join('・')+'がフォールド');
+  const pi=POS.indexOf(pos), head=CTX.game==='mtt'?`${CTX.depth}bb・BBアンティ　`:''; return head+(pi===0?'あなたが最初のアクション':(POS.slice(0,pi).join('・')+'がフォールド'));
 }
 const heroOk=h=>!cfg.mpos.size||cfg.mpos.has(h);
 
 /* ---------- special menu 1: hand master — one hand at one position, played through every spot it can meet ---------- */
-const OPENERS=['UTG','HJ','CO','BTN','SB'];
+let OPENERS=POS6.slice(0,5);   // the seats that can open (everyone but the BB)
 function buildQueue(pos,k){
   const q=[], pi=POS.indexOf(pos);
   if(OPENERS.includes(pos)&&Ranges.has('open',pos)) q.push({m:'open',p:pos,label:'オープン'});
@@ -3583,14 +3646,14 @@ function showEstOverlay(rec){
   o.querySelector('#pf-estClr').onclick=()=>{ EST.cells={}; showEstOverlay(rec); };
   o.querySelector('#pf-estGo').onclick=()=>{
     EST.done=true; const r=estScore(T.f);
-    try{ const key='pflab_recs_est', a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
+    try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
     showEstOverlay(rec); };
 }
 function renderEstResult(o,T,rec,close){
   const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた']];
   const miss=[], extra=[]; CLASSES.forEach(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, w=combos(k)*Math.abs(d); if(d>=0.25) miss.push({k,w}); else if(d<=-0.25) extra.push({k,w}); });
   const top=a=>a.sort((x,y)=>y.w-x.w).slice(0,8).map(x=>x.k).join('、')||'なし';
-  let hist=[]; try{ hist=JSON.parse(lsGet('pflab_recs_est')||'[]').slice(-20); }catch(e){}
+  let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').slice(-20); }catch(e){}
   const avg=hist.length?Math.round(hist.reduce((s,x)=>s+x.s,0)/hist.length*100):null;
   const cellsHTML=EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
@@ -3610,9 +3673,9 @@ const openSize=pos=>+((Ranges.get('open',pos)||{}).size)||2;
 function renderTable(heroAct){
   const box=document.getElementById('pf-tablebox'); box.querySelectorAll('.seat,.betchip').forEach(e=>e.remove());
   const c=P.cur; if(!c) return; const v3=P.mode==='vs3bet', vo=P.mode==='vsOpen', sp=(v3||vo)?spotOf(c.pos):null;
-  const hi=POS.indexOf((v3||vo)?sp.hero:c.pos); let pot=0;
-  for(let i=0;i<6;i++){
-    const pi=(hi+i)%6, pos=POS[pi], hero=i===0, vil=(v3||vo)&&pos===sp.vil;
+  const hi=POS.indexOf((v3||vo)?sp.hero:c.pos), N=POS.length, STK=stackBB(); let pot=GAMES[CTX.game].ante;   // MTT: the big-blind ante is in the pot
+  for(let i=0;i<N;i++){
+    const pi=(hi+i)%N, pos=POS[pi], hero=i===0, vil=(v3||vo)&&pos===sp.vil;
     // vs3bet: everyone but the opener and the 3bettor has folded; vsOpen: seats before the hero other than the opener have folded, seats after the hero still have to act
     const folded=v3?(!hero&&!vil):vo?(!hero&&!vil&&pi<hi):pi<hi;
     const [x,y]=seatXY(i); const el=document.createElement('div');
@@ -3624,21 +3687,22 @@ function renderTable(heroAct){
     if(v3&&hero){ bet=openSize(sp.hero); if(!heroAct) act='オープン '+bet; }
     if(vil){ bet=+(Ranges.get(P.mode,c.pos)||{}).vs||0; act=(vo?'オープン ':'3ベット ')+bet; }
     pot+=bet;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${(v3||vo)?Math.round((100-bet)*10)/10:100}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${(v3||vo||CTX.game==='mtt')?Math.round((STK-bet)*10)/10:STK}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
     box.appendChild(el);
-    if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
+    if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?(N===8?SPOT8_XY_M:SPOT_XY_M)[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
   }
   document.getElementById('pf-board').innerHTML='';
   document.getElementById('pf-pot').textContent='ポット '+pot+'bb';
 }
+const sizeOnNow=()=>cfg.sizeOn&&CTX.game==='cash';   // picking the open size only makes sense in Cash (MTT opens are one fixed size)
 function renderChips(){
   const v3=isSpot(P.mode);
-  document.querySelectorAll('.sizeUI').forEach(e=>e.classList.toggle('hidden',!cfg.sizeOn||v3));
+  document.querySelectorAll('.sizeUI').forEach(e=>e.classList.toggle('hidden',!sizeOnNow()||v3));
   // vs3bet / vsOpen: four answers (fold / call / 4bet or 3bet at the chart size / all-in); no size picking
-  document.getElementById('pf-btnJam').classList.toggle('hidden',!v3);
+  document.getElementById('pf-btnJam').classList.toggle('hidden',!hasJam(P.mode)); document.getElementById('pf-btnJam').innerHTML='オールイン<br><small>'+stackBB()+'bb</small>';
   document.getElementById('pf-btnCall').innerHTML=v3?'コール':'コール<br><small>（リンプ）</small>';
   if(v3){ const R=P.cur&&Ranges.get(P.mode,P.cur.pos); document.getElementById('pf-btnRaise').innerHTML=`${RAISE_NAME[P.mode]}${R?`<br><small>${R.size}bb</small>`:''}`; return; }
-  if(!cfg.sizeOn){ document.getElementById('pf-btnRaise').innerHTML='レイズ'; return; }
+  if(!sizeOnNow()){ document.getElementById('pf-btnRaise').innerHTML='レイズ'; return; }
   document.getElementById('pf-chips').innerHTML=SIZES.map(s=>`<button data-s="${s}" aria-pressed="${s===P.size}">${s}</button>`).join('');
   document.getElementById('pf-btnRaise').innerHTML=`レイズ<br><small>${P.size}bb</small>`;
 }
@@ -3654,14 +3718,14 @@ function setMsg(t){ document.getElementById('pf-msg').textContent=t; }
 function answer(a){
   if(!P.cur||P.answered) return;
   const ms=Math.round(performance.now()-P.t0), c=P.cur, e=Ranges.exp(P.mode,c.pos,c.k);
-  if(a==='J'&&!isSpot(P.mode)) return;
-  const sized=cfg.sizeOn&&P.mode==='open';
+  if(a==='J'&&!hasJam(P.mode)) return;
+  const sized=sizeOnNow()&&P.mode==='open';
   const g=judge(e,a), z=sizeJudge(e,a,sized?P.size:null);
-  const rec={t:Date.now(),m:P.mode,p:c.pos,h:hcStr(c.cards),k:c.k,a,s:(a==='R'&&sized)?P.size:null,g,z,ms,...(P.special==='master'?{mm:1}:{})};
+  const rec={t:Date.now(),m:P.mode,p:c.pos,h:hcStr(c.cards),k:c.k,a,s:(a==='R'&&sized)?P.size:null,g,z,ms,...(P.special==='master'?{mm:1}:{}),...(CTX.game==='mtt'?{gm:'mtt',dp:CTX.depth}:{})};
   Store.add(rec); P.answered=true;
   if(P.special==='master'&&P.master){ P.master.res[P.master.i]={g,z}; renderMprog(); }
   P.session.n++; if(g!=='na'){ P.session.j++; if((g==='ok'||g==='mix')&&z!==false) P.session.ok++; }
-  renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&isSpot(P.mode)&&e.has?`${RAISE_NAME[P.mode]} ${e.size}`:a==='J'?'オールイン 100':ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
+  renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&isSpot(P.mode)&&e.has?`${RAISE_NAME[P.mode]} ${e.size}`:a==='J'?'オールイン '+stackBB():ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
   setMsg(GRADE[g][1]+(z===false?'（サイズ違い）':''));
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
@@ -3706,7 +3770,7 @@ function setStatus(t){ const e=document.getElementById('pf-session'); e.dataset.
 function renderSession(){
   const e=document.getElementById('pf-session'), s=P.session;
   const modeTxt={cloud:'クラウド保存中（どの端末から開いても同じ記録）',local:'クラウドに接続できないため、この端末のブラウザに一時保存中',memory:'記録は保存されません（このセッションのみ）'}[Store.mode];
-  e.innerHTML=`今回 <b>${s.n}</b> 問／正解率 <b>${s.j?pct(s.ok/s.j,0):'—'}</b>　累計 <b>${Store.recs.length}</b> 問<br>${e.dataset.status||modeTxt}`;
+  e.innerHTML=`今回 <b>${s.n}</b> 問／正解率 <b>${s.j?pct(s.ok/s.j,0):'—'}</b>　累計 <b>${Store.recs.filter(inCtx).length}</b> 問<br>${e.dataset.status||modeTxt}`;
 }
 function renderPosChecks(){
   document.getElementById('pf-posLbl').textContent=P.special?'あなたのポジション':'出題するポジション';
@@ -3867,7 +3931,7 @@ function renderCompare(m,recs,fp){
     <div class="gtoggle" id="pf-cViewT">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${cView===v}">${l}</button>`).join('')}</div>
     <div class="${cView==='all'?'cmp3':''}">${cView==='all'?grid('ok')+grid('me')+grid('gap'):grid(cView)}</div>
     <div class="cellinfo" id="pf-cInfo">&nbsp;</div>
-    <div class="legend"><span><i style="background:var(--win)"></i>${rName(m)}</span>${isSpot(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
+    <div class="legend"><span><i style="background:var(--win)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
     <div class="insight" style="margin-top:10px">${list(looseL,'広すぎるハンド',f1)}${list(tightL,'狭すぎるハンド',f1)}${list(typL,'アクションの種類がずれるハンド',f2)}${!looseL.length&&!tightL.length&&!typL.length?(cov?'<p>回答済みのハンドでは、正解レンジと15pt以上ずれているものはありません。</p>':'<p>このポジションはまだ回答がありません。</p>'):''}</div>`;
   box.innerHTML=h;
   box.querySelectorAll('#pf-cPosT button').forEach(b=>b.onclick=()=>{ cPos=b.dataset.p; cSel=null; renderCompare(m,recs,null); });
@@ -3926,14 +3990,14 @@ const rName=m=>RAISE_NAME[m]||'レイズ';
 function fillPosSelect(selId,m,key){
   const sel=document.getElementById(selId), prev=sel.value;
   sel.innerHTML=MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
-  const saved=lsGet(key+'_'+m)||(m==='open'?lsGet('pflab_rpos'):null);
+  const saved=lsGet(K(key+'_'+m))||(m==='open'?lsGet(K('pflab_rpos')):null);
   if(MODE_POS[m].includes(prev)) sel.value=prev; else if(saved&&MODE_POS[m].includes(saved)) sel.value=saved;
 }
-function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${isSpot(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
+function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
 function rangeSumText(m,p){
   const R=Ranges.get(m,p); if(!R||!Object.keys(R.h).length) return '未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
   const w=Ranges.width(m,p), v3=m==='vs3bet', base=rangeBase(m,p);
-  return `${rName(m)} <b>${pct(w.r)}</b>　${isSpot(m)?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?heroOf(p)+'のオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
+  return `${rName(m)} <b>${pct(w.r)}</b>　${hasJam(m)?`オールイン <b>${pct(w.j)}</b>　`:''}コール <b>${pct(w.c)}</b>　参加合計 <b>${pct(w.r+w.c+w.j)}</b>（${v3?heroOf(p)+'のオープンレンジ中':'1326組中'} ${Math.round((w.r+w.c+w.j)*base)}組）`;
 }
 function rangeCells(m,p,selSet){
   const R=Ranges.get(m,p)||{h:{}}, v3=m==='vs3bet';
@@ -3955,7 +4019,7 @@ function renderRange(){
 function initRangeTab(){
   fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos');
   document.getElementById('pf-rMode').onchange=()=>{ fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos'); renderRange(); };
-  document.getElementById('pf-rPos').onchange=()=>{ lsSet('pflab_rpos_'+document.getElementById('pf-rMode').value,document.getElementById('pf-rPos').value); renderRange(); };
+  document.getElementById('pf-rPos').onchange=()=>{ lsSet(K('pflab_rpos_'+document.getElementById('pf-rMode').value),document.getElementById('pf-rPos').value); renderRange(); };
   initRangeEditor();
 }
 
@@ -3976,7 +4040,7 @@ function renderRangeEdit(){
   document.getElementById('pf-eGate').classList.toggle('hidden',unlocked); document.getElementById('pf-eBody').classList.toggle('hidden',!unlocked);
   if(!unlocked) return;
   const {m,p}=eState(), R=eSpot(), v3=m==='vs3bet';
-  document.querySelectorAll('#pf-tab-redit .jamUI').forEach(e=>e.classList.toggle('hidden',!isSpot(m)));
+  document.querySelectorAll('#pf-tab-redit .jamUI').forEach(e=>e.classList.toggle('hidden',!hasJam(m)));
   document.getElementById('pf-eVsLbl').textContent=v3?'相手の3ベット':'相手のオープン';
   document.querySelectorAll('#pf-tab-redit .rname').forEach(e=>e.textContent=rName(m));
   document.getElementById('pf-eRLbl').textContent=rName(m);
@@ -3987,7 +4051,7 @@ function renderRangeEdit(){
   document.getElementById('pf-eSum').innerHTML=rangeSumText(m,p);
   renderSelInfo(); renderSaveBar();
 }
-function readMix(){ const v=id=>Math.max(0,Math.min(100,Math.round(+document.getElementById(id).value||0))); const v3=isSpot(eState().m);
+function readMix(){ const v=id=>Math.max(0,Math.min(100,Math.round(+document.getElementById(id).value||0))); const v3=hasJam(eState().m);
   return {r:v('pf-eR'),c:v('pf-eC'),j:v3?v('pf-eJ'):0}; }
 function renderMixPreview(){
   const x=readMix(), f=100-x.r-x.c-x.j, el=document.querySelector('#pf-tab-redit .efold');
@@ -4017,7 +4081,7 @@ function initRangeEditor(){
   $('pf-eLock').onclick=()=>{ if(ED.dirty&&!confirm('保存していない変更があります。破棄して終了しますか？')) return; if(ED.dirty) discardEdits(); try{ sessionStorage.removeItem('sixmaxlab_admin_ok'); }catch(e){} renderRangeEdit(); };
   fillPosSelect('pf-ePos',$('pf-eMode').value,'pflab_epos');
   $('pf-eMode').onchange=()=>{ ED.sel.clear(); fillPosSelect('pf-ePos',$('pf-eMode').value,'pflab_epos'); renderRangeEdit(); };
-  $('pf-ePos').onchange=()=>{ ED.sel.clear(); lsSet('pflab_epos_'+$('pf-eMode').value,$('pf-ePos').value); renderRangeEdit(); };
+  $('pf-ePos').onchange=()=>{ ED.sel.clear(); lsSet(K('pflab_epos_'+$('pf-eMode').value),$('pf-ePos').value); renderRangeEdit(); };
   // selection: tap toggles; with a mouse, dragging paints the same choice over several cells
   const grid=$('pf-eGrid');
   const cellAt=e=>{ const t=document.elementFromPoint(e.clientX,e.clientY); return t&&t.closest?t.closest('#pf-eGrid button'):null; };
@@ -4042,8 +4106,11 @@ function initRangeEditor(){
   $('pf-eExport').onclick=()=>{ $('pf-eText').value=rangeToText($('pf-eMode').value); };
   $('pf-eImport').onclick=()=>{
     const m=$('pf-eMode').value, txt=$('pf-eText').value, msgs=[], done=[];
-    txt.split('\n').forEach(line=>{ line=line.trim(); if(!line) return; const mm=line.match(/^([A-Za-z]+)\s*([\d.]+)?\s*(?:bb)?\s*[:：]\s*(.*)$/);
-      if(!mm){ msgs.push('読めない行：'+line.slice(0,30)); return; } const p=MODE_POS[m].find(x=>x.toUpperCase()===mm[1].toUpperCase()); if(!p){ msgs.push('不明なスポット：'+mm[1]); return; }
+    txt.split('\n').forEach(line=>{ line=line.trim(); if(!line) return;
+      // "UTG 2: ..." / "UTGvsBB 22: ..." (letters only), or a name with a digit such as MTT's "UTG1 2: ..."
+      let mm=line.match(/^([A-Za-z]+)\s*([\d.]+)?\s*(?:bb)?\s*[:：]\s*(.*)$/), p=mm&&MODE_POS[m].find(x=>x.toUpperCase()===mm[1].toUpperCase());
+      if(!p){ const m2=line.match(/^([A-Za-z][A-Za-z0-9]*)\s*([\d.]+)?\s*(?:bb)?\s*[:：]\s*(.*)$/), p2=m2&&MODE_POS[m].find(x=>x.toUpperCase()===m2[1].toUpperCase()); if(p2){ mm=m2; p=p2; } }
+      if(!mm){ msgs.push('読めない行：'+line.slice(0,30)); return; } if(!p){ msgs.push('不明なスポット：'+mm[1]); return; }
       const {h,errs}=parseRangeLine(mm[3]); Ranges.data[m][p]={...(Ranges.data[m][p]||{}),size:mm[2]?+mm[2]:(Ranges.data[m][p]||{}).size||2.5,h}; done.push(posLabel(p)); if(errs.length) msgs.push(posLabel(p)+'で読めない表記：'+errs.join(' ')); });
     if(done.length){ markDirty(true); renderRangeEdit(); }
     $('pf-eMsg').innerHTML=(done.length?`${done.join('・')}を読み込みました（まだ保存されていません）。`:'読み込めるスポットがありませんでした。')+(msgs.length?'<br><span style="color:var(--loss)">'+esc(msgs.join('／'))+'</span>':'');
@@ -4051,7 +4118,7 @@ function initRangeEditor(){
   window.addEventListener('beforeunload',e=>{ if(ED.dirty){ e.preventDefault(); e.returnValue=''; } });
 }
 function discardEdits(){ Ranges.load(); ED.dirty=false; ED.sel.clear(); refreshAfterRangeChange(); }
-function refreshAfterRangeChange(){ renderPosChecks(); renderFarInfo(); if(curTab==='range') renderRange(); }
+function refreshAfterRangeChange(){ renderPosChecks(); renderFarInfo(); applyMode(); if(curTab==='range') renderRange(); }
 
 /* =========================================================
    History & export
@@ -4089,11 +4156,13 @@ function applyTab(){
   try{ Nav.apply(); }catch(e){}
 }
 document.querySelectorAll('#tab-pf .subtabs button').forEach(b=>b.onclick=()=>{ curTab=b.dataset.tab; lsSet('pflab_tab',curTab); applyTab(); });
-const modeReady=m=>m==='open'||isSpot(m);
+const modeHasRanges=m=>MODE_POS[m].some(p=>Ranges.has(m,p));
+const anyRanges=()=>['open','vsOpen','vs3bet'].some(modeHasRanges);
+const modeReady=m=>(m==='open'||isSpot(m))&&modeHasRanges(m);   // a box without ranges for the mode has nothing to practise
 function applyMode(){
   document.querySelectorAll('#pf-modes button').forEach(x=>x.setAttribute('aria-pressed',!P.special&&x.dataset.mode===P.mode?'true':'false'));
   document.querySelectorAll('#pf-modes2 button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.special===P.special?'true':'false'));
-  const ready=!!P.special||modeReady(P.mode);
+  const ready=P.special?anyRanges():modeReady(P.mode);
   document.getElementById('pf-playMain').classList.toggle('hidden',!ready); document.getElementById('pf-playSoon').classList.toggle('hidden',ready);
   renderChips(); renderMprog();
 }
@@ -4102,8 +4171,8 @@ document.querySelectorAll('#pf-modes2 button').forEach(b=>b.onclick=()=>{ P.spec
 document.getElementById('pf-chips').onclick=e=>{ const b=e.target.closest('[data-s]'); if(!b) return; P.size=+b.dataset.s; lsSet('pflab_size',P.size); renderChips(); };
 document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.onclick=()=>answer(b.dataset.a));
 document.getElementById('pf-btnNext').onclick=deal;
-const setPos=s=>{ if(P.special){ cfg.mpos=new Set(s); lsSet('pflab_mpos',JSON.stringify([...cfg.mpos])); return; }
-  cfg.pos=new Set([...cfg.pos].filter(p=>!MODE_POS[P.mode].includes(p)).concat(s)); lsSet('pflab_pos',JSON.stringify([...cfg.pos])); };   // keep the other modes' selections
+const setPos=s=>{ if(P.special){ cfg.mpos=new Set(s); lsSet(K('pflab_mpos'),JSON.stringify([...cfg.mpos])); return; }
+  cfg.pos=new Set([...cfg.pos].filter(p=>!MODE_POS[P.mode].includes(p)).concat(s)); lsSet(K('pflab_pos'),JSON.stringify([...cfg.pos])); };   // keep the other modes' selections
 document.getElementById('pf-posChecks').onchange=()=>setPos([...document.querySelectorAll('#pf-posChecks input:checked')].map(x=>x.value));
 document.getElementById('pf-posAll').onclick=()=>{ setPos(P.special?POS:MODE_POS[P.mode]); renderPosChecks(); };
 document.getElementById('pf-posNone').onclick=()=>{ setPos([]); renderPosChecks(); };
@@ -4131,15 +4200,15 @@ document.getElementById("pf-optStopMix").onchange=e=>{ cfg.stopMix=e.target.chec
 document.addEventListener('keydown',e=>{
   if(curTab!=='play'||document.getElementById('tab-pf').classList.contains('hidden')||e.target.closest('input,select,textarea')) return; const k=e.key.toLowerCase();
   if(k==='f') answer('F'); else if(k==='c') answer('C'); else if(k==='r') answer('R'); else if(k==='a') answer('J');
-  else if(cfg.sizeOn&&P.mode==='open'&&/^[1-7]$/.test(k)){ P.size=SIZES[+k-1]; lsSet('pflab_size',P.size); renderChips(); }
+  else if(sizeOnNow()&&P.mode==='open'&&/^[1-7]$/.test(k)){ P.size=SIZES[+k-1]; lsSet('pflab_size',P.size); renderChips(); }
   else if(k===' '&&P.answered){ e.preventDefault(); deal(); }
 });
 function fillStatPos(){ const m=document.getElementById('pf-fMode').value, sel=document.getElementById('pf-fPos'), prev=sel.value;
   sel.innerHTML=`<option value="">${isSpot(m)?'全スポット':'全ポジション'}</option>`+MODE_POS[m].map(p=>`<option value="${p}">${posLabel(p)}</option>`).join('');
   if(MODE_POS[m].includes(prev)) sel.value=prev; }
 document.getElementById('pf-fMode').value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
-document.getElementById('pf-fPos').value=MODE_POS[document.getElementById('pf-fMode').value].includes(lsGet('pflab_fpos'))?lsGet('pflab_fpos'):''; document.getElementById('pf-fRange').value=lsGet('pflab_frange')||'0';
-['pf-fMode','pf-fPos','pf-fRange'].forEach(id=>document.getElementById(id).onchange=()=>{ if(id==='pf-fMode'){ lsSet('pflab_fmode',document.getElementById('pf-fMode').value); fillStatPos(); } lsSet('pflab_fpos',document.getElementById('pf-fPos').value); lsSet('pflab_frange',document.getElementById('pf-fRange').value); renderStats(); });
+document.getElementById('pf-fPos').value=MODE_POS[document.getElementById('pf-fMode').value].includes(lsGet(K('pflab_fpos')))?lsGet(K('pflab_fpos')):''; document.getElementById('pf-fRange').value=lsGet('pflab_frange')||'0';
+['pf-fMode','pf-fPos','pf-fRange'].forEach(id=>document.getElementById(id).onchange=()=>{ if(id==='pf-fMode'){ lsSet('pflab_fmode',document.getElementById('pf-fMode').value); fillStatPos(); } lsSet(K('pflab_fpos'),document.getElementById('pf-fPos').value); lsSet('pflab_frange',document.getElementById('pf-fRange').value); renderStats(); });
 document.getElementById('pf-btnCsv').onclick=()=>{ const r=statsRecs(); if(r.length) saveFile('preflop_answers'+viewTag()+'.csv',toCSV(r)); };
 document.getElementById('pf-btnJson').onclick=()=>{ if(statsRecs().length) saveFile('preflop_answers'+viewTag()+'.json',JSON.stringify({records:statsRecs(),ranges:Ranges.data},null,1)); };
 let resetArmed=false;
@@ -4160,7 +4229,7 @@ async function pfBoot(){
   applyTab();
 }
 /* ring game "range chart after each preflop action": the spot's range chart + a verdict for the action just taken */
-window.PFRanges.review=function(m,p,k,a){
+window.PFRanges.review=function(m,p,k,a){ return withCash(()=>{
   if(!Ranges.data||!Ranges.has(m,p)) return null;
   const e=Ranges.exp(m,p,k), g=judge(e,a), [gc,gl]=GRADE[g];
   return {g,
@@ -4168,10 +4237,31 @@ window.PFRanges.review=function(m,p,k,a){
     html:`<div class="rovhead"><b>${posLabel(p)}<span class="pcOnly"> のレンジ全体</span></b><span class="legend">${rangeLegend(m)}<span><i class="curmark"></i>${k}</span></span></div>
       <div class="grid13">${rangeCells(m,p)}</div><div class="rovinfo">${rangeSumText(m,p)}</div>`,
     bind(root){ const cur=root.querySelector(`.grid13 [data-k="${k}"]`); if(cur) cur.classList.add('cur');
-      root.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ root.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${expText(Ranges.exp(m,p,b.dataset.k))}`; }); }};
-};
-window.PF={ boot: pfBoot, onShow: function(){ renderSession(); },
-  title: function(){ return curTab==='play'?(P.special==='master'?'ハンド別マスター':P.special==='range'?'相手のレンジ推定':MODE_NAME[P.mode]):({stats:'分析',hist:'履歴',range:'レンジ表',redit:'レンジ編集'}[curTab]||'プリフロ練習'); },
+      root.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ root.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${withCash(()=>expText(Ranges.exp(m,p,b.dataset.k)))}`; }); }};
+}); };
+/* open a box: Cash, or MTT at a stack depth. Loads that box's ranges and per-box settings and redraws everything that depends on them. */
+async function setCtx(game,depth){
+  depth=game==='mtt'?+depth:null;
+  CTX.game=game; CTX.depth=depth; CTX.key=game==='mtt'?'mtt'+depth:'cash'; CTX.suffix=game==='mtt'?'@mtt'+depth:'';
+  POS=GAMES[game].pos; MODE_POS=buildModePos(POS); OPENERS=POS.slice(0,POS.length-1);
+  SharedRanges.useCtx(); Ranges.load();
+  clearTimeout(P.timer); P.master=null; P.cur=null; P.answered=false; P.last=null; P.session={n:0,ok:0,j:0}; hideRangeOverlay(); EST.cells={}; EST.done=false; ED.dirty=false; ED.sel.clear();
+  cfg.pos=new Set(JSON.parse(lsGet(K('pflab_pos'))||'null')||MODE_POS.open); cfg.mpos=new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]);
+  document.getElementById('pf-tablebox').classList.toggle('t8',POS.length===8);
+  const so=document.getElementById('pf-optSize'), sw=so&&so.closest('.checks')&&so.closest('.checks').parentNode; if(sw) sw.classList.toggle('hidden',CTX.game!=='cash');   // the open-size option is Cash only
+  const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'Cash（6人テーブル・100bb）';
+  const ch=await SharedRanges.fetch(); if(ch&&CTX.key===(game==='mtt'?'mtt'+depth:'cash')) Ranges.load();
+  const fm=document.getElementById('pf-fMode'); fm.value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
+  document.getElementById('pf-fPos').value=MODE_POS[fm.value].includes(lsGet(K('pflab_fpos')))?lsGet(K('pflab_fpos')):'';
+  fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos'); fillPosSelect('pf-ePos',document.getElementById('pf-eMode').value,'pflab_epos');
+  renderPosChecks(); renderFarInfo(); applyMode(); renderChips(); renderSession();
+  if(P.special?anyRanges():modeReady(P.mode)) deal();
+  applyTab();
+}
+window.PF={ boot: pfBoot, setCtx, ctx:()=>({game:CTX.game,depth:CTX.depth,name:ctxName()}),
+  depths:MTT_DEPTHS, depthInfo:d=>{ try{ const c=JSON.parse(localStorage.getItem('pflab_shared_ranges_mtt'+d)||'null'); const has=(x)=>x&&['open','vsOpen','vs3bet'].some(m=>x[m]&&Object.keys(x[m]).length); return !!(MTT_DEFAULTS[d]||has(c&&c.data)); }catch(e){ return !!MTT_DEFAULTS[d]; } },
+  onShow: function(){ renderSession(); },
+  title: function(){ return ctxName()+' ・ '+(curTab==='play'?(P.special==='master'?'ハンド別マスター':P.special==='range'?'相手のレンジ推定':MODE_NAME[P.mode]):({stats:'分析',hist:'履歴',range:'レンジ表',redit:'レンジ編集'}[curTab]||'プリフロ練習')); },
   refreshStats: function(){ if(curTab==='stats') renderStats(); if(curTab==='hist') renderHist(); },   // admin view switched back to own data
   recsCSV: (recs,pre)=>toCSV(recs,pre) };   // admin: everyone's answers as one CSV
 
