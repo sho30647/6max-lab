@@ -402,7 +402,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap:not(.onhome)>#home{display:none}
 #tab-pf.menu>:not(#pf-menu){display:none!important}
 #tab-pf:not(.menu)>#pf-menu{display:none}
-#home,#pf-menu,#pf-gate,#rp-menu{max-width:640px;margin:8px auto 0}
+#home,#pf-menu,#pf-gate,#pf-depth,#rp-menu{max-width:640px;margin:8px auto 0}
+#tab-pf.depth>:not(#pf-depth){display:none!important}
+#tab-pf:not(.depth)>#pf-depth{display:none}
 #tab-pf.gate>:not(#pf-gate){display:none!important}
 #tab-pf:not(.gate)>#pf-gate{display:none}
 .nv-tiles.five{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
@@ -593,7 +595,13 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
           <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
           <span><span class="t">Cash</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
         </button>
+        <button class="nv-card" data-pfgame="mtt" type="button">
+          <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span>
+          <span><span class="t">MTT</span><span class="d">8人テーブル・BBアンティ。スタック量（10〜40bb）ごとに別の箱</span></span>
+        </button>
       </div>
+    </div>
+    <div id="pf-depth">
       <div class="nv-sec">MTT（8人テーブル・BBアンティ）　スタック量を選ぶ</div>
       <div class="nv-tiles five" id="pfMttTiles"></div>
       <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。Cashと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
@@ -3030,7 +3038,7 @@ let pfBootP=Promise.resolve();
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
-    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu'||this.screen==='pf-box')&&topTab==='pf');
+    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu'||this.screen==='pf-depth'||this.screen==='pf-box')&&topTab==='pf');
     if(!ok) this.screen=topTab; this.apply(); },
   setScreen(s){ if(RP.on&&s!=='rp') RP.leave(); this.screen=s;
     if(s==='rp') ringTab='play';
@@ -3038,19 +3046,19 @@ const Nav={screen:'home',
     if(need&&topTab!==need) document.querySelector('.tabs button[data-tab="'+need+'"]').click();
     if(s==='ring'||s==='rp') applyRingTab(); else if((s==='home'||s==='rp-menu')&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
     this.apply(); if(s==='rp-menu') RP.renderMenu(); },
-  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':this.screen==='pf-box'?(window.PF&&window.PF.ctx?window.PF.ctx().name:'プリフロ練習'):(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
+  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':this.screen==='pf-depth'?'MTT':this.screen==='pf-box'?(window.PF&&window.PF.ctx?window.PF.ctx().name:'プリフロ練習'):(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
   apply(){
     const s=this.screen, el=id=>document.getElementById(id);
     document.querySelector('.wrap').classList.toggle('onhome',s==='home');
     document.querySelector('.wrap').classList.toggle('onrpm',s==='rp-menu');
     document.querySelector('.wrap').classList.toggle('inrp',s==='rp');
-    el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu');
-    if(s==='pf-menu'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
+    el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu'); el('tab-pf').classList.toggle('depth',s==='pf-depth');
+    if(s==='pf-depth'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
     el('navbar').classList.toggle('hidden',s==='home');
-    el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
+    el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'||s==='pf-depth'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
     el('nvAdminCard').classList.toggle('hidden',!owner); el('nvPfAdmin').classList.toggle('hidden',!owner);
-    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:(s==='pf'||s==='pf-box'||s==='pf-menu')?'pf-menu':s==='rp'?'rp-menu':s,t:this.title()}));
+    if(s!=='home') lsSetSafe('sixmaxlab_last',JSON.stringify({s:(s==='pf'||s==='pf-box'||s==='pf-depth'||s==='pf-menu')?'pf-menu':s==='rp'?'rp-menu':s,t:this.title()}));
     let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){}
     const show=s==='home'&&last&&last.s&&(last.s!=='admin'||owner);
     el('nvResume').classList.toggle('hidden',!show);
@@ -3066,12 +3074,15 @@ const Nav={screen:'home',
 function lsSetSafe(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 document.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>Nav.setScreen(b.dataset.nv));
 document.getElementById('nvResume').onclick=()=>{ let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){} Nav.setScreen(last&&last.s==='pf-menu'?'pf-menu':last&&last.s||'home'); };
-document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-box':Nav.screen==='pf-box'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
-document.getElementById('pf-gate').onclick=async e=>{   // choose a box: Cash or MTT at a stack depth
-  const b=e.target.closest('[data-pfgame],[data-pfmtt]'); if(!b) return;
-  await pfBootP;
-  if(b.dataset.pfgame) await window.PF.setCtx('cash'); else await window.PF.setCtx('mtt',+b.dataset.pfmtt);
-  Nav.setScreen('pf-box');
+document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-box':Nav.screen==='pf-box'?(window.PF&&window.PF.ctx().game==='mtt'?'pf-depth':'pf-menu'):Nav.screen==='pf-depth'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
+document.getElementById('pf-gate').onclick=async e=>{   // Cash opens its box; MTT asks for the stack depth first
+  const b=e.target.closest('[data-pfgame]'); if(!b) return;
+  if(b.dataset.pfgame==='mtt'){ Nav.setScreen('pf-depth'); return; }
+  await pfBootP; await window.PF.setCtx('cash'); Nav.setScreen('pf-box');
+};
+document.getElementById('pf-depth').onclick=async e=>{   // an MTT box: one per stack depth
+  const b=e.target.closest('[data-pfmtt]'); if(!b) return;
+  await pfBootP; await window.PF.setCtx('mtt',+b.dataset.pfmtt); Nav.setScreen('pf-box');
 };
 document.querySelector('.brand h1').onclick=()=>Nav.setScreen('home');
 document.querySelectorAll('[data-pfmode]').forEach(b=>b.onclick=()=>Nav.pfGo('mode',b.dataset.pfmode));
