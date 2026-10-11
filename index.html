@@ -471,6 +471,10 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-lobby>:not(#mttLobby){display:none!important}
 .wrap.inmtt #tab-ring>.subtabs{display:none}
 .mtt-play #session{display:none}
+.mttblinds{display:none;color:#F1EEE4;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.02em;margin-top:4px;opacity:.9}
+.mtt-play .mttblinds{display:block}
+.mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
+@media(max-width:600px){.mttblinds{font-size:12px;margin-top:2px;white-space:nowrap}.mttblinds small{font-size:11px;margin-left:3px}.mttpop .pt{font-size:23px}}
 .mtt-play #stkNote,.mtt-play label:has(#optBeginner),.mtt-play label:has(#optRange){display:none}
 .mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
@@ -490,8 +494,10 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 #mttLobby .mkv div{font-size:12px;color:var(--muted)}#mttLobby .mkv b{display:block;font-family:var(--num);font-size:22px;color:var(--ink)}
 #mttLobby table{width:100%;border-collapse:collapse;font-size:13px}#mttLobby th,#mttLobby td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 #mttLobby th:first-child,#mttLobby td:first-child{text-align:left}
-.mttboard{background:#0f1a44;color:#fff;border-radius:16px;width:min(980px,100%);max-height:92vh;overflow:auto;padding:14px 16px;font-family:var(--num)}
-.mttboard h3{margin:0 0 8px;text-align:center;font-size:20px;letter-spacing:.04em}
+.mttboard{background:#0f1a44;color:#fff;border-radius:16px;width:min(980px,100%);max-height:92vh;overflow:auto;padding:0 16px 14px;font-family:var(--num)}
+.mttboard h3{margin:0;text-align:center;font-size:20px;letter-spacing:.04em;flex:1}
+.mttboard .mbhead{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:0 -16px 8px;padding:12px 12px 8px 16px;background:#0f1a44}
+.mttboard .mbx{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:#1d2a66;color:#fff;font-size:26px;line-height:1;cursor:pointer}
 .mttboard .tabs2{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
 .mttboard .tabs2 button{background:#1d2a66;border:0;color:#cfd6ff;border-radius:8px;padding:5px 14px;font-size:14px}
 .mttboard .tabs2 button[aria-selected=true]{background:#fff;color:#0f1a44;font-weight:700}
@@ -510,6 +516,12 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mttboard .mbclose{display:block;margin:10px auto 0;background:#fff;color:#0f1a44;border:0;border-radius:9px;padding:8px 22px;font-weight:700}
 .mttboard .mbrank{font-size:14px;width:100%;border-collapse:collapse}.mttboard .mbrank td,.mttboard .mbrank th{padding:3px 8px;border-bottom:1px solid #2a3680;text-align:right}
 .mttboard .mbrank td:nth-child(2),.mttboard .mbrank th:nth-child(2){text-align:left}.mttboard .mbrank tr.me td{background:#2c3a8a}.mttboard .mbrank tr.cut td{border-top:2px solid #f48a8a}
+.mttpop{background:var(--surface);color:var(--ink);border-radius:16px;width:min(380px,100%);padding:18px 18px 14px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.mttpop .pk{font-size:12px;letter-spacing:.08em;color:var(--brass);font-weight:700}
+.mttpop .pt{font-family:var(--num);font-size:30px;font-weight:700;line-height:1.15;margin:4px 0}
+.mttpop .pb{font-size:14px;color:var(--muted);line-height:1.5}
+.mttpop .pd{font-family:var(--num);font-size:22px;font-weight:600;margin:6px 0}
+.mttpop .btn{margin-top:12px;width:100%}
 .mttres{background:var(--surface);color:var(--ink);border-radius:16px;width:min(420px,100%);padding:20px;text-align:center}
 .mttres .mrpl{font-family:var(--num);font-size:56px;font-weight:700;line-height:1}
 .mttres .mrpl small{font-size:22px;color:var(--muted)}
@@ -591,6 +603,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       <div class="center">
         <div class="board" id="board"></div>
         <div class="potchips" id="potChips"></div>
+        <div class="mttblinds" id="mttBlinds"></div>
         <div class="pot" id="pot"></div>
         <div class="msg" id="msg">記録を読み込み中…</div>
       </div>
@@ -893,6 +906,7 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
 </div>
 
 <div class="modalOverlay hidden" id="mttBoard"></div>
+<div class="modalOverlay hidden" id="mttPop" style="z-index:130"></div>
 <div class="modalOverlay hidden" id="mttResult"></div>
 
 <script src="mtt/core.js"></script>
@@ -1454,6 +1468,8 @@ function autoFoldHero(p){
 }
 async function playHand(resume){
   if(!resume&&MT.on&&!MT.prepare()) return;
+  if(!resume&&MT.on&&MT.popups.length){ S.running=true; render(); await MT.flushPopups(); }
+  if(!resume&&MT.on) MT.persist();
   if(resume) S.running=true; else { S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); }
   render(); if(!resume) setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
   for(let st=resume?S.street:0;st<4;st++){
@@ -3128,7 +3144,7 @@ function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carri
   render(); renderSession(); renderControls();
 }
 Object.assign(MT,{
-  speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[],
+  speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[], popups:[], itmShown:false,
   unit:(()=>{ try{ return localStorage.getItem('sixmaxlab_mtt_unit')==='bb'?'bb':'chip'; }catch(e){ return 'chip'; } })(),   // amounts on the table: chips (点数, default) or bb
   setUnit(u){ this.unit=u; try{ localStorage.setItem('sixmaxlab_mtt_unit',u); }catch(e){} render(); if(S.heroResolve) renderControls(); },
   key(){ return 'sixmaxlab_mtt__'+UserGate.safe(UserGate.get()||''); },
@@ -3175,7 +3191,7 @@ Object.assign(MT,{
   /* open the tournament that was in progress */
   resume(){
     const a=this.readActive(); if(!a||S.running) return;
-    this.T=MTT.restore(a.T); this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
+    this.T=MTT.restore(a.T); this.popups=[]; this.itmShown=a.T.remaining<=MTT.PAID; this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
     const hd=this.pend?this.readHand():null, mid=!!(hd&&hd.tid===this.id&&hd.S&&hd.S.players&&hd.S.players.length);
     if(this.pend&&!mid) this.settlePend();
     this.on=true;
@@ -3261,16 +3277,19 @@ Object.assign(MT,{
   start(){
     if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
     this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
-    this.pend=null; this.clearHand(); this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
+    this.pend=null; this.clearHand(); this.popups=[]; this.itmShown=false; this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
   },
   /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
   prepare(){
     const T=this.T; if(!T||T.players[0].out||T.done){ this.over=true; return false; }
     const b=MTT.beginLiveHand(T); [SB,BB,ANTE]=[b.lvl.sb,b.lvl.bb,b.lvl.ante];
     this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level; this.hs={avg:MTT.stats(T).avg};
-    const notes=[]; if(b.breakMin) notes.push('休憩'+b.breakMin+'分が明けました'); if(b.level!==this.lastLevel&&this.lastLevel) notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）'); this.lastLevel=b.level;
+    const notes=[]; if(b.breakMin){ notes.push('休憩'+b.breakMin+'分が明けました'); this.popups.push({k:'BREAK',t:'休憩明け',b:b.breakMin+'分の休憩が終わりました'}); }
+    if(b.level!==this.lastLevel&&this.lastLevel){ notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）');
+      const pv=MTT.LEVELS[b.level-2]; this.popups.push({k:'BLINDS UP',t:'ブラインドが上がりました',d:'Lv'+b.level+'　'+fmtN(b.lvl.sb)+' / '+fmtN(b.lvl.bb),b:'アンティ '+fmtN(b.lvl.ante)+(pv?'（前: '+fmtN(pv.sb)+' / '+fmtN(pv.bb)+'）':'')+'　このハンドから適用'}); }
+    this.lastLevel=b.level;
     if(notes.length) this.note=notes.join('・'); else if(!this.moved) this.note='';
-    this.moved=false; this.pend={pids:b.pids,button:b.button,lvl:b.lvl}; this.persist(); return true;
+    this.moved=false; this.pend={pids:b.pids,button:b.button,lvl:b.lvl}; return true;   // saved by playHand once the popups are closed
   },
   /* after each hand: report it to the core (clock, other tables, busts, table moves) */
   afterHand(rec){
@@ -3284,6 +3303,7 @@ Object.assign(MT,{
     MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
     const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
     if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
+    if(!this.itmShown&&T.remaining<=MTT.PAID&&!T.players[0].out&&!T.done){ this.itmShown=true; this.popups.push({k:'IN THE MONEY',t:'インマネ確定',d:'残り'+T.remaining+'人',b:'ここから先は賞金が確定です。いまの最低賞金は '+fmtYen(MTT.prizeFor(T.remaining))+'（'+T.remaining+'位）',ms:6000}); }
     this.pend=null; this.clearHand(); this.saveHandChunk();
     if(T.players[0].out||T.done) this.finish(); else this.persist();
   },
@@ -3299,9 +3319,13 @@ Object.assign(MT,{
   },
   showResult(){
     const r=this.result; if(!r) return; const el=document.getElementById('mttResult');
-    el.innerHTML=`<div class="mttres"><div>${r.quit?'途中放棄':r.place===1?'優勝！':r.itm?'インマネ':'敗退'}</div><div class="mrpl">${r.place}<small>位 / ${r.field}人</small></div>
-      <div class="mramt" style="color:var(${r.net>=0?'--win':'--loss'})">${r.prize?fmtYen(r.prize)+' 獲得':'賞金なし'}　<small style="font-size:16px">収支 ${r.net>=0?'+':''}${fmtYen(r.net)}</small></div>
-      <div style="color:var(--muted);font-size:13px">${r.hands}ハンド・Lv${r.level}まで　バンクロール ${fmtYen(r.bankAfter)}</div>
+    el.innerHTML=`<div class="mttres"><div style="font-size:13px;letter-spacing:.08em;color:var(--brass);font-weight:700">${r.quit?'途中放棄':r.place===1?'優勝！':r.itm?'インマネ':'敗退'}</div><div class="mrpl">${r.place}<small>位 / ${r.field}人</small></div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px 12px;text-align:left;margin:14px 0 4px;font-size:15px">
+        <span style="color:var(--muted)">賞金</span><b style="font-family:var(--num);font-size:22px">${r.prize?fmtYen(r.prize):'なし'}</b>
+        <span style="color:var(--muted)">参加費</span><b style="font-family:var(--num);font-size:22px">−${fmtYen(r.buyIn)}</b>
+        <span style="color:var(--muted)">収支</span><b style="font-family:var(--num);font-size:26px;color:var(${r.net>=0?'--win':'--loss'})">${r.net>=0?'+':'−'}${fmtYen(Math.abs(r.net))}</b>
+        <span style="color:var(--muted)">バンクロール</span><b style="font-family:var(--num);font-size:22px">${fmtYen(r.bankAfter)}</b></div>
+      <div style="color:var(--muted);font-size:12px;margin-top:6px">${r.hands}ハンド・Lv${r.level}まで</div>
       <div class="row" style="margin-top:14px"><button class="btn main grow" id="mttResClose">ロビーへ</button></div></div>`;
     el.classList.remove('hidden');
     document.getElementById('mttResClose').onclick=()=>{ el.classList.add('hidden'); this.on=false; ringRestore(); this.view(); };
@@ -3391,6 +3415,17 @@ Object.assign(MT,{
     if(bubble) f*=r>1.5?1.15:r<0.45?1:0.85; else if(r>2.2) f*=1.1;
     return kind==='vsOpen'?Math.sqrt(f):f;
   },
+  /* ---- popups (blinds up, break over, money reached): shown before the next hand; a tap closes them, or they close by themselves ---- */
+  popup(p){
+    return new Promise(res=>{
+      if(window.__noPopup){ res(); return; }
+      const el=document.getElementById('mttPop'); let done=false; const close=()=>{ if(done) return; done=true; el.classList.add('hidden'); res(); };
+      el.innerHTML=`<div class="mttpop" role="dialog"><div class="pk">${p.k||''}</div><div class="pt">${p.t}</div>${p.d?`<div class="pd">${p.d}</div>`:''}<div class="pb">${p.b||''}</div><button class="btn main" id="mttPopOk" type="button">OK</button></div>`;
+      el.classList.remove('hidden'); document.getElementById('mttPopOk').onclick=close; el.onclick=e=>{ if(e.target===el) close(); };
+      setTimeout(close,p.ms||5000);
+    });
+  },
+  async flushPopups(){ while(this.popups.length){ const p=this.popups.shift(); await this.popup(p); } },
   /* ---- HUD above the table ---- */
   hud(){
     const T=this.T, el=document.getElementById('mttHud'); if(!T||!el) return;
@@ -3402,6 +3437,7 @@ Object.assign(MT,{
         <div>平均スタック<b>${fmtN(st.avg)}</b>${Math.round(st.avgBB)}bb</div><div>あなた<b>${fmtN(hero.stack)}</b>${Math.round(st.heroBB)}bb・${st.heroRank}位</div>
         <div>卓<b>${MTT.heroTable(T).id+1}</b>${st.hfh?'ハンドフォーハンド':st.tables+'卓で進行'}</div></div>
       <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttUnitBtn" type="button">表示：${this.unit==='chip'?'点数':'bb'}</button><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
+    const bl=document.getElementById('mttBlinds'); if(bl) bl.innerHTML='SB '+fmtN(SB)+' / BB '+fmtN(BB)+'<small>Ante '+fmtN(ANTE)+'</small>';
     document.getElementById('mttBoardBtn').onclick=()=>this.board();
     document.getElementById('mttUnitBtn').onclick=()=>this.setUnit(this.unit==='chip'?'bb':'chip');
     document.getElementById('mttQuitBtn').onclick=()=>{ if(S.running){ setMsg('ハンドが終わってから放棄できます'); return; } if(confirm('途中放棄すると、いまの順位から最下位として扱い、参加費は戻りません。放棄しますか？')) this.forfeit(); };
@@ -3420,10 +3456,10 @@ Object.assign(MT,{
         <h4>あなた</h4><div class="mbval">${fmtN(st.heroStack)}（${Math.round(st.heroBB)}bb）${st.heroRank}位</div></div></div>`;
     const rows=st.ranked.map((p,i)=>`<tr class="${p.id===0?'mbme':''}${i===MTT.PAID?' mbcut':''}"><td>${i+1}</td><td>${escHtml(p.name)}</td><td>${fmtN(p.stack)}</td><td>${Math.round(p.stack/L.bb)}</td><td>${p.tableId+1}</td></tr>`).join('');
     const rank=`<div class="mbpn"><table class="mbrank"><thead><tr><th>順位</th><th>名前</th><th>スタック</th><th>bb</th><th>卓</th></tr></thead><tbody>${rows}</tbody></table><div style="font-size:12px;color:#aab5ff;margin-top:6px">赤線＝入賞ライン（${MTT.PAID}位まで）</div></div>`;
-    el.innerHTML=`<div class="mttboard"><h3>MTT 100人</h3><div class="tabs2"><button data-bt="clock" aria-selected="${tab==='clock'}">クロック</button><button data-bt="rank" aria-selected="${tab==='rank'}">順位表</button></div>${tab==='clock'?clock:rank}<button class="mbclose" id="mttBoardClose">閉じる</button></div>`;
+    el.innerHTML=`<div class="mttboard"><div class="mbhead"><h3>MTT 100人</h3><button class="mbx" id="mttBoardX" type="button" aria-label="閉じる">×</button></div><div class="tabs2"><button data-bt="clock" aria-selected="${tab==='clock'}">クロック</button><button data-bt="rank" aria-selected="${tab==='rank'}">順位表</button></div>${tab==='clock'?clock:rank}</div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>this.board(b.dataset.bt));
-    document.getElementById('mttBoardClose').onclick=()=>el.classList.add('hidden');
+    const closeB=()=>el.classList.add('hidden'); document.getElementById('mttBoardX').onclick=closeB; el.onclick=e=>{ if(e.target===el) closeB(); };
   },
   /* ---- lobby ---- */
   lobby(){
