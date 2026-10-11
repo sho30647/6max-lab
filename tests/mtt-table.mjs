@@ -18,13 +18,13 @@ await p.evaluate(() => { localStorage.clear(); MT.data = null; document.getEleme
 const ringSt = await p.evaluate(() => ({ fast: document.getElementById('optFast').disabled, note: !document.getElementById('begNote').classList.contains('hidden') }));
 if (!ringSt.fast || !ringSt.note) bad.push('ring beginner: fast should be disabled and the note shown: ' + JSON.stringify(ringSt));
 await p.evaluate(() => { Nav.setScreen('home'); Nav.setScreen('mtt'); }); await p.click('#mttGo'); await p.waitForTimeout(200);
-await p.evaluate(() => { document.querySelector('#optBox').open = true; });
-const m = await p.evaluate(() => { const vis = id => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== 'none' && e.offsetParent !== null; }; return { fastDisabled: document.getElementById('optFast').disabled, note: vis('begNote'), summary: document.querySelector('#optBox>summary').textContent, text: document.getElementById('optBox').innerText }; });
-console.log('mtt settings', JSON.stringify({ fastDisabled: m.fastDisabled, note: m.note, summary: m.summary }));
+await p.click('#navSet');
+const m = await p.evaluate(() => { const vis = id => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== 'none' && e.offsetParent !== null; }; return { fastDisabled: document.getElementById('optFast').disabled, note: vis('begNote'), text: document.getElementById('setScreen').innerText }; });
+console.log('mtt settings', JSON.stringify({ fastDisabled: m.fastDisabled, note: m.note }));
 if (m.fastDisabled) bad.push('the fast-pace option is disabled in the tournament'); if (m.note) bad.push('beginner note visible in the tournament'); if (/初心者/.test(m.text)) bad.push('beginner-mode text in the tournament settings: ' + m.text.replace(/\n/g, ' '));
 if (SHOTS) { await p.screenshot({ path: SHOTS + '/mtt-settings.png' }); }
-await p.evaluate(() => Nav.setScreen('home')); await p.evaluate(() => Nav.setScreen('ring'));
-const back = await p.evaluate(() => ({ fast: document.getElementById('optFast').disabled, sum: document.querySelector('#optBox>summary').textContent })); if (!back.fast || !/初心者/.test(back.sum)) bad.push('ring settings not restored: ' + JSON.stringify(back));
+await p.click('#setBack'); await p.evaluate(() => Nav.setScreen('home')); await p.evaluate(() => Nav.setScreen('ring')); await p.click('#navSet');
+const back = await p.evaluate(() => ({ fast: document.getElementById('optFast').disabled, sum: document.getElementById('setScreen').innerText })); if (!back.fast || !/初心者/.test(back.sum)) bad.push('ring settings not restored: ' + JSON.stringify(back));
 // 2. popups for the table's people
 await p.evaluate(() => { document.getElementById('optBeginner').checked = false; document.getElementById('optBeginner').dispatchEvent(new Event('change')); Nav.setScreen('mtt'); });
 const r = await p.evaluate(async () => {
