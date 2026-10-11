@@ -71,6 +71,16 @@ const res = await page.evaluate(async () => {
   r1 = settleCase([AA, [10, 20], SEVEN_DEUCE], [400, 200, 800], [0, 0, 400], [0, 1, 0]);   // three players, the small blind folded
   if (r1[0] !== 1000 || r1[1] !== -200 || r1[2] !== -800 || r1.reduce((a, b) => a + b, 0) !== 0) bad2.push('three-way: ' + r1);
   r1 = settleCase([AA, SEVEN_DEUCE], [800, 800], [0, 400], [0, 0]);   // both put in 800 beyond... (the ante is extra): the winner takes everything
+  // the part of a bet nobody matched goes back to its owner and is not a win: the big blind who covers the other player and loses is not a winner
+  { initPlayers(2); S.board = [9, 31, 38, 47, 12]; S.soleWin = new Set(); S.shared = new Set(); S.button = 0;
+    const hs = [AA, SEVEN_DEUCE], cs = [3000, 6200], an = [0, 400];
+    S.players.forEach((p, i) => { p.hole = hs[i]; p.contrib = cs[i]; p.ante = an[i]; p.stack = 10000 - cs[i]; p.folded = false; });
+    settle(); const net = S.players.map(p => p.stack - 10000);
+    if (net[0] !== 3400 || net[1] !== -3400) bad2.push('uncalled part of the big blind\'s bet: ' + net);
+    if (S.soleWin.has(1) || S.winners.includes(1)) bad2.push('the losing big blind is marked as a winner (soleWin ' + [...S.soleWin] + ' winners ' + S.winners + ')'); }
+  // an ante left over from an earlier hand (the seat was the big blind) must not survive into the next hand
+  { [SB, BB, ANTE] = [200, 400, 400]; initPlayers(4); S.players[2].ante = 400; S.button = 0; S.autoHero = true; S.running = false; setupHand();
+    const bbSeat = blindSeats().bb; S.players.forEach((p, i) => { if (i !== bbSeat && p.ante) bad2.push('seat ' + i + ' still has ante ' + p.ante); }); }
   out.push({ n: 'settle', hands: 0, sd: 0, bad: bad2 });
   return out;
 });

@@ -1500,6 +1500,7 @@ function setupHand(){
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const bl=blindSeats(), sb=bl.sb, bb=bl.bb;
+  S.players.forEach(q=>{ q.ante=0; });   // (a stale ante from a hand in which this seat was the big blind made an unmatched side-pot level of it)
   if(ANTE>0){ const a=S.players[bb], v=Math.min(ANTE,a.stack); a.stack-=v; a.contrib+=v; a.ante=v; }   // big-blind ante: dead money in the pot, not part of the bet to call
   put(S.players[sb],SB); S.players[sb].la={k:'sb',a:S.players[sb].bet,st:0};
   put(S.players[bb],BB); S.players[bb].la={k:'bb',a:S.players[bb].bet,st:0};
@@ -2055,8 +2056,9 @@ function settle(){
   for(const lvl of levels){
     let amt=first?antes:0; first=false; P.forEach(p=>{amt+=Math.min(bet(p),lvl)-Math.min(bet(p),prev);});
     const elig=live.filter(i=>bet(P[i])>=lvl);
-    prev=lvl; if(amt<=0) continue;
+    const pv=prev; prev=lvl; if(amt<=0) continue;
     if(elig.length===0){ continue; }
+    if(elig.length===1){ const i=elig[0], own=Math.min(bet(P[i]),lvl)-Math.min(bet(P[i]),pv); if(amt-own<=0){ P[i].stack+=amt; continue; } }   // an unmatched part of his own bet comes back to him: it is not a win
     const best=Math.max(...elig.map(i=>scores[i]));
     const ws=elig.filter(i=>scores[i]===best).sort((a,b)=>order(a)-order(b));
     const share=Math.floor(amt/ws.length); let rem=amt-share*ws.length;
@@ -2185,7 +2187,7 @@ function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s$
 /* beginner mode: a player's result once the hand is over (null = took no part) */
 function resultOf(p,i){
   const d=p.stack-p.start, sign=d>0?'+':d<0?'−':'±';
-  const r=S.soleWin.has(i)?['win','勝ち']:S.shared.has(i)?['draw','引き分け']:d<0?['lose','負け']:null;
+  const r=S.shared.has(i)&&!S.soleWin.has(i)?['draw','引き分け']:d<0?['lose','負け']:S.soleWin.has(i)?['win','勝ち']:(d===0&&S.winners.includes(i))?['draw','引き分け']:null;   // by the chips: a player who ends down is a loser even if he won a side pot
   return r?{cls:r[0],label:r[1],amt:sign+ptTxt(Math.abs(d))}:null;
 }
 function render(){
