@@ -522,7 +522,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-lobby>:not(#mttLobby){display:none!important}
 .wrap.inmtt #tab-ring>.subtabs{display:none}
 .mtt-play #session{display:none}
-@media(max-width:600px){.mtt-play .center{top:44%}}
+@media(max-width:600px){.mtt-play .center{top:44%}.tablebox.wide{aspect-ratio:1/1.16}.mtt-play .tablebox.wide .center{top:50%}.tablebox.wide .felt{inset:10% 5% 9% 5%}.tablebox.wide .board{gap:3px;min-height:36px}.tablebox.wide .board .card{width:29px;height:40px;font-size:15px}.tablebox.wide .board .card i{font-size:11px}}
 .mttblinds{display:none;color:#F1EEE4;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.02em;margin-top:4px;opacity:.9}
 .mtt-play .mttblinds{display:block}
 .mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
@@ -2192,7 +2192,7 @@ function resultOf(p,i){
 }
 function render(){
   if(S.fastFold&&S.running) return;   // beginner fold: skip drawing the rest of the hand, show only the result
-  const box=document.getElementById('tablebox');
+  const box=document.getElementById('tablebox'); box.classList.toggle('wide',S.players.length>6);   // 7-8 seats (tournament): a taller table on phones
   box.querySelectorAll('.seat,.betchip,.dbtn,.abub,.res').forEach(e=>e.remove());
   const handLive=S.players[0].hole.length>0, beg=isBeginner(), ph=isPhone();
   S.players.forEach((p,i)=>{
