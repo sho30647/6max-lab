@@ -300,9 +300,17 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .viewbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:2px solid var(--brass);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:13px}
 .viewbar span{margin-right:auto}.viewbar .btn{min-height:34px;padding:5px 12px}
 /* ===== settings fold-out (ring game) ===== */
-.optbox{margin-top:10px}
-.optbox summary{font-size:13px;color:var(--muted);cursor:pointer;padding:2px 0}
-.optbox .opts{margin-top:6px}
+#navSet{margin-left:auto}
+.setScreen{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:12px 16px}
+.setScreen.hidden{display:none}
+.setHead{display:flex;align-items:center;gap:12px;max-width:640px;margin:0 auto 12px}
+.setHead button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 14px;font-size:14px;font-weight:700}
+.setHead b{font-size:17px}
+.setBody{max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 14px}
+.setBody .opts{flex-direction:column;gap:0;font-size:15px;color:var(--ink);margin-top:0}
+.setBody .opts label{padding:13px 0;border-bottom:1px solid var(--line)}
+.setBody .opts label:last-child{border-bottom:0}
+.setBody .begnote{margin-top:10px}
 /* ===== phone layout (fits an iPhone 14 screen: header, table and controls without scrolling) ===== */
 @media (max-width:600px){
   .wrap{padding:6px 10px 24px}
@@ -540,11 +548,13 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .wrap.inmtt #tab-ring>.subtabs{display:none}
 .mtt-play #session{display:none}
 @media(max-width:600px){.mtt-play .center{top:44%}.tablebox.wide{aspect-ratio:1/1.16}.mtt-play .tablebox.wide .center{top:50%}.tablebox.wide .felt{inset:10% 5% 9% 5%}.tablebox.wide .board{gap:3px;min-height:36px}.tablebox.wide .board .card{width:29px;height:40px;font-size:15px}.tablebox.wide .board .card i{font-size:11px}}
+/* phone, 6 seats: a taller table so the seat plates (which grow at the showdown) never cover the board; the deal button follows below */
+@media(max-width:600px){#tablebox:not(.wide){aspect-ratio:1/1.14;margin-top:10px}#tablebox:not(.wide) .felt{inset:6% 5% 6% 5%}#tablebox:not(.wide) .center,.mtt-play #tablebox:not(.wide) .center{top:50%}}
 .mttblinds{display:none;color:#F1EEE4;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.02em;margin-top:4px;opacity:.9}
 .mtt-play .mttblinds{display:block}
 .mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
 @media(max-width:600px){.mttblinds{font-size:12px;margin-top:2px;white-space:nowrap}.mttblinds small{font-size:11px;margin-left:3px}.mttpop .pt{font-size:23px}}
-.mtt-play #stkNote,.mtt-play #begNote,.mtt-play label:has(#optBeginner){display:none!important}
+.wrap.inmtt #stkNote,.wrap.inmtt #begNote,.wrap.inmtt label:has(#optBeginner){display:none!important}
 .mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
 .mtthud .mr1 small{font-family:inherit;font-size:12px;color:var(--muted);font-weight:500}
@@ -622,9 +632,26 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       <button role="tab" aria-selected="false" data-tab="pf">プリフロ練習</button>
       <button role="tab" aria-selected="false" data-tab="admin">管理者</button>
     </div>
-    <div class="navbar hidden" id="navbar"><button id="navBack" type="button">← トップ</button><b id="navTitle"></b></div>
+    <div class="navbar hidden" id="navbar"><button id="navBack" type="button">← トップ</button><b id="navTitle"></b><button id="navSet" class="hidden" type="button" aria-label="設定">⚙ 設定</button></div>
     <div class="userChip" id="cloudChip">ログイン中: <b id="cloudChipStatus">確認中…</b><button id="cloudLogoutBtn" class="hidden">ログアウト</button></div>
   </header>
+
+  <!-- SETTINGS (its own screen, opened from the gear at the top right) -->
+  <div class="setScreen hidden" id="setScreen" role="dialog" aria-label="設定">
+    <div class="setHead"><button id="setBack" type="button">← 戻る</button><b>設定</b></div>
+    <div class="setBody">
+      <div class="opts">
+        <label><input type="checkbox" id="optFast"> 相手の手番を高速に</label>
+        <label><input type="checkbox" id="optAuto" checked> ハンド終了後に自動で次へ</label>
+        <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
+        <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
+        <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
+      </div>
+      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
+      <div class="begnote" id="stkNote">持ち点（スタック）は次のハンドに引き継がれます。最初は全員200点（＝100bb）で、0になった人は200点で再スタートします。
+        <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点（100bb）に戻す</button></div></div>
+          </div>
+  </div>
 
   <!-- HOME -->
   <div id="home">
@@ -681,18 +708,6 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <div class="advice hidden" id="advice"></div>
     <div class="controls" id="controls">
       <div id="actArea"></div>
-      <details class="optbox" id="optBox"><summary>設定（自動進行・初心者モードなど）</summary>
-      <div class="opts">
-        <label><input type="checkbox" id="optFast"> 相手の手番を高速に</label>
-        <label><input type="checkbox" id="optAuto" checked> ハンド終了後に自動で次へ</label>
-        <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
-        <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
-        <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
-      </div>
-      <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
-      <div class="begnote" id="stkNote">持ち点（スタック）は次のハンドに引き継がれます。最初は全員200点（＝100bb）で、0になった人は200点で再スタートします。
-        <div class="row" style="margin-top:6px"><button class="btn" id="btnResetStacks">全員の持ち点を200点（100bb）に戻す</button></div></div>
-      </details>
     </div>
     <div class="session" id="session"></div>
   </div>
@@ -2215,7 +2230,7 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
    Rendering: table
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
-const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
+const SEAT_XY_M=[[50,90],[13,68],[14,30],[50,10],[86,30],[87,68]];   // phone: pulled in so the seats stay on screen; the table is tall (see #tablebox) so the plates stay clear of the board
 const ringPts=(n,rx,ry,cy,k=1)=>Array.from({length:n},(_,i)=>{ const a=Math.PI/2+i*2*Math.PI/n; return [+(50+rx*k*Math.cos(a)).toFixed(1),+(cy+ry*k*Math.sin(a)).toFixed(1)]; });
 const SPOT_XY8_M=[[50,67],[31,66],[28,54],[30,33],[50,24],[70,33],[72,54],[69,66]];   // phone, 8 seats: bet spots clear of the plates and of the pot / blinds text
 const LAYOUTS={};   // seats are spread round the table, the hero (seat 0) at the bottom
@@ -2223,9 +2238,8 @@ const layoutFor=n=>LAYOUTS[n]||(LAYOUTS[n]=n===6?{d:SEAT_XY,m:SEAT_XY_M,s:SPOT_X
 const seatXY=i=>layoutFor(NS())[matchMedia("(max-width:600px)").matches?'m':'d'][i];
 const isPhone=()=>matchMedia('(max-width:600px)').matches;
 // phone: where each seat's bets / result badge go — clear of the seat plates, the board and each other
-const SPOT_XY_M=[[50,70],[31,72],[31,34],[50,33],[69,34],[69,72]];
+const SPOT_XY_M=[[50,74],[31,68],[31,38],[50,30],[69,38],[69,68]];
 window.addEventListener("resize",()=>{ if(S.players.length) render(); });
-if(!matchMedia("(max-width:600px)").matches) document.getElementById("optBox").open=true;   // settings start folded on phones
 function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s${c&3} ${cls}">${RANKS[c>>2]==='T'?'10':RANKS[c>>2]}<i>${SUIT_SYM[c&3]}</i></span>`; }
 /* beginner mode: a player's result once the hand is over (null = took no part) */
 function resultOf(p,i){
@@ -3750,7 +3764,7 @@ const Nav={screen:'home',
     document.querySelector('.wrap').classList.toggle('inrp',s==='rp'); if(typeof MT.view==='function') MT.view();
     el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu'); el('tab-pf').classList.toggle('depth',s==='pf-depth');
     if(s==='pf-depth'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
-    el('navbar').classList.toggle('hidden',s==='home');
+    el('navbar').classList.toggle('hidden',s==='home'); el('navSet').classList.toggle('hidden',!(s==='ring'||s==='rp'||s==='mtt'));
     el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'||s==='pf-depth'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
     el('nvAdminCard').classList.toggle('hidden',!owner); el('nvPfAdmin').classList.toggle('hidden',!owner);
@@ -3780,6 +3794,8 @@ document.getElementById('pf-depth').onclick=async e=>{   // an MTT box: one per 
   const b=e.target.closest('[data-pfmtt]'); if(!b) return;
   await pfBootP; await window.PF.setCtx('mtt',+b.dataset.pfmtt); Nav.setScreen('pf-box');
 };
+document.getElementById('navSet').onclick=()=>document.getElementById('setScreen').classList.remove('hidden');
+document.getElementById('setBack').onclick=()=>document.getElementById('setScreen').classList.add('hidden');
 document.querySelector('.brand h1').onclick=()=>Nav.setScreen('home');
 document.querySelectorAll('[data-pfmode]').forEach(b=>b.onclick=()=>Nav.pfGo('mode',b.dataset.pfmode));
 document.querySelectorAll('[data-pfspecial]').forEach(b=>b.onclick=()=>Nav.pfGo('special',b.dataset.pfspecial));
@@ -3803,7 +3819,7 @@ document.getElementById('optRange').onchange=e=>{ try{localStorage.setItem('sixm
 try{ const f=localStorage.getItem('sixmaxlab_autofold'); if(f) document.getElementById('optAutoFold').checked=f==='1'; }catch(e){}
 document.getElementById('optAutoFold').onchange=e=>{ try{localStorage.setItem('sixmaxlab_autofold',e.target.checked?'1':'0');}catch(_){} };
 function syncFast(){ const on=isBeginner(); document.getElementById('optFast').disabled=on; document.getElementById('begNote').classList.toggle('hidden',!on);
-  const sm=document.querySelector('#optBox>summary'); if(sm) sm.textContent=MT.on?'設定（自動進行など）':'設定（自動進行・初心者モードなど）'; }   // the tournament has no beginner mode: nothing about it is shown there   // the settings that depend on the mode, without redrawing
+}   // the settings that depend on the mode, without redrawing (the tournament has no beginner mode: nothing about it is shown there)
 function applyBeginner(){
   const on=isBeginner();
   document.getElementById('optFast').disabled=on;   // beginner mode always plays at the slow pace
