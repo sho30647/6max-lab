@@ -19,6 +19,11 @@ const fail = []; const ok = (c, m) => { if (!c) fail.push(m); console.log((c ? '
 await page.evaluate(() => { Nav.setScreen('ring'); });
 const ring = await page.evaluate(async () => { document.getElementById('optAuto').checked = false; let seen = new Set(); for (let h = 0; h < 12; h++) { S.autoHero = true; await playHand(); document.querySelectorAll('.res small').forEach(e => seen.add(e.textContent)); } return [...seen]; });
 ok(ring.includes('フォールド') && ring.some(x => /コール|チェック|ベット|レイズ|オールイン/.test(x)), 'end of hand shows what the others did: ' + ring.join(','));
+// 1b) the strip under the table says how the hand ended: a showdown (who called) or a fold
+const strips = await page.evaluate(async () => { document.getElementById('optAuto').checked = false; const seen = {}; const ex = {}; for (let h = 0; h < 60; h++) { S.autoHero = true; await playHand(); const e = document.getElementById('endStrip'); if (e.classList.contains('hidden')) { seen.hidden = (seen.hidden || 0) + 1; continue; } const tag = e.querySelector('.et').textContent; seen[tag] = (seen[tag] || 0) + 1; ex[tag] = e.innerText.replace(/\n/g, ' '); } return { seen, ex }; });
+ok(strips.seen['ショーダウン'] > 0 && strips.seen['フォールドで決着'] > 0 && !strips.seen.hidden, 'end strip: ' + JSON.stringify(strips.seen));
+ok(/→/.test(strips.ex['ショーダウン'] || '') && /フォールド/.test(strips.ex['フォールドで決着'] || ''), 'end strip texts: ' + JSON.stringify(strips.ex));
+if (shot) await page.screenshot({ path: `${shot}/end-strip.png` });
 // 2) bankroll
 await page.evaluate(() => { localStorage.clear(); MT.data = null; });
 let r = await page.evaluate(() => ({ b0: MT.load().bank0, bank: MT.bank() }));
