@@ -270,6 +270,28 @@
     rebalance(T);
   }
 
+  /* ---------- ICM (Malmuth-Harville) by sampling ----------
+     Finishing order = sort by Exp(1)/stack (the same as drawing the next place with probability proportional to the stack).
+     The same random draws are used for every scenario, so the differences between scenarios are accurate even with few samples.
+     scenarios: array of {id: stack} overrides on top of the current stacks; focus: player ids. Returns ev[scenario][focusIndex] in yen,
+     or null when the field is too big for it to matter (the pay jumps are far away). */
+  function icmEV(T, scenarios, focus, samples) {
+    const alive = T.players.filter(p => !p.out), n = alive.length;
+    if (n > 3 * PAID) return null;
+    const idx = new Map(alive.map((p, i) => [p.id, i])), rnd = T.rng.next, ns = samples || 1200;
+    const base = alive.map(p => p.stack), E = new Float64Array(n), key = new Float64Array(n), order = new Array(n);
+    const ev = scenarios.map(() => focus.map(() => 0)), stk = scenarios.map(sc => { const a = base.slice(); for (const k in sc) if (idx.has(+k)) a[idx.get(+k)] = Math.max(0, sc[k]); return a; });
+    for (let s = 0; s < ns; s++) {
+      for (let i = 0; i < n; i++) E[i] = -Math.log(1 - rnd());
+      for (let sc = 0; sc < scenarios.length; sc++) {
+        const a = stk[sc]; for (let i = 0; i < n; i++) { key[i] = a[i] > 0 ? E[i] / a[i] : Infinity; order[i] = i; }
+        order.sort((x, y) => key[x] - key[y]);
+        for (let f = 0; f < focus.length; f++) { const r = order.indexOf(idx.get(focus[f])); if (r < PAID) ev[sc][f] += PAYOUTS[r]; }
+      }
+    }
+    return ev.map(row => row.map(v => v / ns));
+  }
+
   /* ---------- views for the UI ---------- */
   function stats(T) {
     const alive = T.players.filter(p => !p.out), n = alive.length, c = clockAt(T.clock);
@@ -281,5 +303,5 @@
   }
 
   return { FIELD, SEATS, START_STACK, BUY_IN, POOL, LEVELS, BREAKS_AFTER, PAYOUTS, PAID, prizeFor, TIMELINE, clockAt, handSeconds, create, lightHand, placeBusts, rebalance,
-    advanceTo, runAll, beginLiveHand, reportLiveHand, stats, count, occ, liveTables, heroTable, makeRng };
+    advanceTo, runAll, beginLiveHand, reportLiveHand, icmEV, stats, count, occ, liveTables, heroTable, makeRng };
 });

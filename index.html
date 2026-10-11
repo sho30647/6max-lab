@@ -1562,7 +1562,7 @@ function sanitize(seat,dec){
     let to=roundBet(dec.to);
     if(to<minTo) to=minTo;
     if(!p.isHero&&to>=maxTo*0.9) to=maxTo; // bots commit
-    dec={act:'raise',to:Math.min(to,maxTo)};
+    dec={act:'raise',to:Math.min(to,maxTo),rw:dec.rw};
   }
   return dec;
 }
@@ -1592,7 +1592,7 @@ function applyAction(seat,dec){
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0,...(seat===0&&RP.mode==='teach'?{cm:RP.takeCm()}:{})});
-  if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); }
+  if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; } }   // tournament shoves carry their own range
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
 }
@@ -1686,11 +1686,16 @@ function preSize(seat,kind){
 }
 function isIPvs(a,b){ return postOrder(a)>postOrder(b); }
 function botPreflop(seat){
+  if(!MT.on) return botPreflopRing(seat);
+  return MT.post(seat,MT.preflop(seat)||botPreflopRing(seat));
+}
+function botPreflopRing(seat){
   const p=S.players[seat], st=p.style, k=classKey(p.hole[0],p.hole[1]);
   const sit=preSituation(seat), {sp,kind}=sit;
+  const ms=MT.on?MT.scale(seat,kind):1;   // tournament: stack depth, big-blind ante, ICM and the stack against the average
   const toCall=S.currentBet-p.bet;
   const tb=!!sit.table;   // table spots: the equilibrium frequencies as they are (no per-bot looseness)
-  const j=freqOf(sp.j,k), r=Math.min(1,freqOf(sp.r,k)*(tb?1:st.three)), c=Math.min(1,freqOf(sp.c,k)*(tb?1:st.loose));
+  const j=freqOf(sp.j,k), r=Math.min(1,freqOf(sp.r,k)*(tb?1:st.three)*ms), c=Math.min(1,freqOf(sp.c,k)*(tb?1:st.loose)*ms);
   const u=Math.random();
   if(u<j) return {act:'raise',to:p.stack+p.bet};
   if(u<j+r) return {act:'raise',to:tb?Math.min(sit.size,p.stack+p.bet):preSize(seat,kind)};
@@ -3094,6 +3099,9 @@ Object.assign(RP,{
    ========================================================= */
 const fmtN=n=>Math.round(n).toLocaleString('en-US'), fmtYen=n=>(n<0?'−':'')+'¥'+fmtN(Math.abs(n));
 const mmss=sec=>{ sec=Math.max(0,Math.round(sec)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); };
+const MT_PUSH=[[3,70,74,78,82,86,92,98],[4,55,60,65,70,76,85,95],[6,33,37,41,47,56,68,85],[8,22,25,28,33,40,52,72],[10,16,18,21,25,31,42,62],[12,12,14,16,19,24,34,50],[15,8,9,11,14,18,26,38],[20,5,6,7,9,12,18,27]];   // [effBB, then % of hands to shove from 7..1 seats behind] (approximations of 8-max push/fold with the big-blind ante)
+const MT_JAM=[[8,22],[10,17],[12,14],[15,10],[18,7.5],[22,5],[25,4]];   // [effBB, % of hands to re-shove over an open raise]
+const MT_interp=(pts,x,col)=>{ if(x<=pts[0][0]) return pts[0][col]; for(let i=1;i<pts.length;i++) if(x<=pts[i][0]){ const a=pts[i-1],b=pts[i],t=(x-a[0])/(b[0]-a[0]); return a[col]+(b[col]-a[col])*t; } return pts[pts.length-1][col]; };
 function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carried-over stacks)
   [SB,BB,ANTE]=[50,100,0]; S.autoHero=false; S.heroResolve=null; S.running=false; S.done=false; S.board=[]; S.street=0; S.showdown=false;
   initPlayers(); if(Prefs.stacks) S.players.forEach((p,i)=>{ const v=+Prefs.stacks[i]; if(isFinite(v)&&v>=0) p.stack=v; });
@@ -3137,7 +3145,7 @@ Object.assign(MT,{
   prepare(){
     const T=this.T; if(!T||T.players[0].out||T.done){ this.over=true; return false; }
     const b=MTT.beginLiveHand(T); [SB,BB,ANTE]=[b.lvl.sb,b.lvl.bb,b.lvl.ante];
-    this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level;
+    this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level; this.hs={avg:MTT.stats(T).avg};
     const notes=[]; if(b.breakMin) notes.push('休憩'+b.breakMin+'分が明けました'); if(b.level!==this.lastLevel&&this.lastLevel) notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）'); this.lastLevel=b.level;
     if(notes.length) this.note=notes.join('・'); else if(!this.moved) this.note='';
     this.moved=false; return true;
@@ -3174,6 +3182,91 @@ Object.assign(MT,{
       <div class="row" style="margin-top:14px"><button class="btn main grow" id="mttResClose">ロビーへ</button></div></div>`;
     el.classList.remove('hidden');
     document.getElementById('mttResClose').onclick=()=>{ el.classList.add('hidden'); this.on=false; ringRestore(); this.view(); };
+  },
+  /* ---- bots: stack depth, push/fold, ICM (preflop). Postflop is the ring logic as it is. ---- */
+  hs:null,
+  effBB(seat){   // effective stack in bb: mine against the biggest stack still in the hand
+    const p=S.players[seat]; let mx=0; S.players.forEach((q,i)=>{ if(i!==seat&&!q.folded) mx=Math.max(mx,q.stack+q.bet); });
+    return Math.min(p.stack+p.bet,mx||p.stack+p.bet)/BB;
+  },
+  rwTop(w){   // the top w% of hands (by the preflop strength order) as a range
+    const key=Math.round(w*2)/2, c=this.rwCache||(this.rwCache={}); if(c[key]) return c[key];
+    const a=new Float32Array(ALL.length); for(let i=0;i<ALL.length;i++) a[i]=PCT[ALL[i].k]<=key?1:0; return c[key]=a;
+  },
+  pushW(seat,eff){   // unopened shove width (% of hands): by seats still to act behind, stack depth, style, ICM pressure
+    const p=S.players[seat], behind=S.players.filter((q,i)=>i!==seat&&!q.folded&&!q.acted).length, col=Math.max(1,Math.min(7,8-behind));
+    let w=MT_interp(MT_PUSH,eff,col)*Math.pow(p.style.loose,1.2);
+    const bf=this.pressure(seat); w*=Math.max(0.55,1.2-0.25*bf);
+    const r=p.start/this.hs.avg; if(r>2&&bf<1.3) w*=1.1;
+    return Math.min(100,w);
+  },
+  jamW(seat,ag,eff){   // re-shove width against an open raise
+    const p=S.players[seat], op=posOf(ag), pos=posOf(seat);
+    let w=MT_interp(MT_JAM,eff,1)*(/UTG|LJ/.test(op)?0.8:op==='HJ'?0.95:op==='CO'?1.1:op==='BTN'?1.3:1.4)*(pos==='BB'?1.15:1)*Math.pow(p.style.three,1);
+    w*=Math.max(0.55,1.2-0.25*this.pressure(seat));
+    return Math.min(60,w);
+  },
+  /* how much the bubble hurts this player: (EV now - EV busted)/(EV doubled - EV now) in a coin flip against the biggest stack, 1 = chips only */
+  pressure(seat){
+    const p=S.players[seat]; if(p._bf!=null) return p._bf; const T=this.T; let bf=1;
+    if(T.remaining<=3*MTT.PAID){
+      let vi=-1,vs=0; S.players.forEach((q,i)=>{ if(i!==seat&&q.start>vs){ vs=q.start; vi=i; } });
+      const id=this.pids[seat], S0=p.start, risk=Math.min(S0,vs);
+      if(vi>=0&&risk>0){ const vid=this.pids[vi], r=MTT.icmEV(T,[{},{[id]:S0+risk,[vid]:vs-risk},{[id]:S0-risk,[vid]:vs+risk}],[id],700);
+        if(r){ const d=r[1][0]-r[0][0]; bf=d>1?Math.min(4,Math.max(1,(r[0][0]-r[2][0])/d)):4; } }
+    }
+    return p._bf=bf;
+  },
+  /* the equity needed to call callAmt against seat ag: pot odds, or the ICM-adjusted price when the pay jumps are near */
+  needEq(seat,ag,callAmt){
+    const p=S.players[seat], v=S.players[ag], pot=potTotal(), e0=callAmt/(pot+callAmt), T=this.T;
+    if(T.remaining>3*MTT.PAID) return e0;
+    const id=this.pids[seat], vid=this.pids[ag], base={}; S.players.forEach((q,i)=>{ if(i!==seat&&i!==ag) base[this.pids[i]]=q.start-q.contrib; });
+    const b0=p.start-p.contrib, v0=v.start-v.contrib, potC=pot+callAmt, mk=(a,b)=>Object.assign({},base,{[id]:a,[vid]:b});
+    const r=MTT.icmEV(T,[mk(b0,v0+pot),mk(b0-callAmt+potC,v0),mk(b0-callAmt,v0+potC)],[id],900); if(!r) return e0;
+    const fold=r[0][0], win=r[1][0], lose=r[2][0]; if(win-lose<=1) return e0;
+    return Math.min(0.97,Math.max(e0,(fold-lose)/(win-lose)));
+  },
+  callOrFold(seat,ag,callAmt){
+    const p=S.players[seat], v=S.players[ag]; if(!v.rw) return null;
+    // everyone who has put in the full amount is up against the same hand: one call after another needs a better hand each time
+    const opps=S.players.filter((q,i)=>i!==seat&&!q.folded&&q.rw&&(i===ag||q.allIn&&q.contrib>BB*1.5||q.bet>=S.currentBet*0.99&&q.bet>BB*1.01));
+    const eq=equity(seat,opps,350), need=this.needEq(seat,ag,callAmt)+(Math.random()-0.5)*0.03;
+    const q=PCT[classKey(p.hole[0],p.hole[1])];
+    return eq>need?{act:'call',rw:this.rwTop(Math.max(2,q*1.1))}:{act:'fold'};   // a caller's range: hands at least as strong as his
+  },
+  preflop(seat){
+    const p=S.players[seat], k=classKey(p.hole[0],p.hole[1]), q=PCT[k], rc=S.raiseCount, toCall=S.currentBet-p.bet, eff=this.effBB(seat);
+    const jam=w=>({act:'raise',to:p.stack+p.bet,rw:this.rwTop(w)});
+    if(rc>=2&&toCall>0){
+      const ag=S.lastAggr>=0&&S.lastAggr!==seat?S.lastAggr:-1; if(ag<0) return null;
+      const v=S.players[ag], callAmt=Math.min(toCall,p.stack);
+      if(v.allIn||callAmt>=p.stack*0.5||(rc>=3&&eff<=30)) return this.callOrFold(seat,ag,callAmt);
+      if(rc===2&&eff<=25&&limperCount()===0){
+        const w=this.jamW(seat,ag,eff); if(q<w) return jam(w);
+        if(eff<12) return {act:'fold'};
+      }
+      return null;
+    }
+    if(rc===1&&limperCount()===0&&posOf(seat)!=='BB'&&eff<=15){ const w=this.pushW(seat,eff); return q<w?jam(w):{act:'fold'}; }
+    return null;
+  },
+  /* the ring logic's raises, adapted: smaller opens, and at short stacks a 3-bet is a shove */
+  post(seat,d){
+    const p=S.players[seat], eff=this.effBB(seat);
+    if(d&&d.act==='raise'&&!d.rw){
+      if(S.raiseCount===1){ const sb=posOf(seat)==='SB'; d={act:'raise',to:Math.max(S.currentBet+S.minRaise,BB*(sb?3:eff<30?2:2.2))}; }
+      else if(eff<=25||d.to>=(p.stack+p.bet)*0.45) d={act:'raise',to:p.stack+p.bet};
+    }
+    return d;
+  },
+  scale(seat,kind){
+    if(kind!=='open'&&kind!=='iso'&&kind!=='vsOpen'&&kind!=='bbOption') return 1;
+    const p=S.players[seat], T=this.T, eff=this.effBB(seat); let f=1.05;   // the big-blind ante is dead money: a little wider
+    if(eff<40) f*=Math.max(0.6,0.6+0.4*(eff-15)/25);
+    const r=p.start/this.hs.avg, bubble=T.remaining>MTT.PAID&&T.remaining<=MTT.PAID+8;
+    if(bubble) f*=r>1.5?1.15:r<0.45?1:0.85; else if(r>2.2) f*=1.1;
+    return kind==='vsOpen'?Math.sqrt(f):f;
   },
   /* ---- HUD above the table ---- */
   hud(){
