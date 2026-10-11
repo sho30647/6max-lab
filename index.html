@@ -1368,9 +1368,11 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const PT=50; // chips per point
 const isBeginner=()=>!MT.on&&(RP.on||document.getElementById('optBeginner').checked);   // the practice table always uses the beginner-mode table (points, bubbles, chips)
 const pts=ch=>Math.round(ch/PT*10)/10;
-const amtShort=ch=>isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
-const amtLong=ch=>isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
-const netTxt=bb=>{ const v=isBeginner()?Math.round(bb*BB/PT*10)/10:Math.round(bb*100)/100; return (v>0?'+':'')+v+(isBeginner()?'点':'bb'); };
+const mtChips=()=>MT.on&&MT.unit==='chip';   // tournament: show chips (点数) instead of bb
+const chipTxt=ch=>Math.round(ch).toLocaleString('en-US');
+const amtShort=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
+const amtLong=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
+const netTxt=bb=>{ if(mtChips()){ const v=Math.round(bb*BB); return (v>0?'+':'')+chipTxt(v); } const v=isBeginner()?Math.round(bb*BB/PT*10)/10:Math.round(bb*100)/100; return (v>0?'+':'')+v+(isBeginner()?'点':'bb'); };
 const roundBet=v=>isBeginner()?Math.round(v/PT)*PT:Math.round(v);
 function actText(p){
   const a=p.la; if(!a) return '';
@@ -1378,7 +1380,7 @@ function actText(p){
     if(a.ai&&a.k!=='fold') return 'オールイン '+amtShort(a.a);
     return {sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[a.k]+(a.a!=null?' '+amtShort(a.a):'');
   }
-  return {sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[a.k]+(a.a!=null?' '+bbs(a.a):'')+(a.ai&&a.k!=='fold'?' (オールイン)':'');
+  return {sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[a.k]+(a.a!=null?' '+amtShort(a.a):'')+(a.ai&&a.k!=='fold'?' (オールイン)':'');
 }
 const CHIP_DEN=[[500,'#7A4BB5'],[100,'#26262A'],[25,'#2E8B57'],[5,'#C0392B'],[1,'#F2EFE6']];
 function chipsHTML(ch){ // chip stacks that add up to the amount (in points)
@@ -2125,7 +2127,7 @@ function render(){
     } else if(p.bet>0){
       const c=document.createElement('div'); c.className='betchip';
       c.style.left=spotX; c.style.top=spotY;
-      c.textContent=bbs(p.bet);
+      c.textContent=amtShort(p.bet);
       box.appendChild(c);
     }
     if(beg&&!ph&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot (phones use the plate's D mark)
@@ -2166,7 +2168,7 @@ function renderControls(){
   const pot=potTotal();
   const presets=[];
   if(S.street===0){
-    if(S.raiseCount===1){ const lim=S.players.filter((q,i)=>i>0&&!q.folded&&q.bet===BB&&posOf(i)!=='BB'&&q.acted).length; [2,2.5,3,4,5].forEach(x=>presets.push([isBeginner()?amtShort(BB*x):x+'bb',BB*x+lim*BB])); }
+    if(S.raiseCount===1){ const lim=S.players.filter((q,i)=>i>0&&!q.folded&&q.bet===BB&&posOf(i)!=='BB'&&q.acted).length; [2,2.5,3,4,5].forEach(x=>presets.push([isBeginner()||mtChips()?amtShort(BB*x):x+'bb',BB*x+lim*BB])); }
     else [2,2.5,3,4,5].forEach(x=>presets.push([x+'倍',S.currentBet*x]));
   } else {
     [[0.33,'33%'],[0.5,'50%'],[0.75,'75%'],[1,'ポット']].forEach(([f,l])=>{ const to=S.currentBet===0?r5(pot*f):S.currentBet+r5((pot+toCall)*f); presets.push([l,to]); });
@@ -2189,7 +2191,7 @@ function renderControls(){
     const rs=document.getElementById('rs'), rv=document.getElementById('rv');
     // exponential slider: fine steps at small sizes, coarse near all-in; ± buttons move 0.1bb
     const L=Math.log(Math.max(maxTo,minTo+1)/minTo);
-    const g=isBeginner()?PT:10; // step: 1点 in beginner mode, 0.1bb otherwise
+    const g=isBeginner()?PT:MT.on?Math.max(5,Math.round(BB/10/5)*5):10; // step: 1点 in beginner mode, 0.1bb otherwise
     const toAmt=t=>{ if(t>=1000) return maxTo; const v=Math.round(minTo*Math.exp(L*t/1000)/g)*g; return clamp(v,minTo,maxTo); };
     const toPos=v=>v>=maxTo?1000:Math.round(1000*Math.log(Math.max(v,minTo)/minTo)/L);
     let sel=init; const show=()=>{ rv.textContent=amtShort(sel); rs.value=toPos(sel); }; show();
@@ -3118,6 +3120,8 @@ function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carri
 }
 Object.assign(MT,{
   speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[],
+  unit:(()=>{ try{ return localStorage.getItem('sixmaxlab_mtt_unit')==='bb'?'bb':'chip'; }catch(e){ return 'chip'; } })(),   // amounts on the table: chips (点数, default) or bb
+  setUnit(u){ this.unit=u; try{ localStorage.setItem('sixmaxlab_mtt_unit',u); }catch(e){} render(); if(S.heroResolve) renderControls(); },
   key(){ return 'sixmaxlab_mtt__'+UserGate.safe(UserGate.get()||''); },
   /* ---- storage: results + bankroll (data/users/{uid}/mtt_data), the tournament in progress (mtt_active) and its hands (mtt_h_<id>_<n>); a local copy of each ---- */
   cq:Promise.resolve(), synced:false, hc:0,
@@ -3368,8 +3372,9 @@ Object.assign(MT,{
       <div class="mr2"><div>残り人数<b>${st.remaining} / ${st.field}</b></div><div class="${st.bubble?'hot':st.itm?'good':''}">インマネまで<b>${itmTxt}</b></div>
         <div>平均スタック<b>${fmtN(st.avg)}</b>${Math.round(st.avgBB)}bb</div><div>あなた<b>${fmtN(hero.stack)}</b>${Math.round(st.heroBB)}bb・${st.heroRank}位</div>
         <div>卓<b>${MTT.heroTable(T).id+1}</b>${st.hfh?'ハンドフォーハンド':st.tables+'卓で進行'}</div></div>
-      <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
+      <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttUnitBtn" type="button">表示：${this.unit==='chip'?'点数':'bb'}</button><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
     document.getElementById('mttBoardBtn').onclick=()=>this.board();
+    document.getElementById('mttUnitBtn').onclick=()=>this.setUnit(this.unit==='chip'?'bb':'chip');
     document.getElementById('mttQuitBtn').onclick=()=>{ if(S.running){ setMsg('ハンドが終わってから放棄できます'); return; } if(confirm('途中放棄すると、いまの順位から最下位として扱い、参加費は戻りません。放棄しますか？')) this.forfeit(); };
   },
   /* ---- the board (tournament clock screen) and the ranking ---- */
