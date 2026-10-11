@@ -59,6 +59,20 @@ await page.evaluate(() => { MT.result = { id: 'x', t: Date.now(), place: 1, fiel
 const champ = await page.evaluate(() => ({ win: !!document.querySelector('.mttwin'), conf: document.querySelectorAll('.mwconf i').length, bg: document.getElementById('mttResult').classList.contains('winbg'), txt: document.querySelector('.mwt').textContent }));
 ok(champ.win && champ.conf > 30 && champ.bg && champ.txt === '優勝！', 'champion screen ' + JSON.stringify(champ));
 if (shot) { await page.waitForTimeout(1800); await page.screenshot({ path: `${shot}/champion.png` }); }
+// 6) in the money: the popup when the money is reached, the result screen when the run ends in the money
+await page.evaluate(() => { document.getElementById('mttResClose') && document.getElementById('mttResClose').click(); window.__noPopup = false; window.__pp = MT.popup({ k: 'IN THE MONEY', t: 'おめでとう！インマネ確定！', d: '残り15人', b: 'ここから先は賞金が確定です。いまの最低賞金は ¥100,000（15位）', ms: 9000, fx: 'itm' }); });
+const pop = await page.evaluate(() => ({ cls: document.querySelector('.mttpop').className, conf: document.querySelectorAll('.mttpop .mwconf i').length, coin: !!document.querySelector('.mttpop .itmcoin'), txt: document.querySelector('.mttpop .pt').textContent }));
+ok(/itm/.test(pop.cls) && pop.conf > 20 && pop.coin && /インマネ確定/.test(pop.txt), 'in-the-money popup is festive ' + JSON.stringify(pop));
+if (shot) { await page.waitForTimeout(1200); await page.screenshot({ path: `${shot}/itm-popup.png` }); }
+await page.evaluate(async () => { document.getElementById('mttPopOk').click(); await window.__pp; window.__noPopup = true; });
+for (const pl of [2, 3, 7]) {
+  const cheer = await page.evaluate(pl => { MT.result = { id: 'x', t: Date.now(), place: pl, field: 100, buyIn: 50000, prize: 160000, net: 110000, hands: 280, level: 21, bankAfter: 460000, itm: true, ft: pl <= 8 }; MT.showResult(); return { win: !!document.querySelector('.mttwin.itm'), bg: document.getElementById('mttResult').classList.contains('itmbg'), txt: document.querySelector('.mttwin.itm').innerText.replace(/\n/g, ' ') }; }, pl);
+  ok(cheer.win && cheer.bg && cheer.txt.includes('おめでとう') && cheer.txt.includes(pl + '位'), `place ${pl} in the money: celebration ` + cheer.txt.slice(0, 60));
+  if (shot && pl === 3) { await page.waitForTimeout(1500); await page.screenshot({ path: `${shot}/itm-result.png` }); }
+  await page.evaluate(() => document.getElementById('mttResClose').click());
+}
+const out = await page.evaluate(() => { MT.result = { id: 'x', t: Date.now(), place: 40, field: 100, buyIn: 50000, prize: 0, net: -50000, hands: 90, level: 12, bankAfter: 200000, itm: false }; MT.showResult(); return { cheer: !!document.querySelector('.mttwin'), plain: !!document.querySelector('.mttres') }; });
+ok(!out.cheer && out.plain, 'out of the money: the plain result');
 await browser.close();
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }
 process.exit(fail.length ? 1 : 0);
