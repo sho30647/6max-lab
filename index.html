@@ -1466,12 +1466,23 @@ function autoFoldHero(p){
   if(AF_ALL.has(k)) return true;                     // all-range list: open & facing an open
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
+/* a hand that throws must not leave the table stuck: report it, fold the hero's hand if it is a tournament hand, and give the button back */
 async function playHand(resume){
+  try{ await playHandBody(resume); }
+  catch(e){
+    console.error('playHand',e); S.running=false; S.heroResolve=null; S.fastFold=false;
+    try{ if(MT.on&&MT.pend) MT.settlePend(); }catch(e2){ console.error('settlePend',e2); }
+    setMsg('エラーが起きました（'+(e&&e.message||e)+'）。ボタンを押して次のハンドへ進んでください');
+    try{ render(); renderControls(); if(MT.on&&MT.over) MT.showResult(); }catch(e3){}
+  }
+}
+async function playHandBody(resume){
   if(!resume&&MT.on&&!MT.prepare()) return;
   if(!resume&&MT.on&&MT.popups.length){ S.running=true; render(); await MT.flushPopups(); }
   if(!resume&&MT.on) MT.persist();
   if(resume) S.running=true; else { S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); }
-  render(); if(!resume) setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
+  render(); if(!RP.on) renderControls();   // at once: the button turns into 「相手の手番…」 instead of looking dead while the other players act
+  if(!resume) setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
   for(let st=resume?S.street:0;st<4;st++){
     if(st>0&&!(resume&&st===S.street)){
       if(active().length<=1) break;
