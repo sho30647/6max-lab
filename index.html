@@ -1174,7 +1174,8 @@ const TEX_LABEL={s:{mono:'モノトーン',two:'ツートーン',rain:'レイン
 /* =========================================================
    Game state
    ========================================================= */
-const BB=100, START=10000;
+let BB=100, SB=50, ANTE=0;   // the ring game: 0.5/1bb, no ante. The tournament sets these from its level.
+const START=10000;
 const BOTS=[
   {name:'Kenji',loose:1.0,aggr:1.0,three:1.0},
   {name:'Mika',loose:1.15,aggr:1.3,three:1.25},
@@ -1276,15 +1277,23 @@ function rangeFromMap(m){ const w=new Float32Array(ALL.length); for(let i=0;i<AL
 const FULL_RANGE=new Float32Array(ALL.length).fill(1);
 const freqOf=(m,k)=>m?(m.get(k)||0):0;
 
-function initPlayers(){
-  S.players=[{name:UserGate.get()||'あなた',isHero:true,style:{loose:1,aggr:1,three:1}}].concat(BOTS.map(b=>({name:b.name,isHero:false,style:b})));
+function initPlayers(n=6){   // n seats: the hero + n-1 bots (the five named bots first, more of the same styles beyond that)
+  const bots=Array.from({length:n-1},(_,i)=>i<BOTS.length?BOTS[i]:{...BOTS[i%BOTS.length],name:BOTS[i%BOTS.length].name+(Math.floor(i/BOTS.length)+1)});
+  S.players=[{name:UserGate.get()||'あなた',isHero:true,style:{loose:1,aggr:1,three:1}}].concat(bots.map(b=>({name:b.name,isHero:false,style:b})));
   S.players.forEach(p=>{p.stack=START;p.hole=[];p.folded=true;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.range=[0,100];p.postAggr=0;p.shown=false;});
 }
-const posOf=seat=>POS[(seat-S.button+6)%6];
+const NS=()=>S.players.length||6;   // seats at the table (6 for the ring game; 2-8 in a tournament)
+/* position names by offset from the button: 0=BTN, 1=SB, 2=BB, then the seats from UTG up to CO (heads-up: the button is the SB) */
+const POS_BY_N={2:['SB','BB'],3:['BTN','SB','BB'],4:['BTN','SB','BB','CO'],5:['BTN','SB','BB','HJ','CO'],6:POS,7:['BTN','SB','BB','UTG','LJ','HJ','CO'],8:['BTN','SB','BB','UTG','UTG1','LJ','HJ','CO']};
+const posOf=seat=>{ const n=NS(); return POS_BY_N[n][(seat-S.button+n)%n]; };
+/* the ring-game charts know UTG/HJ/CO/BTN/SB/BB only: the extra 8-max seats borrow the nearest one */
+const chartPos=pos=>pos==='UTG1'?'UTG':pos==='LJ'?'HJ':pos;
+const postOrder=s=>{ const n=NS(); return (s-S.button+n-1)%n; };   // 0 = first to act postflop (SB), n-1 = the button
+const blindSeats=()=>{ const n=NS(), b=S.button; return n===2?{sb:b,bb:(b+1)%2,first:b}:{sb:(b+1)%n,bb:(b+2)%n,first:(b+3)%n}; };
 const potTotal=()=>S.players.reduce((a,p)=>a+p.contrib,0);
 const active=()=>S.players.filter(p=>!p.folded);
 const r5=x=>Math.max(5,Math.round(x/5)*5);
-const bbs=ch=>{const v=Math.round(ch)/100; return (Math.round(v*100)/100).toString();};
+const bbs=ch=>{const v=Math.round(ch)/BB; return (Math.round(v*100)/100).toString();};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 /* beginner mode: amounts shown as points (SB 1点, BB 2点, start 200点) and bets kept in whole points */
 const PT=50; // chips per point
@@ -1333,7 +1342,7 @@ function computeHeroProfile(){
    Hand flow
    ========================================================= */
 function setupHand(){
-  if(RP.on) RP.deal(); else { S.button=(S.button+1)%6; S.deck=shuffleDeck(); }
+  if(RP.on) RP.deal(); else { S.button=(S.button+1)%NS(); S.deck=shuffleDeck(); }
   S.board=[]; S.street=0; S.showdown=false; S.winners=[]; S.done=false; S.lastActor=-1; S.soleWin=new Set(); S.shared=new Set();
   S.heroDec=[]; S.heroSaw=[true,false,false,false]; S.log=[[],[],[],[]]; S.flopSeats=[];
   S.pfAggr=-1; S.lastAggr=-1; S.prevStreetAggr=-1; S.pfRaises=null; S.heroIPflop=null;
@@ -1344,10 +1353,11 @@ function setupHand(){
   document.getElementById('advice').classList.add('hidden');
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
-  const sb=(S.button+1)%6, bb=(S.button+2)%6;
-  put(S.players[sb],50); S.players[sb].la={k:'sb',a:50,st:0};
-  put(S.players[bb],100); S.players[bb].la={k:'bb',a:100,st:0};
-  S.currentBet=BB; S.minRaise=BB; S.raiseCount=1; S.cursor=(S.button+3)%6;
+  const bl=blindSeats(), sb=bl.sb, bb=bl.bb;
+  if(ANTE>0){ const a=S.players[bb], v=Math.min(ANTE,a.stack); a.stack-=v; a.contrib+=v; }   // big-blind ante: dead money in the pot, not part of the bet to call
+  put(S.players[sb],SB); S.players[sb].la={k:'sb',a:S.players[sb].bet,st:0};
+  put(S.players[bb],BB); S.players[bb].la={k:'bb',a:S.players[bb].bet,st:0};
+  S.currentBet=BB; S.minRaise=BB; S.raiseCount=1; S.cursor=bl.first;
 }
 function put(p,amt){amt=Math.min(amt,p.stack); p.stack-=amt; p.bet+=amt; p.contrib+=amt; if(p.stack===0)p.allIn=true;}
 
@@ -1416,7 +1426,7 @@ function newStreet(st){
   collectBets(); S.street=st; dealBoard();
   S.prevStreetAggr=S.lastAggr; S.lastAggr=-1;
   S.players.forEach(p=>{p.acted=false; if(!p.folded&&!p.allIn)p.la=null;});
-  S.currentBet=0; S.minRaise=BB; S.raiseCount=0; S.cursor=(S.button+1)%6;
+  S.currentBet=0; S.minRaise=BB; S.raiseCount=0; S.cursor=(S.button+1)%NS();
 }
 function collectBets(){S.players.forEach(p=>p.bet=0);}
 function needsAction(p){return !p.folded&&!p.allIn&&(!p.acted||p.bet<S.currentBet);}
@@ -1428,7 +1438,7 @@ async function bettingRound(){
     if(actors.length===0) return;
     if(actors.length===1&&actors[0].bet>=S.currentBet) return;
     let seat=-1;
-    for(let i=0;i<6;i++){const s=(S.cursor+i)%6; if(needsAction(S.players[s])){seat=s;break;}}
+    const n=NS(); for(let i=0;i<n;i++){const s=(S.cursor+i)%n; if(needsAction(S.players[s])){seat=s;break;}}
     if(seat<0) return;
     S.acting=seat; render();
     const p=S.players[seat];
@@ -1439,7 +1449,7 @@ async function bettingRound(){
     else { await sleep(delay()); dec=botDecide(seat); }
     const rv=(!RP.on&&p.isHero&&S.street===0&&!S.autoFolded&&document.getElementById('optRange').checked)?pfReviewSpot(seat,dec):null;   // the spot as it stands before the action
     applyAction(seat,dec);
-    S.cursor=(seat+1)%6;
+    S.cursor=(seat+1)%NS();
     render();
     if(rv) await pfReviewShow(rv);
     // beginner: after the hero folds, let the fold show for a moment, then play out the rest instantly and show just the result
@@ -1563,7 +1573,7 @@ function tableSituation(seat){
 }
 function preSituation(seat){
   const tbl=tableSituation(seat); if(tbl) return tbl;
-  const p=S.players[seat], pos=posOf(seat), rc=S.raiseCount;
+  const p=S.players[seat], pos=chartPos(posOf(seat)), rc=S.raiseCount;
   if(rc>=2&&facingAllIn(p)) return {sp:CH.vsJam,kind:'vsJam'};
   if(rc===1){
     const lim=limperCount();
@@ -1573,7 +1583,7 @@ function preSituation(seat){
     return {sp:{r:scaleMap(o.r,0.75),c:(pos==='SB'||pos==='BTN'||pos==='CO')?scaleMap(o.r,0.2):new Map(),j:new Map()},kind:'iso'};
   }
   if(rc===2){
-    const op=S.firstRaiser>=0?posOf(S.firstRaiser):'CO';
+    const op=S.firstRaiser>=0?chartPos(posOf(S.firstRaiser)):'CO';
     let sp;
     if(pos==='BB') sp=CH.vsOpen.BB[op]||CH.vsOpen.BB.CO;
     else if(pos==='SB') sp=op==='BTN'?CH.vsOpen.SBvsBTN:op==='CO'?CH.vsOpen.SBvsCO:CH.vsOpen.SBearly;
@@ -1589,7 +1599,7 @@ function preSituation(seat){
   }
   if(rc===3){
     if(p.raisedPre&&S.firstRaiser===seat){
-      const tb=S.threeBettor>=0?posOf(S.threeBettor):'BTN';
+      const tb=S.threeBettor>=0?chartPos(posOf(S.threeBettor)):'BTN';
       const sp=(CH.vs3[pos]&&CH.vs3[pos][tb])||CH.vs3.CO.BTN;
       return {sp,kind:'vs3'};
     }
@@ -1600,8 +1610,8 @@ function preSituation(seat){
   return {sp:CH.cold4,kind:'cold4'};
 }
 function preSize(seat,kind){
-  const p=S.players[seat], pos=posOf(seat), cb=S.currentBet;
-  if(kind==='open') return pos==='SB'?300:250;
+  const p=S.players[seat], pos=chartPos(posOf(seat)), cb=S.currentBet;
+  if(kind==='open') return pos==='SB'?BB*3:BB*2.5;
   if(kind==='iso'||kind==='bbOption') return BB*(pos==='SB'||pos==='BB'?4:3.5)+limperCount()*BB;
   if(kind==='vsOpen'){
     const callers=S.players.filter((q,i)=>i!==S.firstRaiser&&i!==seat&&!q.folded&&q.bet===cb).length;
@@ -1611,7 +1621,7 @@ function preSize(seat,kind){
   if(kind==='vs3'){ const to=cb*(isIPvs(seat,S.threeBettor)?2.2:2.45); return to>p.stack*0.4+p.bet?p.stack+p.bet:to; }
   return p.stack+p.bet;
 }
-function isIPvs(a,b){ const o=s=>(s-S.button+5)%6; return o(a)>o(b); }
+function isIPvs(a,b){ return postOrder(a)>postOrder(b); }
 function botPreflop(seat){
   const p=S.players[seat], st=p.style, k=classKey(p.hole[0],p.hole[1]);
   const sit=preSituation(seat), {sp,kind}=sit;
@@ -1729,7 +1739,7 @@ function equity(seat,opps,iters){
   return win/iters;
 }
 function isIP(seat){
-  const o=s=>(s-S.button+5)%6; const me=o(seat);
+  const o=postOrder; const me=o(seat);
   return S.players.every((q,i)=>q.folded||i===seat||o(i)<me);
 }
 function botDecide(seat){ return S.street===0?botPreflop(seat):botPostflop(seat); }
@@ -1858,7 +1868,7 @@ function settle(){
   const scores={}; live.forEach(i=>scores[i]=evalHand(P[i].hole.concat(S.board)));
   const levels=[...new Set(P.map(p=>p.contrib).filter(x=>x>0))].sort((a,b)=>a-b);
   let prev=0; const win=new Set();
-  const order=s=>(s-S.button+5)%6;
+  const order=postOrder;
   for(const lvl of levels){
     let amt=0; P.forEach(p=>{amt+=Math.min(p.contrib,lvl)-Math.min(p.contrib,prev);});
     const elig=live.filter(i=>P[i].contrib>=lvl);
@@ -1873,7 +1883,7 @@ function settle(){
   S.winners=[...win];
 }
 function buildRecord(){
-  const h=S.players[0], net=Math.round(h.stack-h.start)/100, pos=posOf(0);
+  const h=S.players[0], net=Math.round(h.stack-h.start)/BB, pos=posOf(0);
   const pre=S.heroDec.filter(d=>d.st===0);
   let maxR=-1,called=-1,checked=false;
   pre.forEach(d=>{ if(d.act==='raise')maxR=Math.max(maxR,d.rc); else if(d.act==='call')called=Math.max(called,d.rc); else if(d.act==='check')checked=true; });
@@ -1897,7 +1907,7 @@ function buildRecord(){
     o3:pre.some(d=>d.rc===2), b3:pre.some(d=>d.rc===2&&d.act==='raise'),
     f3o:pre.some(d=>d.rc===3)&&maxR===1, f3f:maxR===1&&pre.some(d=>d.rc===3&&d.act==='fold'),
     sf:sawFlop, st:S.heroSaw[2], sr:S.heroSaw[3], sd:S.showdown&&!h.folded, wsd:S.showdown&&!h.folded&&net>0,
-    net, pot:Math.round(potTotal())/100, np:flopPlayers,
+    net, pot:Math.round(potTotal())/BB, np:flopPlayers,
     tex:sawFlop&&S.board.length>=3?texture(S.board.slice(0,3)):null, cat,
     ptype:sawFlop?ptypeLabel(S.pfRaises):null, or:pre.some(d=>d.act==='raise'&&d.rc===1), ip:sawFlop?S.heroIPflop:null,
     fh:sawFlop&&S.board.length>=3?flopClass(h.hole,S.board.slice(0,3)):null,
@@ -1978,7 +1988,10 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
    ========================================================= */
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
-const seatXY=i=>(matchMedia("(max-width:600px)").matches?SEAT_XY_M:SEAT_XY)[i];
+const ringPts=(n,rx,ry,cy,k=1)=>Array.from({length:n},(_,i)=>{ const a=Math.PI/2+i*2*Math.PI/n; return [+(50+rx*k*Math.cos(a)).toFixed(1),+(cy+ry*k*Math.sin(a)).toFixed(1)]; });
+const LAYOUTS={};   // seats are spread round the table, the hero (seat 0) at the bottom
+const layoutFor=n=>LAYOUTS[n]||(LAYOUTS[n]=n===6?{d:SEAT_XY,m:SEAT_XY_M,s:SPOT_XY_M}:{d:ringPts(n,41,42,47),m:ringPts(n,38,40,47),s:ringPts(n,38,40,53,0.55)});
+const seatXY=i=>layoutFor(NS())[matchMedia("(max-width:600px)").matches?'m':'d'][i];
 const isPhone=()=>matchMedia('(max-width:600px)').matches;
 // phone: where each seat's bets / result badge go — clear of the seat plates, the board and each other
 const SPOT_XY_M=[[50,70],[31,72],[31,34],[50,33],[69,34],[69,72]];
@@ -2016,7 +2029,7 @@ function render(){
     el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&(!beg||ph)?'<span class="dealer">D</span>':''}${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
     box.appendChild(el);
     // the felt in front of the seat (phones: fixed spots that stay clear of the plates and the board)
-    const [bx,by]=ph?SPOT_XY_M[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
+    const [bx,by]=ph?layoutFor(NS()).s[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
     if(beg&&handLive){
       // beginner: action bubble (+ chips) while the hand runs; win/lose/draw and the chip change once it is over
       const c=document.createElement('div'); c.style.left=spotX; c.style.top=spotY;
