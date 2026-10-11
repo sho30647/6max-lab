@@ -3289,7 +3289,7 @@ Object.assign(MT,{
     S.players.forEach(p=>p.folded=false);
     setMsg(this.hands.length?'続きから':'エントリーしました。最初のハンドを配ってください');
   },
-  mkPlayer(cp){ return {name:cp.name,isHero:cp.isHero,style:cp.style,stack:cp.stack,hole:[],folded:true,bet:0,contrib:0,allIn:false,acted:false,la:null,range:[0,100],postAggr:0,shown:false}; },
+  mkPlayer(cp){ return {name:cp.name,isHero:cp.isHero,style:cp.style,tune:cp.tune||null,stack:cp.stack,hole:[],folded:true,bet:0,contrib:0,allIn:false,acted:false,la:null,range:[0,100],postAggr:0,shown:false}; },
   start(){
     if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
     this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
@@ -3375,14 +3375,14 @@ Object.assign(MT,{
   },
   pushW(seat,eff){   // unopened shove width (% of hands): by seats still to act behind, stack depth, style, ICM pressure
     const p=S.players[seat], behind=S.players.filter((q,i)=>i!==seat&&!q.folded&&!q.acted).length, col=Math.max(1,Math.min(7,8-behind));
-    let w=MT_interp(MT_PUSH,eff,col)*Math.pow(p.style.loose,1.2);
+    let w=MT_interp((p.tune&&p.tune.push)||MT_PUSH,eff,col)*Math.pow(p.style.loose,1.2);   // p.tune: a bot variant for tests/mtt-bench.mjs (null in play)
     const bf=this.pressure(seat); w*=Math.max(0.55,1.2-0.25*bf);
     const r=p.start/this.hs.avg; if(r>2&&bf<1.3) w*=1.1;
     return Math.min(100,w);
   },
   jamW(seat,ag,eff){   // re-shove width against an open raise
     const p=S.players[seat], op=posOf(ag), pos=posOf(seat);
-    let w=MT_interp(MT_JAM,eff,1)*(/UTG|LJ/.test(op)?0.8:op==='HJ'?0.95:op==='CO'?1.1:op==='BTN'?1.3:1.4)*(pos==='BB'?1.15:1)*Math.pow(p.style.three,1);
+    let w=MT_interp((p.tune&&p.tune.jam)||MT_JAM,eff,1)*(/UTG|LJ/.test(op)?0.8:op==='HJ'?0.95:op==='CO'?1.1:op==='BTN'?1.3:1.4)*(pos==='BB'?1.15:1)*Math.pow(p.style.three,1);
     w*=Math.max(0.55,1.2-0.25*this.pressure(seat));
     return Math.min(60,w);
   },
