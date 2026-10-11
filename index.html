@@ -476,7 +476,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-play .mttblinds{display:block}
 .mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
 @media(max-width:600px){.mttblinds{font-size:12px;margin-top:2px;white-space:nowrap}.mttblinds small{font-size:11px;margin-left:3px}.mttpop .pt{font-size:23px}}
-.mtt-play #stkNote,.mtt-play label:has(#optBeginner){display:none}
+.mtt-play #stkNote,.mtt-play #begNote,.mtt-play label:has(#optBeginner){display:none!important}
 .mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
 .mtthud .mr1 small{font-family:inherit;font-size:12px;color:var(--muted);font-weight:500}
@@ -3269,7 +3269,7 @@ Object.assign(MT,{
   view(){
     const el=document.getElementById('tab-play'), inM=Nav.screen==='mtt';
     el.classList.toggle('mtt-lobby',inM&&!this.on); el.classList.toggle('mtt-play',inM&&this.on);
-    document.querySelector('.wrap').classList.toggle('inmtt',inM);
+    document.querySelector('.wrap').classList.toggle('inmtt',inM); if(typeof syncFast==='function') syncFast();
     if(inM&&!this.on) this.lobby();
   },
   enter(){   // the MTT screen was opened
@@ -3313,13 +3313,30 @@ Object.assign(MT,{
     const h=S.players[0], handBB=BB, mr=h.start/(SB+BB+ANTE);
     Object.assign(rec,{mt:1,tid:this.id,lvl:this.level,bb:handBB,ante:ANTE,left:T.remaining,m:Math.round(mr*10)/10,sb:SB});
     this.hands.push(rec);
-    const mv0=T.moves.length;
+    const mv0=T.moves.length, tbBefore=MTT.heroTable(T).id, idsBefore=this.pids.slice();
     MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
+    if(!T.players[0].out&&!T.done) this.tableChange(T,tbBefore,idsBefore,T.moves.slice(mv0));
     const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
     if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
     if(!this.itmShown&&T.remaining<=MTT.PAID&&!T.players[0].out&&!T.done){ this.itmShown=true; this.popups.push({k:'IN THE MONEY',t:'インマネ確定',d:'残り'+T.remaining+'人',b:'ここから先は賞金が確定です。いまの最低賞金は '+fmtYen(MTT.prizeFor(T.remaining))+'（'+T.remaining+'位）',ms:6000}); }
     this.pend=null; this.clearHand(); this.saveHandChunk();
     if(T.players[0].out||T.done) this.finish(); else this.persist();
+  },
+  /* the people at the hero's table changed (someone busted or was moved) or the hero was moved: a popup before the next hand */
+  tableChange(T,tbBefore,idsBefore,moves){
+    const tb=MTT.heroTable(T), now=MTT.occ(tb).map(x=>tb.seats[x]), nm=id=>T.players[id].name, before=new Set(idsBefore), after=new Set(now);
+    if(tb.id!==tbBefore){
+      const mv=moves.filter(m=>m.id===0).pop();
+      this.popups.push({k:'TABLE CHANGE',t:'テーブル移動',d:'卓'+(tbBefore+1)+' → 卓'+(tb.id+1),b:(mv?(mv.reason==='break'?'卓が崩れたため、':'人数調整のため、'):'')+(T.players[0].seat+1)+'番席に移動しました。この卓は'+now.length+'人です。',ms:6000});
+      return;
+    }
+    const gone=idsBefore.filter(id=>id!==0&&!after.has(id)), came=now.filter(id=>!before.has(id));
+    if(!gone.length&&!came.length) return;
+    const out=gone.filter(id=>T.players[id].out), moved=gone.filter(id=>!T.players[id].out), lines=[];
+    if(out.length) lines.push('敗退：'+out.map(nm).join('、'));
+    if(moved.length) lines.push('他の卓へ移動：'+moved.map(nm).join('、'));
+    if(came.length) lines.push('この卓に移動してきた：'+came.map(nm).join('、'));
+    this.popups.push({k:'TABLE',t:'テーブルの人数が変わりました',d:idsBefore.length+'人 → '+now.length+'人',b:lines.join('<br>'),ms:6000});
   },
   finish(extra){
     if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
@@ -3593,6 +3610,8 @@ try{ const f=localStorage.getItem('sixmaxlab_range'); if(f) document.getElementB
 document.getElementById('optRange').onchange=e=>{ try{localStorage.setItem('sixmaxlab_range',e.target.checked?'1':'0');}catch(_){} };
 try{ const f=localStorage.getItem('sixmaxlab_autofold'); if(f) document.getElementById('optAutoFold').checked=f==='1'; }catch(e){}
 document.getElementById('optAutoFold').onchange=e=>{ try{localStorage.setItem('sixmaxlab_autofold',e.target.checked?'1':'0');}catch(_){} };
+function syncFast(){ const on=isBeginner(); document.getElementById('optFast').disabled=on; document.getElementById('begNote').classList.toggle('hidden',!on);
+  const sm=document.querySelector('#optBox>summary'); if(sm) sm.textContent=MT.on?'設定（自動進行など）':'設定（自動進行・初心者モードなど）'; }   // the tournament has no beginner mode: nothing about it is shown there   // the settings that depend on the mode, without redrawing
 function applyBeginner(){
   const on=isBeginner();
   document.getElementById('optFast').disabled=on;   // beginner mode always plays at the slow pace
