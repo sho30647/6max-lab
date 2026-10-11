@@ -3615,7 +3615,7 @@ document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.runn
   try{ await Store.init(); }
   catch(e){ console.error('init',e); setStatus('記録の読み込みでエラーが起きました（'+(e&&e.message||e)+'）。記録自体は保存先に残っています'); }
   if(!CLASS_LIST.length) buildPreflop();
-  setMsg(Store.hands.length?`${Store.hands.length}ハンドの記録を読み込みました`+(Store.mode==='cloud'?'':'（端末内の一時保存分）'):'ボット5人は各ポジションのレンジとエクイティ計算で打ちます');
+  setMsg(Store.hands.length?`${Store.hands.length}ハンドの記録を読み込みました`+(Store.mode==='cloud'?'':'（端末内の一時保存分）'):'');
   renderSession(); renderControls();
   initSheets();
 })();
