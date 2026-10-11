@@ -38,16 +38,22 @@ await shot('board-x');
 await p.click('#mttBoardX'); if (!await p.evaluate(() => document.getElementById('mttBoard').classList.contains('hidden'))) bad.push('board did not close');
 // 4. in the money: popup before the next hand
 await p.evaluate(() => { const T = MT.T; for (let h = 8.2; T.remaining > MTT.PAID && h < 11; h += 0.05) { MTT.advanceTo(T, h * 3600, MTT.heroTable(T)); MTT.rebalance(T); } T.players[0].stack = Math.max(T.players[0].stack, 300000); });
-const itm = await p.evaluate(async () => { const T = MT.T; await playHand(); const q = MT.popups.length; return { remaining: T.remaining, queued: q, shown: MT.itmShown }; });
-console.log('after a hand at', JSON.stringify(itm)); if (itm.remaining > MTT_PAID()) { /* not yet in the money: fine */ }
-function MTT_PAID() { return 15; }
-const itm2 = await p.evaluate(() => { window.__p2 = playHand(); return MT.popups.length; });
-await p.waitForFunction(() => !document.getElementById('mttPop').classList.contains('hidden') || !S.running, null, { timeout: 5000 });
-const ip = await p.evaluate(() => ({ text: document.getElementById('mttPop').innerText, hidden: document.getElementById('mttPop').classList.contains('hidden') }));
-console.log('itm popup', JSON.stringify(ip.text.replace(/\n/g, ' | ')), 'hidden', ip.hidden);
-if (!/インマネ確定|テーブルの人数が変わりました/.test(ip.text) && !ip.hidden) bad.push('unexpected popup: ' + ip.text); await shot('pop-itm');
-if (!ip.hidden) await p.click('#mttPopOk'); await p.evaluate(() => window.__p2);
+// the bubble burst while the clock ran between hands: the popup comes at the start of THE NEXT hand, first in the queue, and closes only with the button
+const rem = await p.evaluate(() => MT.T.remaining); console.log('remaining before the hand', rem);
+await p.evaluate(() => { window.__p2 = playHand(); });
+const seen = [];
+for (let k = 0; k < 8; k++) {
+  await p.waitForFunction(() => !document.getElementById('mttPop').classList.contains('hidden') || !S.running, null, { timeout: 5000 });
+  if (await p.evaluate(() => document.getElementById('mttPop').classList.contains('hidden'))) break;
+  seen.push(await p.evaluate(() => document.getElementById('mttPop').innerText.replace(/\n/g, ' | ')));
+  if (k === 0) { await p.waitForTimeout(8000); if (await p.evaluate(() => document.getElementById('mttPop').classList.contains('hidden'))) bad.push('the popup closed by itself'); await shot('pop-itm'); }
+  await p.click('#mttPopOk'); await p.waitForTimeout(50);
+}
+await p.evaluate(() => window.__p2);
+console.log('popups at the start of the hand:', JSON.stringify(seen));
+if (rem <= 15 && !(seen[0] && /インマネ確定/.test(seen[0]) && /おめでとう/.test(seen[0]))) bad.push('the in-the-money popup should be the first popup of the hand in which the money was reached: ' + JSON.stringify(seen));
 // 5. final result: the bust hand stays on the table with the button 「結果へ進む」; the button opens the result
+await p.evaluate(() => { setInterval(() => { const b = document.getElementById('mttPopOk'); if (b && !document.getElementById('mttPop').classList.contains('hidden')) b.click(); }, 30); });   // popups close only with the button: click them while the bust loop runs
 const fin0 = await p.evaluate(async () => { const T = MT.T; T.players[0].stack = 1; let n = 0; while (!MT.over && n < 60) { await playHand(); n++; } return { over: MT.over, shownEarly: !document.getElementById('mttResult').classList.contains('hidden'), btn: (document.getElementById('btnDeal') || {}).textContent }; });
 if (!fin0.over || fin0.shownEarly || fin0.btn !== '結果へ進む') bad.push('after the bust the hand should stay on the table with the button 結果へ進む: ' + JSON.stringify(fin0));
 await p.click('#btnDeal');

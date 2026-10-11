@@ -3320,7 +3320,7 @@ Object.assign(MT,{
   /* the tournament in progress: written after every hand (and when a hand is dealt, so that quitting in the middle of a hand counts as a fold) */
   persist(){
     if(!this.T||this.over) return;
-    const meta={v:1,T:MTT.snapshot(this.T),id:this.id,t0:this.t0,lastLevel:this.lastLevel,pend:this.pend||null,hc:this.hands.length,updated:Date.now()};
+    const meta={v:1,T:MTT.snapshot(this.T),id:this.id,t0:this.t0,lastLevel:this.lastLevel,pend:this.pend||null,itmq:this.popups.some(x=>x.fx==='itm')?1:0,hc:this.hands.length,updated:Date.now()};
     try{ localStorage.setItem(this.key()+'__act',JSON.stringify(Object.assign({hands:this.hands},meta))); }catch(e){ setStatus('ブラウザの保存容量が不足しています'); }
     this.saveCloud('mtt_active',{s:JSON.stringify(meta),updated:meta.updated});
   },
@@ -3352,7 +3352,7 @@ Object.assign(MT,{
   /* open the tournament that was in progress */
   resume(){
     const a=this.readActive(); if(!a||S.running) return;
-    this.T=MTT.restore(a.T); this.popups=[]; this.itmShown=a.T.remaining<=MTT.PAID; this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
+    this.T=MTT.restore(a.T); this.popups=[]; this.itmShown=a.T.remaining<=MTT.PAID&&!a.itmq; if(a.itmq) this.checkItm(this.T); this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
     const hd=this.pend?this.readHand():null, mid=!!(hd&&hd.tid===this.id&&hd.S&&hd.S.players&&hd.S.players.length);
     if(this.pend&&!mid) this.settlePend();
     this.on=true;
@@ -3443,7 +3443,7 @@ Object.assign(MT,{
   /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
   prepare(){
     const T=this.T; if(!T||T.players[0].out||T.done){ this.over=true; return false; }
-    const b=MTT.beginLiveHand(T); [SB,BB,ANTE]=[b.lvl.sb,b.lvl.bb,b.lvl.ante];
+    const b=MTT.beginLiveHand(T); [SB,BB,ANTE]=[b.lvl.sb,b.lvl.bb,b.lvl.ante]; this.checkItm(T);
     this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level; this.hs={avg:MTT.stats(T).avg};
     const notes=[]; if(b.breakMin){ notes.push('休憩'+b.breakMin+'分が明けました'); this.popups.push({k:'BREAK',t:'休憩明け',b:b.breakMin+'分の休憩が終わりました'}); }
     if(b.level!==this.lastLevel&&this.lastLevel){ notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）');
@@ -3465,9 +3465,14 @@ Object.assign(MT,{
     if(!T.players[0].out&&!T.done) this.tableChange(T,tbBefore,idsBefore,T.moves.slice(mv0));
     const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
     if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
-    if(!this.itmShown&&T.remaining<=MTT.PAID&&!T.players[0].out&&!T.done){ this.itmShown=true; this.popups.push({k:'IN THE MONEY',t:'おめでとう！インマネ確定！',d:'残り'+T.remaining+'人',b:'ここから先は賞金が確定です。いまの最低賞金は '+fmtYen(MTT.prizeFor(T.remaining))+'（'+T.remaining+'位）',ms:7500,fx:'itm'}); }
+    this.checkItm(T);
     this.pend=null; this.clearHand(); this.saveHandChunk();
     if(T.players[0].out||T.done) this.finish(); else this.persist();
+  },
+  /* the money is reached: the popup goes first in the queue. Checked after the hero's hand AND when the next hand is seated (the other tables play on while the clock runs between hands, so the bubble can burst there) */
+  checkItm(T){
+    if(this.itmShown||T.remaining>MTT.PAID||T.players[0].out||T.done) return;
+    this.itmShown=true; this.popups.unshift({k:'IN THE MONEY',t:'おめでとう！インマネ確定！',d:'残り'+T.remaining+'人',b:'ここから先は賞金が確定です。いまの最低賞金は '+fmtYen(MTT.prizeFor(T.remaining))+'（'+T.remaining+'位）',fx:'itm'});
   },
   /* the people at the hero's table changed (someone busted or was moved) or the hero was moved: a popup before the next hand */
   tableChange(T,tbBefore,idsBefore,moves){
@@ -3639,8 +3644,7 @@ Object.assign(MT,{
       if(window.__noPopup){ res(); return; }
       const el=document.getElementById('mttPop'); let done=false; const close=()=>{ if(done) return; done=true; el.classList.add('hidden'); res(); };
       el.innerHTML=`<div class="mttpop${p.fx?' '+p.fx:''}" role="dialog">${p.fx==='itm'?`<div class="mwconf">${this.confetti(36)}</div><svg class="itmcoin" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" fill="#F5B921" stroke="#B77800" stroke-width="6"/><circle cx="60" cy="60" r="38" fill="none" stroke="#FFE68A" stroke-width="4"/><text x="60" y="76" text-anchor="middle" font-size="46" font-weight="900" fill="#8A5700" font-family="sans-serif">¥</text></svg>`:''}<div class="pk">${p.k||''}</div><div class="pt">${p.t}</div>${p.d?`<div class="pd">${p.d}</div>`:''}<div class="pb">${p.b||''}</div><button class="btn main" id="mttPopOk" type="button">OK</button></div>`;
-      el.classList.remove('hidden'); document.getElementById('mttPopOk').onclick=close; el.onclick=e=>{ if(e.target===el) close(); };
-      setTimeout(close,p.ms||5000);
+      el.classList.remove('hidden'); el.onclick=null; document.getElementById('mttPopOk').onclick=close;   // only the button closes it (no timer, no tap outside)
     });
   },
   async flushPopups(){ while(this.popups.length){ const p=this.popups.shift(); await this.popup(p); } },
