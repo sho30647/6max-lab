@@ -471,6 +471,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-lobby>:not(#mttLobby){display:none!important}
 .wrap.inmtt #tab-ring>.subtabs{display:none}
 .mtt-play #session{display:none}
+@media(max-width:600px){.mtt-play .center{top:44%}}
 .mttblinds{display:none;color:#F1EEE4;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.02em;margin-top:4px;opacity:.9}
 .mtt-play .mttblinds{display:block}
 .mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
@@ -1397,9 +1398,9 @@ function actText(p){
   return {sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[a.k]+(a.a!=null?' '+amtShort(a.a):'')+(a.ai&&a.k!=='fold'?' (オールイン)':'');
 }
 const CHIP_DEN=[[500,'#7A4BB5'],[100,'#26262A'],[25,'#2E8B57'],[5,'#C0392B'],[1,'#F2EFE6']];
-function chipsHTML(ch){ // chip stacks that add up to the amount (in points)
-  let v=Math.round(ch/PT), h=''; if(v<=0) return '';
-  for(const [d,c] of CHIP_DEN){ const n=Math.floor(v/d); if(!n) continue; v-=n*d;
+function chipsHTML(ch){ // chip stacks that add up to the amount; one unit = half a big blind (the ring game's 1点)
+  let v=Math.round(ch/(BB/2)), h=''; if(v<=0) return '';
+  for(const [d,c] of CHIP_DEN){ const n0=Math.floor(v/d); if(!n0) continue; v-=n0*d; const n=Math.min(n0,12);
     const s=d===1?';--s:#3B6FB6':'';
     h+=`<span class="cstk" title="${d}点チップ×${n}">`+`<i style="--c:${c}${s}"></i>`.repeat(n)+'</span>'; }
   return `<span class="chips">${h}</span>`;
@@ -2104,8 +2105,9 @@ const Store={hands:[],mode:'memory',db:null,uid:null,cs:150,q:Promise.resolve(),
 const SEAT_XY=[[50,90],[9,64],[15,17],[50,5],[85,17],[91,64]];
 const SEAT_XY_M=[[50,87],[12,64],[16,27],[50,16],[84,27],[88,64]];   // phone: pulled in so the seats stay on screen
 const ringPts=(n,rx,ry,cy,k=1)=>Array.from({length:n},(_,i)=>{ const a=Math.PI/2+i*2*Math.PI/n; return [+(50+rx*k*Math.cos(a)).toFixed(1),+(cy+ry*k*Math.sin(a)).toFixed(1)]; });
+const SPOT_XY8_M=[[50,67],[31,66],[28,54],[30,33],[50,24],[70,33],[72,54],[69,66]];   // phone, 8 seats: bet spots clear of the plates and of the pot / blinds text
 const LAYOUTS={};   // seats are spread round the table, the hero (seat 0) at the bottom
-const layoutFor=n=>LAYOUTS[n]||(LAYOUTS[n]=n===6?{d:SEAT_XY,m:SEAT_XY_M,s:SPOT_XY_M}:{d:ringPts(n,41,42,47),m:ringPts(n,38,40,47),s:ringPts(n,38,40,53,0.55)});
+const layoutFor=n=>LAYOUTS[n]||(LAYOUTS[n]=n===6?{d:SEAT_XY,m:SEAT_XY_M,s:SPOT_XY_M}:{d:ringPts(n,41,42,47),m:ringPts(n,38,40,47),s:n===8?SPOT_XY8_M:ringPts(n,38,40,53,0.55)});
 const seatXY=i=>layoutFor(NS())[matchMedia("(max-width:600px)").matches?'m':'d'][i];
 const isPhone=()=>matchMedia('(max-width:600px)').matches;
 // phone: where each seat's bets / result badge go — clear of the seat plates, the board and each other
@@ -2145,12 +2147,12 @@ function render(){
     box.appendChild(el);
     // the felt in front of the seat (phones: fixed spots that stay clear of the plates and the board)
     const [bx,by]=ph?layoutFor(NS()).s[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
-    if(beg&&handLive){
-      // beginner: action bubble (+ chips) while the hand runs; win/lose/draw and the chip change once it is over
+    if(handLive){
+      // every mode: action bubble (+ chips) while the hand runs. Beginner mode only: win/lose/draw and the chip change once it is over
       const c=document.createElement('div'); c.style.left=spotX; c.style.top=spotY;
       if(S.done){
-        const r=resultOf(p,i); if(ph) return;   // phones: the result is shown in the seat plate
-        if(r){ c.className='res '+r.cls+(p.isHero?' me':''); c.innerHTML=`<b>${r.label}</b><span>${r.amt}</span>`; box.appendChild(c); }
+        if(beg){ const r=resultOf(p,i); if(ph) return;   // phones: the result is shown in the seat plate
+          if(r){ c.className='res '+r.cls+(p.isHero?' me':''); c.innerHTML=`<b>${r.label}</b><span>${r.amt}</span>`; box.appendChild(c); } }
       } else if(p.la&&p.la.st===S.street){
         const k=p.la.ai&&p.la.k!=='fold'?'ai':p.la.k, name=k==='ai'?'オールイン':{sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[k];
         c.className='abub'+(S.lastActor===i?' last':'');
@@ -2160,11 +2162,6 @@ function render(){
       } else if(p.bet>0){
         c.className='abub'; c.innerHTML=`<span class="amt">${chipsHTML(p.bet)}<span>${amtShort(p.bet)}</span></span>`; box.appendChild(c);
       }
-    } else if(p.bet>0){
-      const c=document.createElement('div'); c.className='betchip';
-      c.style.left=spotX; c.style.top=spotY;
-      c.textContent=amtShort(p.bet);
-      box.appendChild(c);
     }
     if(beg&&!ph&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot (phones use the plate's D mark)
       const dx=50-x, dy=46-y, n=Math.hypot(dx,dy)||1, d=document.createElement('div'); d.className='dbtn'; d.textContent='DEALER';
@@ -2172,7 +2169,7 @@ function render(){
     }
   });
   document.getElementById('board').innerHTML=S.board.map(c=>cardHTML(c)).join('');
-  document.getElementById('potChips').innerHTML=beg&&handLive?chipsHTML(potTotal()-S.players.reduce((a,p)=>a+p.bet,0)):'';
+  document.getElementById('potChips').innerHTML=handLive?chipsHTML(potTotal()-S.players.reduce((a,p)=>a+p.bet,0)):'';
   document.getElementById('pot').textContent=handLive?('ポット '+amtLong(potTotal())):'';
   if(MT.on) MT.hud();
 }
