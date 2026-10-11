@@ -292,6 +292,16 @@
     return ev.map(row => row.map(v => v / ns));
   }
 
+  /* ---------- save / restore (plain JSON; the rng state is part of it, so a restored tournament continues the same way) ---------- */
+  function snapshot(T) {
+    const o = {}; for (const k in T) if (k !== 'rng' && k !== 'onBust' && k !== 'onRebalance') o[k] = T[k];
+    o.rngS = T.rng.s; o.moves = T.moves.slice(-40); o.log = [];
+    return JSON.parse(JSON.stringify(o));
+  }
+  function restore(o) {
+    const T = JSON.parse(JSON.stringify(o)); T.rng = makeRng(0); T.rng.s = o.rngS >>> 0; delete T.rngS; return T;
+  }
+
   /* ---------- views for the UI ---------- */
   function stats(T) {
     const alive = T.players.filter(p => !p.out), n = alive.length, c = clockAt(T.clock);
@@ -303,5 +313,5 @@
   }
 
   return { FIELD, SEATS, START_STACK, BUY_IN, POOL, LEVELS, BREAKS_AFTER, PAYOUTS, PAID, prizeFor, TIMELINE, clockAt, handSeconds, create, lightHand, placeBusts, rebalance,
-    advanceTo, runAll, beginLiveHand, reportLiveHand, icmEV, stats, count, occ, liveTables, heroTable, makeRng };
+    advanceTo, runAll, beginLiveHand, reportLiveHand, icmEV, snapshot, restore, stats, count, occ, liveTables, heroTable, makeRng };
 });

@@ -3110,10 +3110,68 @@ function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carri
 Object.assign(MT,{
   speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[],
   key(){ return 'sixmaxlab_mtt__'+UserGate.safe(UserGate.get()||''); },
-  load(){ if(this.data) return this.data; let d=null; try{ d=JSON.parse(localStorage.getItem(this.key())||'null'); }catch(e){} this.data=d&&d.v===1?d:{v:1,bank0:3000000,results:[]}; return this.data; },
-  save(){ try{ localStorage.setItem(this.key(),JSON.stringify(this.data)); }catch(e){} },
-  bank(){ const d=this.load(); return d.bank0+d.results.reduce((a,r)=>a+r.net,0)-(this.T&&!this.over?MTT.BUY_IN:0); },
+  /* ---- storage: results + bankroll (data/users/{uid}/mtt_data), the tournament in progress (mtt_active) and its hands (mtt_h_<id>_<n>); a local copy of each ---- */
+  cq:Promise.resolve(), synced:false, hc:0,
+  load(){ if(this.data) return this.data; let d=null; try{ d=JSON.parse(localStorage.getItem(this.key())||'null'); }catch(e){} this.data=d&&d.v===1?d:{v:1,bank0:3000000,results:[],updated:0}; return this.data; },
+  save(){ const d=this.load(); d.updated=Date.now(); try{ localStorage.setItem(this.key(),JSON.stringify(d)); }catch(e){} this.saveCloud('mtt_data',{v:1,bank0:d.bank0,results:d.results,updated:d.updated}); },
+  async cloud(){ try{ const c=await FirebaseGate.ready(); return c&&c.user&&!c.user.isAnonymous?c:null; }catch(e){ return null; } },
+  saveCloud(name,body){ this.cq=this.cq.then(async()=>{ const c=await this.cloud(); if(!c) return; await c.db.doc('data/users/'+c.uid+'/'+name).set(body); }).catch(e=>console.warn('mtt save',name,e)); },
+  readActive(){ try{ const a=JSON.parse(localStorage.getItem(this.key()+'__act')||'null'); return a&&a.v===1&&a.T?a:null; }catch(e){ return null; } },
+  stored(){ return !this.T&&!!this.readActive(); },
+  /* the tournament in progress: written after every hand (and when a hand is dealt, so that quitting in the middle of a hand counts as a fold) */
+  persist(){
+    if(!this.T||this.over) return;
+    const meta={v:1,T:MTT.snapshot(this.T),id:this.id,t0:this.t0,lastLevel:this.lastLevel,pend:this.pend||null,hc:this.hands.length,updated:Date.now()};
+    try{ localStorage.setItem(this.key()+'__act',JSON.stringify(Object.assign({hands:this.hands},meta))); }catch(e){ setStatus('ブラウザの保存容量が不足しています'); }
+    this.saveCloud('mtt_active',{s:JSON.stringify(meta),updated:meta.updated});
+  },
+  saveHandChunk(){   // this tournament's hero hands, 150 per document
+    const n=this.hands.length; if(!n) return; const ci=Math.floor((n-1)/150);
+    this.saveCloud('mtt_h_'+this.id+'_'+ci,{h:this.hands.slice(ci*150),n:n-ci*150,tid:this.id,updated:Date.now()});
+  },
+  clearActive(){ try{ localStorage.removeItem(this.key()+'__act'); }catch(e){} this.saveCloud('mtt_active',{s:null,updated:Date.now()}); },
+  /* once per page load: take the newer of the local and the cloud copy */
+  async sync(){
+    if(this.synced) return; this.synced=true; const c=await this.cloud(); if(!c) return; const P='data/users/'+c.uid+'/';
+    try{
+      const [dd,da]=await Promise.all([c.db.doc(P+'mtt_data').get(),c.db.doc(P+'mtt_active').get()]);
+      const d=this.load();
+      if(dd.exists){ const x=dd.data(); if(x&&Array.isArray(x.results)&&(x.updated||0)>(d.updated||0)){ this.data={v:1,bank0:x.bank0,results:x.results,updated:x.updated}; try{ localStorage.setItem(this.key(),JSON.stringify(this.data)); }catch(e){} } else if(d.updated>(x&&x.updated||0)) this.save(); }
+      else if(d.results.length) this.save();
+      const la=this.readActive();
+      if(da.exists){ const x=da.data()||{};
+        if((x.updated||0)>((la&&la.updated)||0)){
+          if(x.s&&!this.T){ const m=JSON.parse(x.s); let hands=[]; for(let i=0;i<Math.ceil((m.hc||0)/150);i++){ const h=await c.db.doc(P+'mtt_h_'+m.id+'_'+i).get(); if(h.exists) hands=hands.concat(h.data().h||[]); }
+            try{ localStorage.setItem(this.key()+'__act',JSON.stringify(Object.assign({hands},m))); }catch(e){} }
+          else if(!x.s&&!this.T) try{ localStorage.removeItem(this.key()+'__act'); }catch(e){}
+        } else if(la&&(la.updated||0)>(x.updated||0)) this.persist2(la);
+      } else if(la) this.persist2(la);
+    }catch(e){ console.warn('mtt sync',e); }
+    if(Nav.screen==='mtt'&&!this.on) this.lobby();
+  },
+  persist2(a){ const m=Object.assign({},a); delete m.hands; this.saveCloud('mtt_active',{s:JSON.stringify(m),updated:a.updated}); },
+  /* open the tournament that was in progress */
+  resume(){
+    const a=this.readActive(); if(!a||S.running) return;
+    this.T=MTT.restore(a.T); this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
+    if(this.pend) this.settlePend();
+    this.on=true;
+    if(this.over){ this.on=false; this.view(); this.showResult(); return; }
+    this.preview(); this.view(); render(); renderControls(); this.hud();
+  },
+  /* a hand that was dealt but not finished (the page was closed): the hero folds it and pays the blind and ante he would have posted */
+  settlePend(){
+    const T=this.T, pd=this.pend; this.pend=null; if(!pd) return;
+    const n=pd.pids.length, b=pd.button, bl=n===2?{sb:b,bb:(b+1)%2}:{sb:(b+1)%n,bb:(b+2)%n}, hs=T.players[0].stack, ss={}, es={};
+    pd.pids.forEach(id=>{ ss[id]=T.players[id].stack; es[id]=ss[id]; });
+    let loss=0; if(bl.bb===0) loss=Math.min(hs,pd.lvl.ante)+Math.min(Math.max(0,hs-pd.lvl.ante),pd.lvl.bb); else if(bl.sb===0) loss=Math.min(hs,pd.lvl.sb);
+    es[0]-=loss; if(n>1) es[pd.pids[1]]+=loss;
+    MTT.reportLiveHand(T,{startStacks:ss,endStacks:es,seconds:40});
+    this.note='中断したハンドはフォールド扱いです'+(loss?'（'+fmtN(loss)+'を支払いました）':'');
+    if(T.players[0].out||T.done) this.finish();
+  },
   active(){ return !!this.T&&!this.over; },
+    bank(){ const d=this.load(); return d.bank0+d.results.reduce((a,r)=>a+r.net,0)-(this.T&&!this.over||this.stored()?MTT.BUY_IN:0); },
   /* which view the MTT screen shows: the lobby (no tournament running) or the table */
   view(){
     const el=document.getElementById('tab-play'), inM=Nav.screen==='mtt';
@@ -3122,6 +3180,7 @@ Object.assign(MT,{
     if(inM&&!this.on) this.lobby();
   },
   enter(){   // the MTT screen was opened
+    this.sync();
     if(this.active()&&!this.on){ this.on=true; this.preview(); }
     this.view(); if(this.on){ render(); renderControls(); }
   },
@@ -3139,7 +3198,7 @@ Object.assign(MT,{
   start(){
     if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
     this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
-    this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud();
+    this.pend=null; this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
   },
   /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
   prepare(){
@@ -3148,7 +3207,7 @@ Object.assign(MT,{
     this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level; this.hs={avg:MTT.stats(T).avg};
     const notes=[]; if(b.breakMin) notes.push('休憩'+b.breakMin+'分が明けました'); if(b.level!==this.lastLevel&&this.lastLevel) notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）'); this.lastLevel=b.level;
     if(notes.length) this.note=notes.join('・'); else if(!this.moved) this.note='';
-    this.moved=false; return true;
+    this.moved=false; this.pend={pids:b.pids,button:b.button,lvl:b.lvl}; this.persist(); return true;
   },
   /* after each hand: report it to the core (clock, other tables, busts, table moves) */
   afterHand(rec){
@@ -3162,13 +3221,14 @@ Object.assign(MT,{
     MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
     const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
     if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
-    if(T.players[0].out||T.done) this.finish();
+    this.pend=null; this.saveHandChunk();
+    if(T.players[0].out||T.done) this.finish(); else this.persist();
   },
   finish(extra){
     if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
     const d=this.load(), res=Object.assign({id:this.id,t:Date.now(),startedAt:this.t0,place,field:MTT.FIELD,buyIn:MTT.BUY_IN,prize,net:prize-MTT.BUY_IN,hands:this.hands.length,
       level:MTT.stats(T).level,speed:T.speed,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
-    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res;
+    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearActive(); this.saveHandChunk();
   },
   forfeit(){   // leaving a tournament counts as busting out now, in last place of those still in
     if(!this.active()||S.running) return; const T=this.T;
@@ -3305,20 +3365,20 @@ Object.assign(MT,{
   lobby(){
     const d=this.load(), el=document.getElementById('mttLobby'), rs=d.results, n=rs.length, net=rs.reduce((a,r)=>a+r.net,0);
     const itm=rs.filter(r=>r.itm).length, ft=rs.filter(r=>r.ft).length, avgP=n?rs.reduce((a,r)=>a+r.place,0)/n:0, bank=this.bank();
-    const canGo=bank>=MTT.BUY_IN&&!S.running&&!this.active();
+    const resumable=this.active()||this.stored(), canGo=bank>=MTT.BUY_IN&&!S.running&&!resumable;
     const rows=rs.slice(-15).reverse().map(r=>`<tr><td>${new Date(r.t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})}</td><td>${r.place}位</td><td>${fmtN(r.prize)}</td><td style="color:var(--${r.net>=0?'win':'loss'})">${r.net>=0?'+':''}${fmtN(r.net)}</td><td>${r.hands}</td><td>${fmtN(r.bankAfter)}</td></tr>`).join('');
     el.innerHTML=`<div class="mcard"><h2>バンクロール</h2><div class="mkv"><div>現在<b>${fmtYen(bank)}</b></div><div>初期<b>${fmtYen(d.bank0)}</b></div><div>通算収支<b style="color:var(--${net>=0?'win':'loss'})">${net>=0?'+':''}${fmtYen(net)}</b></div>
         <div>参加回数<b>${n}</b></div><div>ITM率<b>${n?(itm/n*100).toFixed(0)+'%':'—'}</b></div><div>ROI<b>${n?(net/(n*MTT.BUY_IN)*100).toFixed(0)+'%':'—'}</b></div><div>平均順位<b>${n?avgP.toFixed(1):'—'}</b></div><div>FT到達<b>${n?ft+'回':'—'}</b></div></div></div>
-      <div class="mcard"><h2>${this.active()?'進行中のトーナメントがあります':'新しいトーナメント'}</h2>
+      <div class="mcard"><h2>${resumable?'進行中のトーナメントがあります':'新しいトーナメント'}</h2>
         <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">8max・100人・持ち点100,000・参加費${fmtYen(MTT.BUY_IN)}・賞金総額${fmtYen(MTT.POOL)}（${MTT.PAID}位まで）・リバイなし。</p>
-        ${this.active()?`<div class="row"><button class="btn main grow" id="mttResume">続きから</button></div>`:`<div class="row" style="align-items:center"><label style="font-size:13px">進行速度 <select id="mttSpeed"><option value="1">×1（実戦並み・長い）</option><option value="2">×2（推奨）</option><option value="3">×3（短め）</option></select></label>
+        ${resumable?`<div class="row"><button class="btn main grow" id="mttResume">続きから</button></div>`:`<div class="row" style="align-items:center"><label style="font-size:13px">進行速度 <select id="mttSpeed"><option value="1">×1（実戦並み・長い）</option><option value="2">×2（推奨）</option><option value="3">×3（短め）</option></select></label>
         <button class="btn main grow" id="mttGo" ${canGo?'':'disabled'}>エントリー（${fmtYen(MTT.BUY_IN)}）</button></div>
         ${bank<MTT.BUY_IN?'<p style="color:var(--loss);font-size:13px">バンクロールが参加費に足りません。</p>':''}`}
         <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">賞金表</summary><table style="margin-top:6px"><tbody>${MTT.PAYOUTS.map((v,i)=>`<tr><td>${i+1}位</td><td>${fmtN(v)}</td><td>${(v/MTT.BUY_IN).toFixed(1)}x</td></tr>`).join('')}</tbody></table></details></div>
       ${n?`<div class="mcard"><h2>最近の結果</h2><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
     const sp=document.getElementById('mttSpeed'); if(sp){ sp.value=String(this.speed); sp.onchange=()=>{ this.speed=+sp.value; }; }
     const go=document.getElementById('mttGo'); if(go) go.onclick=()=>this.start();
-    const rb=document.getElementById('mttResume'); if(rb) rb.onclick=()=>this.enter();
+    const rb=document.getElementById('mttResume'); if(rb) rb.onclick=()=>{ if(this.active()) this.enter(); else this.resume(); };
   }
 });
 
