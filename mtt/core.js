@@ -240,14 +240,14 @@
   /* the next hand at the hero's table: waits out a break, brings the rest of the field up to the start time and moves the button.
      Returns who sits where, in seat order starting with the hero (that is the engine's seat order), the button's index in that list, and the level. */
   function beginLiveHand(T) {
-    const tb = heroTable(T); let st = Math.max(T.clock, tb.t); const c0 = clockAt(st);
+    const tb = heroTable(T); let st = Math.max(T.clock, tb.t); const c0 = clockAt(st), st0 = st;
     if (c0.inBreak) st = c0.breakEnd;
     advanceTo(T, st, tb); T.clock = Math.max(T.clock, st); tb.t = st;
     const seats = occ(tb), hs = T.players[0].seat, k = seats.indexOf(hs);
     const order = seats.map((_, i) => seats[(k + i) % seats.length]);   // hero first, then clockwise
     let bs = seats.find(x => x > tb.button); if (bs == null) bs = seats[0]; tb.button = bs;
     const c = clockAt(st);
-    return { tableId: tb.id, pids: order.map(x => tb.seats[x]), button: order.indexOf(bs), lvl: c.lvl, level: c.level + 1, at: st };
+    return { tableId: tb.id, pids: order.map(x => tb.seats[x]), button: order.indexOf(bs), lvl: c.lvl, level: c.level + 1, at: st, breakMin: c0.inBreak ? Math.round((c0.breakEnd - st0) / 60) : 0 };
   }
 
   /* res: {startStacks:{pid:chips}, endStacks:{pid:chips}, seconds}. Applies the hand, advances the clock and the field. */

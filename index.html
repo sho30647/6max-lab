@@ -464,6 +464,55 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .nv-tile b{display:block;font-size:14px;line-height:1.3}
 .nv-tile small{display:block;color:var(--muted);font-size:11px;margin-top:2px;line-height:1.35}
 @media (max-width:600px){ .navbar{order:3;width:100%} .navbar button{padding:4px 12px;font-size:13.5px} #home,#pf-menu{margin-top:4px} }
+/* ===== MTT ===== */
+#mttHud,#mttLobby{display:none}
+.mtt-play>#mttHud{display:block}
+.mtt-lobby>#mttLobby{display:block}
+.mtt-lobby>:not(#mttLobby){display:none!important}
+.wrap.inmtt #tab-ring>.subtabs{display:none}
+.mtt-play #stkNote,.mtt-play label:has(#optBeginner),.mtt-play label:has(#optRange){display:none}
+.mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
+.mtthud .mr1 small{font-family:inherit;font-size:12px;color:var(--muted);font-weight:500}
+.mtthud .mr1 .mlv{background:var(--ink);color:var(--bg);border-radius:6px;padding:0 8px;font-size:15px}
+.mtthud .mr2{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:4px 12px;margin-top:6px}
+.mtthud .mr2 div{font-size:12px;color:var(--muted);line-height:1.25}
+.mtthud .mr2 b{display:block;font-family:var(--num);font-size:18px;font-weight:600;color:var(--ink)}
+.mtthud .mr2 .hot b{color:var(--loss)}.mtthud .mr2 .good b{color:var(--win)}
+.mtthud .mbar{display:flex;gap:8px;align-items:center;margin-top:6px;font-size:12px;color:var(--muted)}
+.mtthud .mbar .mnote{flex:1;color:var(--brass);font-weight:700}
+.mtthud .mbar button{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;min-height:30px}
+#mttLobby{max-width:820px;margin:0 auto}
+#mttLobby .mcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+#mttLobby h2{margin:0 0 6px;font-size:16px}
+#mttLobby .mkv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 14px}
+#mttLobby .mkv div{font-size:12px;color:var(--muted)}#mttLobby .mkv b{display:block;font-family:var(--num);font-size:22px;color:var(--ink)}
+#mttLobby table{width:100%;border-collapse:collapse;font-size:13px}#mttLobby th,#mttLobby td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+#mttLobby th:first-child,#mttLobby td:first-child{text-align:left}
+.mttboard{background:#0f1a44;color:#fff;border-radius:16px;width:min(980px,100%);max-height:92vh;overflow:auto;padding:14px 16px;font-family:var(--num)}
+.mttboard h3{margin:0 0 8px;text-align:center;font-size:20px;letter-spacing:.04em}
+.mttboard .tabs2{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
+.mttboard .tabs2 button{background:#1d2a66;border:0;color:#cfd6ff;border-radius:8px;padding:5px 14px;font-size:14px}
+.mttboard .tabs2 button[aria-selected=true]{background:#fff;color:#0f1a44;font-weight:700}
+.mttboard .mbgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr);gap:10px}
+@media(max-width:700px){.mttboard .mbgrid{grid-template-columns:1fr}}
+.mttboard .mbpn{background:#1b2766;border-radius:10px;padding:8px 10px}
+.mttboard .mbpn h4{margin:0 0 4px;font-size:13px;color:#aab5ff;letter-spacing:.06em;font-weight:600}
+.mttboard .mbbig{font-size:78px;line-height:1;text-align:center;color:#f48a8a;font-weight:700}
+.mttboard .mblvl{text-align:center;font-size:22px;color:#c9d0ff;font-weight:600}
+.mttboard .mbbl{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #33408a;padding:4px 0;font-size:15px;color:#aab5ff}
+.mttboard .mbbl b{font-size:32px;color:#fff}
+.mttboard .mbrt{display:flex;justify-content:space-between;border-top:1px solid #33408a;padding:3px 0;font-size:15px}
+.mttboard .mbrt.me{background:#2c3a8a;border-radius:6px;padding:3px 6px}.mttboard .mbrt.cut{border-top:2px solid #f48a8a}
+.mttboard .mbrt span:first-child{color:#aab5ff}
+.mttboard .mbval{text-align:center;font-size:30px;font-weight:700;margin-bottom:4px}
+.mttboard .mbclose{display:block;margin:10px auto 0;background:#fff;color:#0f1a44;border:0;border-radius:9px;padding:8px 22px;font-weight:700}
+.mttboard .mbrank{font-size:14px;width:100%;border-collapse:collapse}.mttboard .mbrank td,.mttboard .mbrank th{padding:3px 8px;border-bottom:1px solid #2a3680;text-align:right}
+.mttboard .mbrank td:nth-child(2),.mttboard .mbrank th:nth-child(2){text-align:left}.mttboard .mbrank tr.me td{background:#2c3a8a}.mttboard .mbrank tr.cut td{border-top:2px solid #f48a8a}
+.mttres{background:var(--surface);color:var(--ink);border-radius:16px;width:min(420px,100%);padding:20px;text-align:center}
+.mttres .mrpl{font-family:var(--num);font-size:56px;font-weight:700;line-height:1}
+.mttres .mrpl small{font-size:22px;color:var(--muted)}
+.mttres .mramt{font-family:var(--num);font-size:30px;font-weight:700;margin:6px 0}
 </style>
 </head>
 <body>
@@ -503,6 +552,10 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
         <span><span class="t">プリフロ練習</span><span class="d">GTOのレンジで反復。ハンド別マスター、レンジ推定も</span></span>
       </button>
+      <button class="nv-card" data-nv="mtt" type="button">
+        <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4M8 20h8M10 17h4"/></svg></span>
+        <span><span class="t">MTT</span><span class="d">8maxの100人トーナメント。ブラインドが上がり、人が減り、バブルとICMを経験する</span></span>
+      </button>
       <button class="nv-card admin hidden" id="nvAdminCard" data-nv="admin" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg></span>
         <span><span class="t">管理者</span><span class="d">メンバーの成績、レンジ編集</span></span>
@@ -522,6 +575,8 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     </div>
   <!-- PLAY -->
   <div id="tab-play">
+    <div id="mttLobby"></div>
+    <div class="mtthud" id="mttHud"></div>
     <div class="tablebox" id="tablebox">
       <div class="felt"></div>
       <div class="center">
@@ -828,6 +883,10 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
 
 </div>
 
+<div class="modalOverlay hidden" id="mttBoard"></div>
+<div class="modalOverlay hidden" id="mttResult"></div>
+
+<script src="mtt/core.js"></script>
 <!-- Firebase (compat SDK: keeps the same db.collection()/db.doc() calls used below) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -1184,6 +1243,7 @@ const BOTS=[
   {name:'Rui',loose:1.0,aggr:1.2,three:1.35},
 ];
 /* ring practice (リング練習): the instructor's saved games replayed for students. RP.on = the ring table is driven by it. */
+const MT={on:false,over:false,T:null,hands:[]};   // tournament mode (see the MTT section below)
 const RP={on:false,mode:null,games:[],loaded:false,idx:0,game:null,follow:false,cursor:0,rec:null,cm:['','','',''],cmpLog:[],shownCm:[false,false,false,false],saved:null};
 const S={players:[],button:Math.floor(Math.random()*6),board:[],deck:[],street:0,currentBet:0,minRaise:BB,raiseCount:0,
   cursor:0,pfAggr:-1,lastAggr:-1,prevStreetAggr:-1,acting:-1,running:false,showdown:false,
@@ -1293,11 +1353,11 @@ const blindSeats=()=>{ const n=NS(), b=S.button; return n===2?{sb:b,bb:(b+1)%2,f
 const potTotal=()=>S.players.reduce((a,p)=>a+p.contrib,0);
 const active=()=>S.players.filter(p=>!p.folded);
 const r5=x=>Math.max(5,Math.round(x/5)*5);
-const bbs=ch=>{const v=Math.round(ch)/BB; return (Math.round(v*100)/100).toString();};
+const bbs=ch=>{const v=Math.round(ch)/BB, d=MT.on?10:100; return (Math.round(v*d)/d).toString();};   // tournament: one decimal
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 /* beginner mode: amounts shown as points (SB 1点, BB 2点, start 200点) and bets kept in whole points */
 const PT=50; // chips per point
-const isBeginner=()=>RP.on||document.getElementById('optBeginner').checked;   // the practice table always uses the beginner-mode table (points, bubbles, chips)
+const isBeginner=()=>!MT.on&&(RP.on||document.getElementById('optBeginner').checked);   // the practice table always uses the beginner-mode table (points, bubbles, chips)
 const pts=ch=>Math.round(ch/PT*10)/10;
 const amtShort=ch=>isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
 const amtLong=ch=>isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
@@ -1342,7 +1402,7 @@ function computeHeroProfile(){
    Hand flow
    ========================================================= */
 function setupHand(){
-  if(RP.on) RP.deal(); else { S.button=(S.button+1)%NS(); S.deck=shuffleDeck(); }
+  if(RP.on) RP.deal(); else if(MT.on) S.deck=shuffleDeck(); else { S.button=(S.button+1)%NS(); S.deck=shuffleDeck(); }   // tournament: MT.prepare() has seated the table and set the button
   S.board=[]; S.street=0; S.showdown=false; S.winners=[]; S.done=false; S.lastActor=-1; S.soleWin=new Set(); S.shared=new Set();
   S.heroDec=[]; S.heroSaw=[true,false,false,false]; S.log=[[],[],[],[]]; S.flopSeats=[];
   S.pfAggr=-1; S.lastAggr=-1; S.prevStreetAggr=-1; S.pfRaises=null; S.heroIPflop=null;
@@ -1375,12 +1435,14 @@ for(const [pos,str] of Object.entries(AF_KEEP)){ const keep=new Set(str.split(' 
   AF_POS[pos]=out; }
 function autoFoldHero(p){
   if(S.street!==0||p.acted) return false;
+  if(MT.on&&p.stack<30*BB) return false;              // short stacks: push/fold, not a fold chart
   if(S.currentBet-p.bet<=0) return false;             // free check (BB option) is never auto-folded
   const k=classKey(p.hole[0],p.hole[1]);
   if(AF_ALL.has(k)) return true;                     // all-range list: open & facing an open
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
 async function playHand(){
+  if(MT.on&&!MT.prepare()) return;
   S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
   for(let st=0;st<4;st++){
     if(st>0){
@@ -1400,11 +1462,11 @@ async function playHand(){
     while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
-  settle(); S.done=true; const rec=buildRecord(); if(!RP.on) await Store.add(rec);
+  settle(); S.done=true; const rec=buildRecord(); if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
-  if(!RP.on){ S.session.n++; S.session.net+=rec.net; }
-  if(!RP.on) Prefs.saveStacks(S.players.map(p=>p.stack));
+  if(!RP.on&&!MT.on){ S.session.n++; S.session.net+=rec.net; }
+  if(!RP.on&&!MT.on) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
   const txt=netTxt(rec.net);
@@ -1412,6 +1474,7 @@ async function playHand(){
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜'+wtxt+'あなた '+txt):('あなた '+txt));
   if(RP.on){ RP.handEnd(); return; }
   renderControls();
+  if(MT.on&&MT.over){ MT.showResult(); return; }
   if(S.autoFolded){ await sleep(350); if(!S.running&&!S.heroResolve&&curTab==='play'&&!RP.on) playHand(); return; }
   if(document.getElementById('optAuto').checked){ const slow=isBeginner()?1.6:1; await sleep(((S.showdown||S.heroSaw[1])?2600:1500)*slow); if(!S.running&&!S.heroResolve&&curTab==='play'&&!RP.on) playHand(); }
 }
@@ -2059,6 +2122,7 @@ function render(){
   document.getElementById('board').innerHTML=S.board.map(c=>cardHTML(c)).join('');
   document.getElementById('potChips').innerHTML=beg&&handLive?chipsHTML(potTotal()-S.players.reduce((a,p)=>a+p.bet,0)):'';
   document.getElementById('pot').textContent=handLive?('ポット '+amtLong(potTotal())):'';
+  if(MT.on) MT.hud();
 }
 function setMsg(t){document.getElementById('msg').textContent=t;}
 function setStatus(t){const e=document.getElementById('session'); e.dataset.status=t; renderSession();}
@@ -2078,8 +2142,8 @@ function renderControls(){
   if(RP.on){ RP.controls(area); return; }
   if(!S.heroResolve){
     if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; return; }
-    area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
-    document.getElementById('btnDeal').onclick=()=>{ if(!S.running) playHand(); };
+    area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${MT.on?(MT.over?'結果を見る':MT.hands.length?'次のハンドを配る':'最初のハンドを配る'):Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
+    document.getElementById('btnDeal').onclick=()=>{ if(MT.on&&MT.over){ MT.showResult(); return; } if(!S.running) playHand(); };
     return;
   }
   const p=S.players[0], toCall=S.currentBet-p.bet, maxTo=p.bet+p.stack;
@@ -3025,6 +3089,147 @@ Object.assign(RP,{
 });
 
 /* =========================================================
+   MTT (tournament): the hero's table is played by the ring engine above; the clock, the rest of the field and the table moves
+   live in mtt/core.js (window.MTT). MT is the UI/state glue.
+   ========================================================= */
+const fmtN=n=>Math.round(n).toLocaleString('en-US'), fmtYen=n=>(n<0?'−':'')+'¥'+fmtN(Math.abs(n));
+const mmss=sec=>{ sec=Math.max(0,Math.round(sec)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); };
+function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carried-over stacks)
+  [SB,BB,ANTE]=[50,100,0]; S.autoHero=false; S.heroResolve=null; S.running=false; S.done=false; S.board=[]; S.street=0; S.showdown=false;
+  initPlayers(); if(Prefs.stacks) S.players.forEach((p,i)=>{ const v=+Prefs.stacks[i]; if(isFinite(v)&&v>=0) p.stack=v; });
+  render(); renderSession(); renderControls();
+}
+Object.assign(MT,{
+  speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[],
+  key(){ return 'sixmaxlab_mtt__'+UserGate.safe(UserGate.get()||''); },
+  load(){ if(this.data) return this.data; let d=null; try{ d=JSON.parse(localStorage.getItem(this.key())||'null'); }catch(e){} this.data=d&&d.v===1?d:{v:1,bank0:3000000,results:[]}; return this.data; },
+  save(){ try{ localStorage.setItem(this.key(),JSON.stringify(this.data)); }catch(e){} },
+  bank(){ const d=this.load(); return d.bank0+d.results.reduce((a,r)=>a+r.net,0)-(this.T&&!this.over?MTT.BUY_IN:0); },
+  active(){ return !!this.T&&!this.over; },
+  /* which view the MTT screen shows: the lobby (no tournament running) or the table */
+  view(){
+    const el=document.getElementById('tab-play'), inM=Nav.screen==='mtt';
+    el.classList.toggle('mtt-lobby',inM&&!this.on); el.classList.toggle('mtt-play',inM&&this.on);
+    document.querySelector('.wrap').classList.toggle('inmtt',inM);
+    if(inM&&!this.on) this.lobby();
+  },
+  enter(){   // the MTT screen was opened
+    if(this.active()&&!this.on){ this.on=true; this.preview(); }
+    this.view(); if(this.on){ render(); renderControls(); }
+  },
+  leave(){ if(this.on){ this.on=false; ringRestore(); } },
+  /* the table as it stands between hands (after coming back from another screen) */
+  preview(){
+    const T=this.T, tb=MTT.heroTable(T), seats=MTT.occ(tb), k=seats.indexOf(T.players[0].seat);
+    const order=seats.map((_,i)=>seats[(k+i)%seats.length]); this.pids=order.map(x=>tb.seats[x]);
+    const c=MTT.clockAt(T.clock); [SB,BB,ANTE]=[c.lvl.sb,c.lvl.bb,c.lvl.ante];
+    S.players=this.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=Math.max(0,order.indexOf(tb.button)); S.board=[]; S.street=0; S.done=false; S.showdown=false; S.autoHero=false;
+    S.players.forEach(p=>p.folded=false);
+    setMsg(this.hands.length?'続きから':'エントリーしました。最初のハンドを配ってください');
+  },
+  mkPlayer(cp){ return {name:cp.name,isHero:cp.isHero,style:cp.style,stack:cp.stack,hole:[],folded:true,bet:0,contrib:0,allIn:false,acted:false,la:null,range:[0,100],postAggr:0,shown:false}; },
+  start(){
+    if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
+    this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
+    this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud();
+  },
+  /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
+  prepare(){
+    const T=this.T; if(!T||T.players[0].out||T.done){ this.over=true; return false; }
+    const b=MTT.beginLiveHand(T); [SB,BB,ANTE]=[b.lvl.sb,b.lvl.bb,b.lvl.ante];
+    this.pids=b.pids; S.players=b.pids.map(pid=>this.mkPlayer(T.players[pid])); S.button=b.button; this.level=b.level;
+    const notes=[]; if(b.breakMin) notes.push('休憩'+b.breakMin+'分が明けました'); if(b.level!==this.lastLevel&&this.lastLevel) notes.push('Lv'+b.level+' '+fmtN(b.lvl.sb)+'/'+fmtN(b.lvl.bb)+'（アンティ'+fmtN(b.lvl.ante)+'）'); this.lastLevel=b.level;
+    if(notes.length) this.note=notes.join('・'); else if(!this.moved) this.note='';
+    this.moved=false; return true;
+  },
+  /* after each hand: report it to the core (clock, other tables, busts, table moves) */
+  afterHand(rec){
+    const T=this.T, startStacks={}, endStacks={}, bl=S.board.length;
+    S.players.forEach((p,i)=>{ startStacks[this.pids[i]]=p.start; endStacks[this.pids[i]]=p.stack; });
+    const seconds=MTT.handSeconds({streets:bl>=5?3:bl>=4?2:bl>=3?1:0,showdown:S.showdown,allIn:S.players.some(p=>p.allIn)},T.rng.next,T.speed);
+    const h=S.players[0], handBB=BB, mr=h.start/(SB+BB+ANTE);
+    Object.assign(rec,{mt:1,tid:this.id,lvl:this.level,bb:handBB,ante:ANTE,left:T.remaining,m:Math.round(mr*10)/10,sb:SB});
+    this.hands.push(rec);
+    const mv0=T.moves.length;
+    MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
+    const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
+    if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
+    if(T.players[0].out||T.done) this.finish();
+  },
+  finish(extra){
+    if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
+    const d=this.load(), res=Object.assign({id:this.id,t:Date.now(),startedAt:this.t0,place,field:MTT.FIELD,buyIn:MTT.BUY_IN,prize,net:prize-MTT.BUY_IN,hands:this.hands.length,
+      level:MTT.stats(T).level,speed:T.speed,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
+    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res;
+  },
+  forfeit(){   // leaving a tournament counts as busting out now, in last place of those still in
+    if(!this.active()||S.running) return; const T=this.T;
+    MTT.placeBusts(T,[{id:0,start:T.players[0].stack}],T.clock); MTT.rebalance(T); this.finish({quit:true}); this.showResult(); renderControls();
+  },
+  showResult(){
+    const r=this.result; if(!r) return; const el=document.getElementById('mttResult');
+    el.innerHTML=`<div class="mttres"><div>${r.quit?'途中放棄':r.place===1?'優勝！':r.itm?'インマネ':'敗退'}</div><div class="mrpl">${r.place}<small>位 / ${r.field}人</small></div>
+      <div class="mramt" style="color:var(${r.net>=0?'--win':'--loss'})">${r.prize?fmtYen(r.prize)+' 獲得':'賞金なし'}　<small style="font-size:16px">収支 ${r.net>=0?'+':''}${fmtYen(r.net)}</small></div>
+      <div style="color:var(--muted);font-size:13px">${r.hands}ハンド・Lv${r.level}まで　バンクロール ${fmtYen(r.bankAfter)}</div>
+      <div class="row" style="margin-top:14px"><button class="btn main grow" id="mttResClose">ロビーへ</button></div></div>`;
+    el.classList.remove('hidden');
+    document.getElementById('mttResClose').onclick=()=>{ el.classList.add('hidden'); this.on=false; ringRestore(); this.view(); };
+  },
+  /* ---- HUD above the table ---- */
+  hud(){
+    const T=this.T, el=document.getElementById('mttHud'); if(!T||!el) return;
+    const st=MTT.stats(T), L=st.lvl, N=st.next, hero=T.players[0];
+    const itmTxt=st.itm?'インマネ確定':st.bubble?'バブル！':'あと'+st.toITM+'人';
+    el.innerHTML=`<div class="mr1"><span class="mlv">Lv${st.level}</span><span>${fmtN(L.sb)} / ${fmtN(L.bb)}</span><small>アンティ ${fmtN(L.ante)}</small>
+        <small>次 ${fmtN(N.sb)} / ${fmtN(N.bb)}（${fmtN(N.ante)}）</small><small>${st.inBreak?'休憩中':'次のレベルまで '+mmss(st.toNext)}</small></div>
+      <div class="mr2"><div>残り人数<b>${st.remaining} / ${st.field}</b></div><div class="${st.bubble?'hot':st.itm?'good':''}">インマネまで<b>${itmTxt}</b></div>
+        <div>平均スタック<b>${fmtN(st.avg)}</b>${Math.round(st.avgBB)}bb</div><div>あなた<b>${fmtN(hero.stack)}</b>${Math.round(st.heroBB)}bb・${st.heroRank}位</div>
+        <div>卓<b>${MTT.heroTable(T).id+1}</b>${st.hfh?'ハンドフォーハンド':st.tables+'卓で進行'}</div></div>
+      <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
+    document.getElementById('mttBoardBtn').onclick=()=>this.board();
+    document.getElementById('mttQuitBtn').onclick=()=>{ if(S.running){ setMsg('ハンドが終わってから放棄できます'); return; } if(confirm('途中放棄すると、いまの順位から最下位として扱い、参加費は戻りません。放棄しますか？')) this.forfeit(); };
+  },
+  /* ---- the board (tournament clock screen) and the ranking ---- */
+  board(tab){
+    const T=this.T; if(!T) return; tab=tab||this.boardTab||'clock'; this.boardTab=tab;
+    const st=MTT.stats(T), el=document.getElementById('mttBoard'), L=st.lvl, N=st.next;
+    const prizes=MTT.PAYOUTS.map((v,i)=>`<div class="mbrt${st.heroRank===i+1?' mbme':''}"><span>${i+1}位</span><span>${fmtN(v)}</span></div>`).join('');
+    const clock=`<div class="mbgrid"><div class="mbpn"><h4>賞金（入賞${MTT.PAID}位まで）</h4>${prizes}</div>
+      <div class="mbpn"><div class="mblvl">LEVEL ${st.level}${st.inBreak?'（休憩）':''}</div><div class="mbbig">${st.inBreak?'BREAK':mmss(st.toNext)}</div>
+        <div class="mbbl"><span>BLINDS</span><b>${fmtN(L.sb)} / ${fmtN(L.bb)}</b></div><div class="mbbl"><span>ANTE</span><b>${fmtN(L.ante)}</b></div>
+        <div class="mbbl"><span>NEXT LEVEL</span><b>${fmtN(N.sb)} / ${fmtN(N.bb)}（${fmtN(N.ante)}）</b></div></div>
+      <div class="mbpn"><h4>NEXT BREAK</h4><div class="mbval">${st.toBreak==null?'—':mmss(st.toBreak)}</div><h4>PLAYERS</h4><div class="mbval">${st.remaining} / ${st.field}</div>
+        <h4>AVG STACK</h4><div class="mbval">${fmtN(st.avg)}</div><h4>インマネまで</h4><div class="mbval">${st.itm?'確定':st.bubble?'バブル':'あと'+st.toITM+'人'}</div>
+        <h4>あなた</h4><div class="mbval">${fmtN(st.heroStack)}（${Math.round(st.heroBB)}bb）${st.heroRank}位</div></div></div>`;
+    const rows=st.ranked.map((p,i)=>`<tr class="${p.id===0?'mbme':''}${i===MTT.PAID?' mbcut':''}"><td>${i+1}</td><td>${escHtml(p.name)}</td><td>${fmtN(p.stack)}</td><td>${Math.round(p.stack/L.bb)}</td><td>${p.tableId+1}</td></tr>`).join('');
+    const rank=`<div class="mbpn"><table class="mbrank"><thead><tr><th>順位</th><th>名前</th><th>スタック</th><th>bb</th><th>卓</th></tr></thead><tbody>${rows}</tbody></table><div style="font-size:12px;color:#aab5ff;margin-top:6px">赤線＝入賞ライン（${MTT.PAID}位まで）</div></div>`;
+    el.innerHTML=`<div class="mttboard"><h3>MTT 100人</h3><div class="tabs2"><button data-bt="clock" aria-selected="${tab==='clock'}">クロック</button><button data-bt="rank" aria-selected="${tab==='rank'}">順位表</button></div>${tab==='clock'?clock:rank}<button class="mbclose" id="mttBoardClose">閉じる</button></div>`;
+    el.classList.remove('hidden');
+    el.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>this.board(b.dataset.bt));
+    document.getElementById('mttBoardClose').onclick=()=>el.classList.add('hidden');
+  },
+  /* ---- lobby ---- */
+  lobby(){
+    const d=this.load(), el=document.getElementById('mttLobby'), rs=d.results, n=rs.length, net=rs.reduce((a,r)=>a+r.net,0);
+    const itm=rs.filter(r=>r.itm).length, ft=rs.filter(r=>r.ft).length, avgP=n?rs.reduce((a,r)=>a+r.place,0)/n:0, bank=this.bank();
+    const canGo=bank>=MTT.BUY_IN&&!S.running&&!this.active();
+    const rows=rs.slice(-15).reverse().map(r=>`<tr><td>${new Date(r.t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})}</td><td>${r.place}位</td><td>${fmtN(r.prize)}</td><td style="color:var(--${r.net>=0?'win':'loss'})">${r.net>=0?'+':''}${fmtN(r.net)}</td><td>${r.hands}</td><td>${fmtN(r.bankAfter)}</td></tr>`).join('');
+    el.innerHTML=`<div class="mcard"><h2>バンクロール</h2><div class="mkv"><div>現在<b>${fmtYen(bank)}</b></div><div>初期<b>${fmtYen(d.bank0)}</b></div><div>通算収支<b style="color:var(--${net>=0?'win':'loss'})">${net>=0?'+':''}${fmtYen(net)}</b></div>
+        <div>参加回数<b>${n}</b></div><div>ITM率<b>${n?(itm/n*100).toFixed(0)+'%':'—'}</b></div><div>ROI<b>${n?(net/(n*MTT.BUY_IN)*100).toFixed(0)+'%':'—'}</b></div><div>平均順位<b>${n?avgP.toFixed(1):'—'}</b></div><div>FT到達<b>${n?ft+'回':'—'}</b></div></div></div>
+      <div class="mcard"><h2>${this.active()?'進行中のトーナメントがあります':'新しいトーナメント'}</h2>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">8max・100人・持ち点100,000・参加費${fmtYen(MTT.BUY_IN)}・賞金総額${fmtYen(MTT.POOL)}（${MTT.PAID}位まで）・リバイなし。</p>
+        ${this.active()?`<div class="row"><button class="btn main grow" id="mttResume">続きから</button></div>`:`<div class="row" style="align-items:center"><label style="font-size:13px">進行速度 <select id="mttSpeed"><option value="1">×1（実戦並み・長い）</option><option value="2">×2（推奨）</option><option value="3">×3（短め）</option></select></label>
+        <button class="btn main grow" id="mttGo" ${canGo?'':'disabled'}>エントリー（${fmtYen(MTT.BUY_IN)}）</button></div>
+        ${bank<MTT.BUY_IN?'<p style="color:var(--loss);font-size:13px">バンクロールが参加費に足りません。</p>':''}`}
+        <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">賞金表</summary><table style="margin-top:6px"><tbody>${MTT.PAYOUTS.map((v,i)=>`<tr><td>${i+1}位</td><td>${fmtN(v)}</td><td>${(v/MTT.BUY_IN).toFixed(1)}x</td></tr>`).join('')}</tbody></table></details></div>
+      ${n?`<div class="mcard"><h2>最近の結果</h2><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
+    const sp=document.getElementById('mttSpeed'); if(sp){ sp.value=String(this.speed); sp.onchange=()=>{ this.speed=+sp.value; }; }
+    const go=document.getElementById('mttGo'); if(go) go.onclick=()=>this.start();
+    const rb=document.getElementById('mttResume'); if(rb) rb.onclick=()=>this.enter();
+  }
+});
+
+/* =========================================================
    Tabs & init
    ========================================================= */
 // top tabs: ring / pf / admin. curTab = the visible ring sub-tab ('play','stats','hist'), or the top tab while the ring game is hidden
@@ -3051,20 +3256,21 @@ let pfBootP=Promise.resolve();
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
-    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu'||this.screen==='pf-depth'||this.screen==='pf-box')&&topTab==='pf');
+    const ok=this.screen==='rp-menu'||((this.screen==='ring'||this.screen==='rp'||this.screen==='mtt')&&topTab==='ring')||(this.screen==='admin'&&topTab==='admin')||((this.screen==='pf'||this.screen==='pf-menu'||this.screen==='pf-depth'||this.screen==='pf-box')&&topTab==='pf');
     if(!ok) this.screen=topTab; this.apply(); },
-  setScreen(s){ if(RP.on&&s!=='rp') RP.leave(); this.screen=s;
-    if(s==='rp') ringTab='play';
-    const need=s==='home'||s==='rp-menu'?null:s==='ring'||s==='rp'?'ring':s==='admin'?'admin':'pf';
+  setScreen(s){ if(MT.on&&s!=='mtt'){ if(S.running){ setMsg('ハンドが終わってから戻れます'); return; } MT.leave(); }
+    if(RP.on&&s!=='rp') RP.leave(); this.screen=s;
+    if(s==='rp'||s==='mtt') ringTab='play';
+    const need=s==='home'||s==='rp-menu'?null:s==='ring'||s==='rp'||s==='mtt'?'ring':s==='admin'?'admin':'pf';
     if(need&&topTab!==need) document.querySelector('.tabs button[data-tab="'+need+'"]').click();
-    if(s==='ring'||s==='rp') applyRingTab(); else if((s==='home'||s==='rp-menu')&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
-    this.apply(); if(s==='rp-menu') RP.renderMenu(); },
-  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':this.screen==='pf-depth'?'MTT':this.screen==='pf-box'?(window.PF&&window.PF.ctx?window.PF.ctx().name:'プリフロ練習'):(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
+    if(s==='ring'||s==='rp'||s==='mtt') applyRingTab(); else if((s==='home'||s==='rp-menu')&&topTab==='ring') curTab='home';   // a hidden ring game must not keep auto-dealing
+    this.apply(); if(s==='rp-menu') RP.renderMenu(); if(s==='mtt') MT.enter(); },
+  title(){ return this.screen==='rp'||this.screen==='rp-menu'?'リング練習':this.screen==='ring'?'リングゲーム':this.screen==='mtt'?'MTT':this.screen==='admin'?'管理者':this.screen==='pf-menu'?'プリフロ練習':this.screen==='pf-depth'?'MTT':this.screen==='pf-box'?(window.PF&&window.PF.ctx?window.PF.ctx().name:'プリフロ練習'):(window.PF&&window.PF.title?window.PF.title():'プリフロ練習'); },
   apply(){
     const s=this.screen, el=id=>document.getElementById(id);
     document.querySelector('.wrap').classList.toggle('onhome',s==='home');
     document.querySelector('.wrap').classList.toggle('onrpm',s==='rp-menu');
-    document.querySelector('.wrap').classList.toggle('inrp',s==='rp');
+    document.querySelector('.wrap').classList.toggle('inrp',s==='rp'); if(typeof MT.view==='function') MT.view();
     el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu'); el('tab-pf').classList.toggle('depth',s==='pf-depth');
     if(s==='pf-depth'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
     el('navbar').classList.toggle('hidden',s==='home');
@@ -3075,7 +3281,7 @@ const Nav={screen:'home',
     let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){}
     const show=s==='home'&&last&&last.s&&(last.s!=='admin'||owner);
     el('nvResume').classList.toggle('hidden',!show);
-    if(show) el('nvResumeLbl').textContent=({ring:'リングゲーム',admin:'管理者','pf-menu':'プリフロ練習','rp-menu':'リング練習'}[last.s])||('プリフロ練習 ・ '+last.t);
+    if(show) el('nvResumeLbl').textContent=({ring:'リングゲーム',mtt:'MTT',admin:'管理者','pf-menu':'プリフロ練習','rp-menu':'リング練習'}[last.s])||('プリフロ練習 ・ '+last.t);
   },
   async pfGo(kind,arg){
     this.setScreen('pf'); await pfBootP;
