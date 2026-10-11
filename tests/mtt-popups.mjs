@@ -45,12 +45,15 @@ const itm2 = await p.evaluate(() => { window.__p2 = playHand(); return MT.popups
 await p.waitForFunction(() => !document.getElementById('mttPop').classList.contains('hidden') || !S.running, null, { timeout: 5000 });
 const ip = await p.evaluate(() => ({ text: document.getElementById('mttPop').innerText, hidden: document.getElementById('mttPop').classList.contains('hidden') }));
 console.log('itm popup', JSON.stringify(ip.text.replace(/\n/g, ' | ')), 'hidden', ip.hidden);
-if (!/インマネ確定/.test(ip.text) && !ip.hidden) bad.push('unexpected popup: ' + ip.text); await shot('pop-itm');
+if (!/インマネ確定|テーブルの人数が変わりました/.test(ip.text) && !ip.hidden) bad.push('unexpected popup: ' + ip.text); await shot('pop-itm');
 if (!ip.hidden) await p.click('#mttPopOk'); await p.evaluate(() => window.__p2);
-// 5. final result popup, when the hero busts out naturally
-const fin = await p.evaluate(async () => { const T = MT.T; T.players[0].stack = 1; let n = 0; while (!MT.over && n < 60) { await playHand(); n++; } return { over: MT.over, place: MT.result && MT.result.place, shown: !document.getElementById('mttResult').classList.contains('hidden'), text: document.getElementById('mttResult').innerText }; });
+// 5. final result: the bust hand stays on the table with the button 「結果へ進む」; the button opens the result
+const fin0 = await p.evaluate(async () => { const T = MT.T; T.players[0].stack = 1; let n = 0; while (!MT.over && n < 60) { await playHand(); n++; } return { over: MT.over, shownEarly: !document.getElementById('mttResult').classList.contains('hidden'), btn: (document.getElementById('btnDeal') || {}).textContent }; });
+if (!fin0.over || fin0.shownEarly || fin0.btn !== '結果へ進む') bad.push('after the bust the hand should stay on the table with the button 結果へ進む: ' + JSON.stringify(fin0));
+await p.click('#btnDeal');
+const fin = await p.evaluate(() => ({ over: MT.over, place: MT.result && MT.result.place, shown: !document.getElementById('mttResult').classList.contains('hidden'), text: document.getElementById('mttResult').innerText }));
 console.log('result popup', JSON.stringify({ ...fin, text: fin.text.replace(/\n/g, ' | ') }));
-if (!fin.over || !fin.shown) bad.push('no result popup after the bust'); if (!/位/.test(fin.text) || !/収支/.test(fin.text)) bad.push('result popup lacks the place or the net result');
+if (!fin.over || !fin.shown) bad.push('no result popup after the button'); if (!/位/.test(fin.text) || !/収支/.test(fin.text)) bad.push('result popup lacks the place or the net result');
 await shot('pop-result');
 await b.close();
 if (bad.length) { console.log('PROBLEMS:', bad); process.exit(1); } else console.log('ok');

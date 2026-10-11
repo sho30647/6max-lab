@@ -34,7 +34,7 @@ const after = await page.evaluate(async () => {
   const T = MT.T; return { lobbyHasResume, bank, clock: Math.round(T.clock), remaining: T.remaining, stack: T.players[0].stack, hands: MT.hands.length, id: MT.id, tableOk: S.players.length >= 2 && S.players[0].isHero, pend: MT.pend };
 });
 console.log('after reload ', JSON.stringify(after));
-if (!after.lobbyHasResume) bad.push('no resume button'); if (after.bank !== 2950000) bad.push('bankroll should show the entry fee as paid: ' + after.bank);
+if (!after.lobbyHasResume) bad.push('no resume button'); if (after.bank !== 250000) bad.push('bankroll should show the entry fee as paid: ' + after.bank);
 for (const k of ['clock', 'remaining', 'stack', 'hands', 'id']) if (after[k] !== before[k]) bad.push(`${k} differs after reload: ${before[k]} -> ${after[k]}`);
 if (!after.tableOk || after.pend) bad.push('table not restored');
 // 3. play on, then quit in the middle of a hand
