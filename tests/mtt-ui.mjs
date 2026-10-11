@@ -48,6 +48,9 @@ async function run(viewport, tag) {
   await page.evaluate(() => MT.board('rank')); await shot('5-board-rank');
   await page.evaluate(() => document.getElementById('mttBoard').classList.add('hidden'));
   await page.evaluate(() => { MT.on = false; ringRestore(); MT.view(); }); await shot('6-lobby-after');
+  const an = await page.evaluate(() => ({ text: document.getElementById('mttLobby').innerText, arch: MT.arch().length, hands: MT.hands.length }));
+  if (!/分析/.test(an.text)) bad.push(tag + ': no analysis card'); if (an.arch !== an.hands) bad.push(tag + ': hands not archived ' + an.arch + '/' + an.hands);
+  if (an.hands >= 20 && !/スタックの深さ別/.test(an.text)) bad.push(tag + ': no depth table');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem(MT.key())).results.length);
   if (saved !== 1) bad.push(tag + ': result not saved (' + saved + ')');
   // back to the ring: 6 seats, 0.5/1bb

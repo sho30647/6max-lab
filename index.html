@@ -3159,6 +3159,27 @@ Object.assign(MT,{
     if(this.over){ this.on=false; this.view(); this.showResult(); return; }
     this.preview(); this.view(); render(); renderControls(); this.hud();
   },
+  /* ---- analysis: the hero's hands from finished tournaments (a slim copy kept on this device) and the one in progress ---- */
+  slim(r){ const mine=(r.sk||'').split(' ').find(x=>x.startsWith(r.pos+':')); return {tid:r.tid,t:r.t,pos:r.pos,hc:r.hc,cls:r.cls,pf:r.pf,vpip:r.vpip,pfr:r.pfr,o3:r.o3,b3:r.b3,sf:r.sf,sd:r.sd,wsd:r.wsd,net:r.net,lvl:r.lvl,bb:r.bb,left:r.left,m:r.m,dep:mine?+mine.split(':')[1]:null}; },
+  archKey(){ return this.key()+'__hands'; },
+  arch(){ try{ return JSON.parse(localStorage.getItem(this.archKey())||'[]'); }catch(e){ return []; } },
+  archive(){ const a=this.arch().filter(h=>h.tid!==this.id).concat(this.hands.map(r=>this.slim(r))).slice(-5000); try{ localStorage.setItem(this.archKey(),JSON.stringify(a)); }catch(e){} },
+  allHands(){ const cur=this.T&&!this.over?this.hands.map(r=>this.slim(r)):[]; return this.arch().filter(h=>!cur.length||h.tid!==this.id).concat(cur); },
+  analysis(){
+    const hs=this.allHands(); if(hs.length<20) return '<p style="font-size:13px;color:var(--muted);margin:0">ハンドが20以上たまると、深さ別・ステージ別の成績を表示します（いま '+hs.length+' ハンド）。</p>';
+    const agg=l=>{ const n=l.length, net=l.reduce((a,h)=>a+h.net,0), v=l.filter(h=>h.vpip).length, f=l.filter(h=>h.pfr).length, t=l.filter(h=>h.b3).length; return {n,v:v/n*100,f:f/n*100,t:t/n*100,bb100:net/n*100,net}; };
+    const tbl=(title,rows)=>`<h3 style="font-size:14px;margin:12px 0 4px">${title}</h3><div class="tscroll"><table><thead><tr><th></th><th>ハンド</th><th>VPIP</th><th>PFR</th><th>3ベット</th><th>収支 bb</th><th>bb/100</th></tr></thead><tbody>${rows.map(([k,l])=>{ if(!l.length) return ''; const a=agg(l); return `<tr><td>${k}</td><td>${a.n}</td><td>${a.v.toFixed(0)}%</td><td>${a.f.toFixed(0)}%</td><td>${a.t.toFixed(1)}%</td><td style="color:var(--${a.net>=0?'win':'loss'})">${a.net>=0?'+':''}${a.net.toFixed(0)}</td><td style="color:var(--${a.bb100>=0?'win':'loss'})">${a.bb100>=0?'+':''}${a.bb100.toFixed(0)}</td></tr>`; }).join('')}</tbody></table></div>`;
+    const zones=[['〜10bb',h=>h.dep<10],['10〜20bb',h=>h.dep>=10&&h.dep<20],['20〜40bb',h=>h.dep>=20&&h.dep<40],['40〜100bb',h=>h.dep>=40&&h.dep<100],['100bb〜',h=>h.dep>=100]];
+    const stages=[['61人以上',h=>h.left>60],['31〜60人',h=>h.left>30&&h.left<=60],['バブル前（16〜30人）',h=>h.left>MTT.PAID&&h.left<=30],['インマネ後（9〜15人）',h=>h.left>MTT.SEATS&&h.left<=MTT.PAID],['ファイナルテーブル',h=>h.left<=MTT.SEATS]];
+    const pos=['UTG','UTG1','LJ','HJ','CO','BTN','SB','BB'];
+    return tbl('スタックの深さ別',zones.map(([k,f])=>[k,hs.filter(h=>h.dep!=null&&f(h))]))+tbl('ステージ別（残り人数）',stages.map(([k,f])=>[k,hs.filter(f)]))+tbl('ポジション別',pos.map(k=>[k,hs.filter(h=>h.pos===k)]))
+      +'<p style="font-size:12px;color:var(--muted);margin:8px 0 0">収支はそのハンドのbbで割った値です（ブラインドが上がるため、チップではなくbbで比べます）。この端末に残っているハンドの集計です。</p>';
+  },
+  chart(){
+    const d=this.load(), rs=d.results; if(rs.length<2) return '';
+    const pts=[d.bank0].concat(rs.map(r=>r.bankAfter)), W=560,H=130,pad=6, lo=Math.min(...pts),hi=Math.max(...pts), sx=i=>pad+i*(W-2*pad)/(pts.length-1), sy=v=>H-pad-(v-lo)/Math.max(1,hi-lo)*(H-2*pad);
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><polyline fill="none" stroke="var(--sd)" stroke-width="2" points="${pts.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ')}"/><line x1="${pad}" x2="${W-pad}" y1="${sy(d.bank0).toFixed(1)}" y2="${sy(d.bank0).toFixed(1)}" stroke="var(--line)" stroke-dasharray="4 4"/></svg><div style="font-size:12px;color:var(--muted)">バンクロールの推移（最低 ${fmtYen(lo)}・最高 ${fmtYen(hi)}・点線＝初期）</div>`;
+  },
   /* a hand that was dealt but not finished (the page was closed): the hero folds it and pays the blind and ante he would have posted */
   settlePend(){
     const T=this.T, pd=this.pend; this.pend=null; if(!pd) return;
@@ -3228,7 +3249,7 @@ Object.assign(MT,{
     if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
     const d=this.load(), res=Object.assign({id:this.id,t:Date.now(),startedAt:this.t0,place,field:MTT.FIELD,buyIn:MTT.BUY_IN,prize,net:prize-MTT.BUY_IN,hands:this.hands.length,
       level:MTT.stats(T).level,speed:T.speed,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
-    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearActive(); this.saveHandChunk();
+    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearActive(); this.saveHandChunk(); this.archive();
   },
   forfeit(){   // leaving a tournament counts as busting out now, in last place of those still in
     if(!this.active()||S.running) return; const T=this.T;
@@ -3375,6 +3396,7 @@ Object.assign(MT,{
         <button class="btn main grow" id="mttGo" ${canGo?'':'disabled'}>エントリー（${fmtYen(MTT.BUY_IN)}）</button></div>
         ${bank<MTT.BUY_IN?'<p style="color:var(--loss);font-size:13px">バンクロールが参加費に足りません。</p>':''}`}
         <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">賞金表</summary><table style="margin-top:6px"><tbody>${MTT.PAYOUTS.map((v,i)=>`<tr><td>${i+1}位</td><td>${fmtN(v)}</td><td>${(v/MTT.BUY_IN).toFixed(1)}x</td></tr>`).join('')}</tbody></table></details></div>
+      <div class="mcard"><h2>分析</h2>${this.chart()}${this.analysis()}</div>
       ${n?`<div class="mcard"><h2>最近の結果</h2><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
     const sp=document.getElementById('mttSpeed'); if(sp){ sp.value=String(this.speed); sp.onchange=()=>{ this.speed=+sp.value; }; }
     const go=document.getElementById('mttGo'); if(go) go.onclick=()=>this.start();
