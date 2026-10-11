@@ -470,6 +470,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-lobby>#mttLobby{display:block}
 .mtt-lobby>:not(#mttLobby){display:none!important}
 .wrap.inmtt #tab-ring>.subtabs{display:none}
+.mtt-play #session{display:none}
 .mtt-play #stkNote,.mtt-play label:has(#optBeginner),.mtt-play label:has(#optRange){display:none}
 .mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
@@ -495,7 +496,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mttboard .tabs2 button{background:#1d2a66;border:0;color:#cfd6ff;border-radius:8px;padding:5px 14px;font-size:14px}
 .mttboard .tabs2 button[aria-selected=true]{background:#fff;color:#0f1a44;font-weight:700}
 .mttboard .mbgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr);gap:10px}
-@media(max-width:700px){.mttboard .mbgrid{grid-template-columns:1fr}}
+@media(max-width:700px){.mttboard .mbgrid{grid-template-columns:1fr}.mttboard .mbgrid .mbpn:nth-child(2){order:-1}.mttboard .mbbig{font-size:64px}}
 .mttboard .mbpn{background:#1b2766;border-radius:10px;padding:8px 10px}
 .mttboard .mbpn h4{margin:0 0 4px;font-size:13px;color:#aab5ff;letter-spacing:.06em;font-weight:600}
 .mttboard .mbbig{font-size:78px;line-height:1;text-align:center;color:#f48a8a;font-weight:700}
@@ -513,6 +514,14 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mttres .mrpl{font-family:var(--num);font-size:56px;font-weight:700;line-height:1}
 .mttres .mrpl small{font-size:22px;color:var(--muted)}
 .mttres .mramt{font-family:var(--num);font-size:30px;font-weight:700;margin:6px 0}
+@media(max-width:600px){
+  .mtthud{padding:6px 10px;margin-bottom:4px;border-radius:10px}
+  .mtthud .mr1{font-size:16px;gap:2px 10px}.mtthud .mr1 small{font-size:11px}.mtthud .mr1 .mlv{font-size:13px}
+  .mtthud .mr2{grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 8px;margin-top:3px}
+  .mtthud .mr2 div{font-size:10px;line-height:1.15}.mtthud .mr2 b{font-size:15px;display:block}
+  .mtthud .mr2 div:nth-child(4){grid-column:span 2}.mtthud .mr2 div:nth-child(5){order:3}.mtthud .mr2 small{font-size:10px}
+  .mtthud .mbar{margin-top:3px}.mtthud .mbar button{min-height:26px;padding:2px 8px}
+}
 </style>
 </head>
 <body>
