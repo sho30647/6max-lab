@@ -1441,7 +1441,7 @@ function setupHand(){
   S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const bl=blindSeats(), sb=bl.sb, bb=bl.bb;
-  if(ANTE>0){ const a=S.players[bb], v=Math.min(ANTE,a.stack); a.stack-=v; a.contrib+=v; }   // big-blind ante: dead money in the pot, not part of the bet to call
+  if(ANTE>0){ const a=S.players[bb], v=Math.min(ANTE,a.stack); a.stack-=v; a.contrib+=v; a.ante=v; }   // big-blind ante: dead money in the pot, not part of the bet to call
   put(S.players[sb],SB); S.players[sb].la={k:'sb',a:S.players[sb].bet,st:0};
   put(S.players[bb],BB); S.players[bb].la={k:'bb',a:S.players[bb].bet,st:0};
   S.currentBet=BB; S.minRaise=BB; S.raiseCount=1; S.cursor=bl.first;
@@ -1988,12 +1988,14 @@ function settle(){
   const P=S.players, live=P.map((p,i)=>i).filter(i=>!P[i].folded);
   if(live.length===1){P[live[0]].stack+=potTotal(); S.winners=[live[0]]; S.soleWin.add(live[0]); return;}
   const scores={}; live.forEach(i=>scores[i]=evalHand(P[i].hole.concat(S.board)));
-  const levels=[...new Set(P.map(p=>p.contrib).filter(x=>x>0))].sort((a,b)=>a-b);
-  let prev=0; const win=new Set();
+  // the big-blind ante is dead money in the main pot: it must not make a side-pot level of its own (that handed an unmatched ante back to the big blind when he lost)
+  const anteOf=p=>p.ante&&p.contrib>p.ante?p.ante:0, bet=p=>p.contrib-anteOf(p), antes=P.reduce((a,p)=>a+anteOf(p),0);
+  const levels=[...new Set(P.map(bet).filter(x=>x>0))].sort((a,b)=>a-b);
+  let prev=0; const win=new Set(); let first=true;
   const order=postOrder;
   for(const lvl of levels){
-    let amt=0; P.forEach(p=>{amt+=Math.min(p.contrib,lvl)-Math.min(p.contrib,prev);});
-    const elig=live.filter(i=>P[i].contrib>=lvl);
+    let amt=first?antes:0; first=false; P.forEach(p=>{amt+=Math.min(bet(p),lvl)-Math.min(bet(p),prev);});
+    const elig=live.filter(i=>bet(P[i])>=lvl);
     prev=lvl; if(amt<=0) continue;
     if(elig.length===0){ continue; }
     const best=Math.max(...elig.map(i=>scores[i]));

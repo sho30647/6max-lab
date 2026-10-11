@@ -57,6 +57,21 @@ const res = await page.evaluate(async () => {
     if (n > 3 && bl.first !== (btn + 3) % n) bad.push('UTG first');
     if (bad.length) out.push({ n, hands: 0, sd: 0, bad: ['setup btn=' + btn + ': ' + bad.join(',')] });
   }
+  // the big-blind ante is dead money in the main pot: a losing big blind does not get it back
+  const settleCase = (holes, contribs, antes, folded) => {
+    initPlayers(contribs.length); S.board = [9, 31, 38, 47, 12]; S.soleWin = new Set(); S.shared = new Set(); S.button = 0;
+    S.players.forEach((p, i) => { p.hole = holes[i]; p.contrib = contribs[i]; p.ante = antes[i]; p.stack = 10000 - contribs[i]; p.folded = !!folded[i]; });
+    settle(); return S.players.map(p => p.stack - 10000);   // net result of each player
+  };
+  const AA = [48, 49], SEVEN_DEUCE = [22, 3], bad2 = [];
+  let r1 = settleCase([AA, SEVEN_DEUCE], [400, 800], [0, 400], [0, 0]);   // the small blind wins: pot 1200 = his 400 + the big blind's 400 ante + 400 bet
+  if (r1[0] !== 800 || r1[1] !== -800) bad2.push('ante returned to the losing big blind: ' + r1);
+  r1 = settleCase([SEVEN_DEUCE, AA], [400, 800], [0, 400], [0, 0]);   // the big blind wins: his net is the small blind's 400
+  if (r1[0] !== -400 || r1[1] !== 400) bad2.push('big blind wins: ' + r1);
+  r1 = settleCase([AA, [10, 20], SEVEN_DEUCE], [400, 200, 800], [0, 0, 400], [0, 1, 0]);   // three players, the small blind folded
+  if (r1[0] !== 1000 || r1[1] !== -200 || r1[2] !== -800 || r1.reduce((a, b) => a + b, 0) !== 0) bad2.push('three-way: ' + r1);
+  r1 = settleCase([AA, SEVEN_DEUCE], [800, 800], [0, 400], [0, 0]);   // both put in 800 beyond... (the ante is extra): the winner takes everything
+  out.push({ n: 'settle', hands: 0, sd: 0, bad: bad2 });
   return out;
 });
 await browser.close();
