@@ -476,7 +476,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mtt-play .mttblinds{display:block}
 .mttblinds small{font-size:12px;font-weight:500;opacity:.8;margin-left:4px}
 @media(max-width:600px){.mttblinds{font-size:12px;margin-top:2px;white-space:nowrap}.mttblinds small{font-size:11px;margin-left:3px}.mttpop .pt{font-size:23px}}
-.mtt-play #stkNote,.mtt-play label:has(#optBeginner),.mtt-play label:has(#optRange){display:none}
+.mtt-play #stkNote,.mtt-play label:has(#optBeginner){display:none}
 .mtthud{max-width:820px;margin:0 auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mtthud .mr1{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:baseline;font-family:var(--num);font-size:19px;font-weight:600;letter-spacing:.01em}
 .mtthud .mr1 small{font-family:inherit;font-size:12px;color:var(--muted);font-weight:500}
@@ -1386,12 +1386,13 @@ const pts=ch=>Math.round(ch/PT*10)/10;
 const mtChips=()=>MT.on&&MT.unit==='chip';   // tournament: show chips (点数) instead of bb
 const chipTxt=ch=>Math.round(ch).toLocaleString('en-US');
 const amtShort=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
+const ptTxt=ch=>mtChips()?chipTxt(ch)+'点':MT.on?bbs(ch)+'bb':pts(ch)+'点';   // pot and win/lose amounts: 点 (half a big blind) as in beginner mode; tournament: chips, or bb when switched
 const amtLong=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
 const netTxt=bb=>{ if(mtChips()){ const v=Math.round(bb*BB); return (v>0?'+':'')+chipTxt(v); } const v=isBeginner()?Math.round(bb*BB/PT*10)/10:Math.round(bb*100)/100; return (v>0?'+':'')+v+(isBeginner()?'点':'bb'); };
 const roundBet=v=>isBeginner()?Math.round(v/PT)*PT:Math.round(v);
 function actText(p){
   const a=p.la; if(!a) return '';
-  if(isBeginner()){
+  if(true){   // the same format in every mode (the beginner-mode one)
     if(a.ai&&a.k!=='fold') return 'オールイン '+amtShort(a.a);
     return {sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[a.k]+(a.a!=null?' '+amtShort(a.a):'');
   }
@@ -1550,7 +1551,7 @@ async function bettingRound(){
     else if(p.isHero&&!S.autoHero&&document.getElementById('optAutoFold').checked&&autoFoldHero(p)){ dec={act:'fold'}; S.autoFolded=true; }
     else if(p.isHero&&!S.autoHero){ if(MT.on) MT.saveHand(); dec=await heroDecide(); }
     else { await sleep(delay()); dec=botDecide(seat); }
-    const rv=(!RP.on&&p.isHero&&S.street===0&&!S.autoFolded&&document.getElementById('optRange').checked)?pfReviewSpot(seat,dec):null;   // the spot as it stands before the action
+    const rv=(!RP.on&&p.isHero&&S.street===0&&!S.autoFolded&&document.getElementById('optRange').checked)?(pfReviewSpot(seat,dec)||(MT.on?{none:true,act:dec.act,eff:MT.effBB(seat)}:null)):null;   // the spot as it stands before the action
     applyAction(seat,dec);
     S.cursor=(seat+1)%NS();
     if(MT.on) MT.saveHand();
@@ -1572,11 +1573,16 @@ function pfReviewSpot(seat,dec){
   else return null;
   const allIn=dec.act==='raise'&&dec.to>=p.bet+p.stack;
   const a=dec.act==='fold'?'F':(dec.act==='call'||dec.act==='check')?'C':(allIn&&m!=='open')?'J':'R';
-  return {m,p:sp,a,k:classKey(p.hole[0],p.hole[1])};
+  return {m,p:sp,a,k:classKey(p.hole[0],p.hole[1]),eff:MT.on?MT.effBB(seat):0};
 }
 function pfReviewShow(rv){
   return new Promise(res=>{
-    const r=window.PFRanges&&window.PFRanges.review(rv.m,rv.p,rv.k,rv.a); if(!r){ res(); return; }
+    let r;
+    if(MT.on){   // tournament: the MTT chart of the stack depth nearest to the hero's effective stack; 「レンジ表なし」 where there is none
+      r=rv.none?{verdict:`<span class="badge na">レンジ表なし</span> あなた：<b>${{fold:'フォールド',call:'コール',check:'チェック',raise:'レイズ'}[rv.act]||''}</b>（このスポットのMTTレンジ表はありません）`,html:'<div class="rovinfo" style="margin:auto;font-size:18px">レンジ表なし</div>',bind(){}}
+        :window.PFRanges&&window.PFRanges.reviewMtt&&window.PFRanges.reviewMtt(rv.eff,rv.m,rv.p,rv.k,rv.a);
+    } else r=window.PFRanges&&window.PFRanges.review(rv.m,rv.p,rv.k,rv.a);
+    if(!r){ res(); return; }
     const box=document.getElementById('tablebox'), area=document.getElementById('actArea');
     const o=document.createElement('div'); o.className='rov'; o.id='ring-rov'; o.innerHTML=r.html; box.appendChild(o); r.bind(o);
     area.innerHTML=`<div class="rvj">${r.verdict}</div><div class="row"><button class="btn main grow" id="rvNext">次へ進む</button></div>`;
@@ -2119,7 +2125,7 @@ function cardHTML(c,cls=''){ if(c==null) return ''; return `<span class="card s$
 function resultOf(p,i){
   const d=p.stack-p.start, sign=d>0?'+':d<0?'−':'±';
   const r=S.soleWin.has(i)?['win','勝ち']:S.shared.has(i)?['draw','引き分け']:d<0?['lose','負け']:null;
-  return r?{cls:r[0],label:r[1],amt:sign+pts(Math.abs(d))+'点'}:null;
+  return r?{cls:r[0],label:r[1],amt:sign+ptTxt(Math.abs(d))}:null;
 }
 function render(){
   if(S.fastFold&&S.running) return;   // beginner fold: skip drawing the rest of the hand, show only the result
@@ -2141,9 +2147,9 @@ function render(){
     }
     let act=actText(p);
     // phones, beginner mode: once the hand is over the action line shows the win/lose result instead
-    const res=beg&&ph&&handLive&&S.done?resultOf(p,i):null;
+    const res=ph&&handLive&&S.done?resultOf(p,i):null;
     if(res) act=`<span class="resline ${res.cls}">${res.label} ${res.amt}</span>`;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&(!beg||ph)?'<span class="dealer">D</span>':''}${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${beg&&p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm">${handLive?`<span class="pos">${posOf(i)}</span>`:''}${S.button===i&&handLive&&ph?'<span class="dealer">D</span>':''}${p.name}</div><div class="stk">${amtLong(p.stack)}</div><div class="act${p.la?' beg k-'+(p.la.ai&&p.la.k!=='fold'?'ai':p.la.k)+(ph&&S.running&&S.lastActor===i&&p.la.st===S.street?' last':''):''}">${act||'&nbsp;'}</div>${hr}</div>`;
     box.appendChild(el);
     // the felt in front of the seat (phones: fixed spots that stay clear of the plates and the board)
     const [bx,by]=ph?layoutFor(NS()).s[i]:[x+(50-x)*0.42,y+(46-y)*0.42], spotX=bx+'%', spotY=by+'%';
@@ -2151,8 +2157,8 @@ function render(){
       // every mode: action bubble (+ chips) while the hand runs. Beginner mode only: win/lose/draw and the chip change once it is over
       const c=document.createElement('div'); c.style.left=spotX; c.style.top=spotY;
       if(S.done){
-        if(beg){ const r=resultOf(p,i); if(ph) return;   // phones: the result is shown in the seat plate
-          if(r){ c.className='res '+r.cls+(p.isHero?' me':''); c.innerHTML=`<b>${r.label}</b><span>${r.amt}</span>`; box.appendChild(c); } }
+        const r=resultOf(p,i); if(ph) return;   // phones: the result is shown in the seat plate
+        if(r){ c.className='res '+r.cls+(p.isHero?' me':''); c.innerHTML=`<b>${r.label}</b><span>${r.amt}</span>`; box.appendChild(c); }
       } else if(p.la&&p.la.st===S.street){
         const k=p.la.ai&&p.la.k!=='fold'?'ai':p.la.k, name=k==='ai'?'オールイン':{sb:'SB',bb:'BB',fold:'フォールド',check:'チェック',call:'コール',bet:'ベット',raise:'レイズ'}[k];
         c.className='abub'+(S.lastActor===i?' last':'');
@@ -2163,14 +2169,14 @@ function render(){
         c.className='abub'; c.innerHTML=`<span class="amt">${chipsHTML(p.bet)}<span>${amtShort(p.bet)}</span></span>`; box.appendChild(c);
       }
     }
-    if(beg&&!ph&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot (phones use the plate's D mark)
+    if(!ph&&handLive&&S.button===i){ // dealer button on the felt, beside the bet spot (phones use the plate's D mark)
       const dx=50-x, dy=46-y, n=Math.hypot(dx,dy)||1, d=document.createElement('div'); d.className='dbtn'; d.textContent='DEALER';
       d.style.left=(x+dx*0.3-dy/n*8)+'%'; d.style.top=(y+dy*0.3+dx/n*8)+'%'; box.appendChild(d);
     }
   });
   document.getElementById('board').innerHTML=S.board.map(c=>cardHTML(c)).join('');
   document.getElementById('potChips').innerHTML=handLive?chipsHTML(potTotal()-S.players.reduce((a,p)=>a+p.bet,0)):'';
-  document.getElementById('pot').textContent=handLive?('ポット '+amtLong(potTotal())):'';
+  document.getElementById('pot').textContent=handLive?('ポット '+ptTxt(potTotal())):'';
   if(MT.on) MT.hud();
 }
 function setMsg(t){document.getElementById('msg').textContent=t;}
@@ -3267,7 +3273,7 @@ Object.assign(MT,{
     if(inM&&!this.on) this.lobby();
   },
   enter(){   // the MTT screen was opened
-    this.sync();
+    this.sync(); try{ if(window.PFRanges&&PFRanges.prefetchMtt) PFRanges.prefetchMtt(); }catch(e){}
     if(this.active()&&!this.on){ this.on=true; this.preview(); }
     this.view(); if(this.on){ render(); renderControls(); }
   },
@@ -4731,6 +4737,33 @@ window.PFRanges.review=function(m,p,k,a){ return withCash(()=>{
     bind(root){ const cur=root.querySelector(`.grid13 [data-k="${k}"]`); if(cur) cur.classList.add('cur');
       root.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ root.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${withCash(()=>expText(Ranges.exp(m,p,b.dataset.k)))}`; }); }};
 }); };
+/* tournament table: the range chart of the MTT box (stack depth) nearest to the hero's effective stack, drawn the same way as the ring game's */
+const MTT_RNG={};   // depth -> the Ranges.data of that MTT box (built once; prefetchMtt() clears it when a newer shared chart arrives)
+function withMtt(depth,fn){
+  const sv={g:CTX.game,d:CTX.depth,k:CTX.key,s:CTX.suffix,rd:Ranges.data,sd:SharedRanges.data,su:SharedRanges.updated,P:POS,M:MODE_POS,O:OPENERS};
+  CTX.game='mtt'; CTX.depth=depth; CTX.key='mtt'+depth; CTX.suffix='@mtt'+depth; POS=GAMES.mtt.pos; MODE_POS=buildModePos(POS); OPENERS=POS.slice(0,POS.length-1);
+  try{ if(!MTT_RNG[depth]){ SharedRanges.useCtx(); Ranges.load(); MTT_RNG[depth]=Ranges.data; } Ranges.data=MTT_RNG[depth]; return fn(); }
+  finally{ CTX.game=sv.g; CTX.depth=sv.d; CTX.key=sv.k; CTX.suffix=sv.s; POS=sv.P; MODE_POS=sv.M; OPENERS=sv.O; Ranges.data=sv.rd; SharedRanges.data=sv.sd; SharedRanges.updated=sv.su; }
+}
+window.PFRanges.prefetchMtt=async function(){
+  const db=await sharedDb(); if(!db) return;
+  for(const d of MTT_DEPTHS){ try{ const sn=await db.doc('shared/ranges_mtt_'+d).get(); if(!sn.exists) continue; const x=sn.data(); if(x&&x.data){ lsSet('pflab_shared_ranges_mtt'+d,JSON.stringify({data:x.data,updated:+x.updated||0})); delete MTT_RNG[d]; } }catch(e){} }
+};
+window.PFRanges.reviewMtt=function(eff,m,p,k,a){
+  const depth=MTT_DEPTHS.reduce((best,d)=>Math.abs(d-eff)<Math.abs(best-eff)?d:best,MTT_DEPTHS[0]);
+  const tag=`MTT ${depth}bb の表（あなたの有効スタック ${Math.round(eff*10)/10}bb に最も近い深さ）`;
+  return withMtt(depth,()=>{
+    if(!Ranges.has(m,p)) return {g:'na',verdict:`<span class="badge na">レンジ表なし</span> あなた：<b>${actName(m,a)}</b>（${k}）　${tag}`,
+      html:`<div class="rovhead"><b>${posLabel(p)}</b></div><div class="rovinfo" style="margin:auto;font-size:18px">レンジ表なし</div><div class="rovinfo">${tag}</div>`,bind(){}};
+    const e=Ranges.exp(m,p,k), g=judge(e,a), [gc,gl]=GRADE[g];
+    return {g,
+      verdict:`<span class="badge ${gc}">${gl}</span> あなた：<b>${actName(m,a)}</b>（${k}）　レンジ表：${expText(e)}`,
+      html:`<div class="rovhead"><b>${posLabel(p)}<span class="pcOnly"> のレンジ全体</span></b><span class="legend">${rangeLegend(m)}<span><i class="curmark"></i>${k}</span></span></div>
+        <div class="grid13">${rangeCells(m,p)}</div><div class="rovinfo">${rangeSumText(m,p)}<br>${tag}</div>`,
+      bind(root){ const cur=root.querySelector(`.grid13 [data-k="${k}"]`); if(cur) cur.classList.add('cur');
+        root.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ root.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${withMtt(depth,()=>expText(Ranges.exp(m,p,b.dataset.k)))}<br>${tag}`; }); }};
+  });
+};
 /* open a box: Cash, or MTT at a stack depth. Loads that box's ranges and per-box settings and redraws everything that depends on them. */
 async function setCtx(game,depth){
   depth=game==='mtt'?+depth:null;
