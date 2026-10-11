@@ -1452,11 +1452,12 @@ function autoFoldHero(p){
   if(AF_ALL.has(k)) return true;                     // all-range list: open & facing an open
   const ps=AF_POS[posOf(0)]; return S.raiseCount===1&&!!ps&&ps.has(k);   // position open charts: only when no one has raised
 }
-async function playHand(){
-  if(MT.on&&!MT.prepare()) return;
-  S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); render(); setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
-  for(let st=0;st<4;st++){
-    if(st>0){
+async function playHand(resume){
+  if(!resume&&MT.on&&!MT.prepare()) return;
+  if(resume) S.running=true; else { S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); }
+  render(); if(!resume) setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
+  for(let st=resume?S.street:0;st<4;st++){
+    if(st>0&&!(resume&&st===S.street)){
       if(active().length<=1) break;
       newStreet(st); render();
       await sleep(delay()*0.8);
@@ -1519,11 +1520,12 @@ async function bettingRound(){
     let dec;
     if(RP.on){ dec=await RP.decide(seat); if(S.abort) return; }
     else if(p.isHero&&!S.autoHero&&document.getElementById('optAutoFold').checked&&autoFoldHero(p)){ dec={act:'fold'}; S.autoFolded=true; }
-    else if(p.isHero&&!S.autoHero){ dec=await heroDecide(); }
+    else if(p.isHero&&!S.autoHero){ if(MT.on) MT.saveHand(); dec=await heroDecide(); }
     else { await sleep(delay()); dec=botDecide(seat); }
     const rv=(!RP.on&&p.isHero&&S.street===0&&!S.autoFolded&&document.getElementById('optRange').checked)?pfReviewSpot(seat,dec):null;   // the spot as it stands before the action
     applyAction(seat,dec);
     S.cursor=(seat+1)%NS();
+    if(MT.on) MT.saveHand();
     render();
     if(rv) await pfReviewShow(rv);
     // beginner: after the hero folds, let the fold show for a moment, then play out the rest instantly and show just the result
@@ -1888,7 +1890,12 @@ function botPostflopV3(seat){
   const pot=potTotal(), toCall=S.currentBet-p.bet, ip=isIP(seat), street=S.street;
   const tex=texture(S.board.slice(0,3)), wet=tex.s!=='rain'||tex.c==='conn';
   const role=(street===1&&S.pfAggr===seat)||(street>1&&S.prevStreetAggr===seat);
-  const bet=f=>{ const amt=r5(pot*f); return amt>=p.stack*0.6?{act:'raise',to:p.stack+p.bet}:{act:'raise',to:amt}; };
+  const jam={act:'raise',to:p.stack+p.bet};
+  // tournament: chips either side can still lose. A bet that leaves no more behind than the pot it makes commits the bettor, so it is played as a shove (air does that only some of the time)
+  const effB=Math.min(p.stack,Math.max(0,...opps.map(o=>o.stack)));
+  const bet=(f,bluff)=>{ const amt=r5(pot*f); if(amt>=p.stack*0.6) return jam;
+    if(MT.on&&(amt>=effB||effB-amt<=pot+2*amt)) return bluff&&R()<0.55?{act:'check'}:jam;
+    return {act:'raise',to:amt}; };
   if(toCall===0){
     let F;   // how often the bot bets in this spot (as in v2)
     if(role){
@@ -1915,7 +1922,7 @@ function botPostflopV3(seat){
     }
     if(q<0.35&&e<0.4){   // air: bluffs, with the big size as often as the nuts need them
       const budget=(street<3?0.4:1)*(bBig+bSmall);
-      if(R()<Math.min(1,budget/0.35)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small);
+      if(R()<Math.min(1,budget/0.35)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small,true);
     }
     return {act:'check'};
   }
@@ -1923,7 +1930,9 @@ function botPostflopV3(seat){
   const foldCut=Math.pow(alpha,1/Math.max(1,n));
   const implied=dr&&street<3&&p.stack>toCall*3?0.06:0;
   const reraise=S.raiseCount>=2;
-  const raiseTo=f=>{ const to=S.currentBet+r5((pot+toCall)*f); return (to-p.bet)>p.stack*0.45?{act:'raise',to:p.stack+p.bet}:{act:'raise',to}; };   // raise to (bet + f x the pot after calling)
+  const raiseTo=f=>{ const to=S.currentBet+r5((pot+toCall)*f), put=to-p.bet; if(put>p.stack*0.45) return jam;
+    if(MT.on&&(put>=effB||effB-put<=pot+put+(to-S.currentBet))) return jam;   // the raise commits us: shove
+    return {act:'raise',to}; };   // raise to (bet + f x the pot after calling)
   const Rv=street===1?0.12:street===2?0.1:0.08;
   if(!reraise&&q>=1-Rv&&e>0.6&&R()<0.75) return raiseTo(street===1?wPick([[0.75,0.5],[1,0.5]]):wPick([[1,0.6],[1.5,0.4]]));
   if(reraise&&q>0.95&&e>0.7) return {act:'raise',to:p.stack+p.bet};
@@ -3167,9 +3176,11 @@ Object.assign(MT,{
   resume(){
     const a=this.readActive(); if(!a||S.running) return;
     this.T=MTT.restore(a.T); this.id=a.id; this.t0=a.t0; this.hands=a.hands||[]; this.lastLevel=a.lastLevel||0; this.pend=a.pend||null; this.over=false; this.note='';
-    if(this.pend) this.settlePend();
+    const hd=this.pend?this.readHand():null, mid=!!(hd&&hd.tid===this.id&&hd.S&&hd.S.players&&hd.S.players.length);
+    if(this.pend&&!mid) this.settlePend();
     this.on=true;
     if(this.over){ this.on=false; this.view(); this.showResult(); return; }
+    if(mid){ this.restoreHand(hd); this.view(); this.note='中断したハンドの続きです'; render(); this.hud(); playHand(true); return; }
     this.preview(); this.view(); render(); renderControls(); this.hud();
   },
   /* ---- analysis: the hero's hands from finished tournaments (a slim copy kept on this device) and the one in progress ---- */
@@ -3192,6 +3203,24 @@ Object.assign(MT,{
     const d=this.load(), rs=d.results; if(rs.length<2) return '';
     const pts=[d.bank0].concat(rs.map(r=>r.bankAfter)), W=560,H=130,pad=6, lo=Math.min(...pts),hi=Math.max(...pts), sx=i=>pad+i*(W-2*pad)/(pts.length-1), sy=v=>H-pad-(v-lo)/Math.max(1,hi-lo)*(H-2*pad);
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><polyline fill="none" stroke="var(--sd)" stroke-width="2" points="${pts.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ')}"/><line x1="${pad}" x2="${W-pad}" y1="${sy(d.bank0).toFixed(1)}" y2="${sy(d.bank0).toFixed(1)}" stroke="var(--line)" stroke-dasharray="4 4"/></svg><div style="font-size:12px;color:var(--muted)">バンクロールの推移（最低 ${fmtYen(lo)}・最高 ${fmtYen(hi)}・点線＝初期）</div>`;
+  },
+  /* ---- the hand in progress (phones kill background pages): saved after every action, restored by resume() ---- */
+  handKey(){ return this.key()+'__hand'; },
+  saveHand(){
+    try{
+      const o={}; for(const k of Object.keys(S)){ if(['heroResolve','session','heroProfile','autoHero','running','abort'].includes(k)) continue; o[k]=S[k]; }
+      const snap=JSON.stringify({tid:this.id,level:this.level,blinds:[SB,BB,ANTE],pids:this.pids,S:o},(k,v)=>v instanceof Float32Array?{__f32:Array.from(v,x=>Math.round(x*1000)/1000)}:v instanceof Set?{__set:[...v]}:v);
+      localStorage.setItem(this.handKey(),snap);
+    }catch(e){}
+  },
+  readHand(){ try{ const raw=localStorage.getItem(this.handKey()); if(!raw) return null; return JSON.parse(raw,(k,v)=>v&&v.__f32?Float32Array.from(v.__f32):v&&v.__set?new Set(v.__set):v); }catch(e){ return null; } },
+  clearHand(){ try{ localStorage.removeItem(this.handKey()); }catch(e){} },
+  /* put the saved hand back on the table; the caller then continues it with playHand(true) */
+  restoreHand(hd){
+    [SB,BB,ANTE]=hd.blinds; this.level=hd.level; this.pids=hd.pids;
+    Object.keys(S).forEach(k=>{ if(!['heroResolve','session','heroProfile','autoHero','running','abort'].includes(k)) delete S[k]; });
+    Object.assign(S,hd.S); S.autoHero=false; S.heroResolve=null; S.running=false; S.abort=false;
+    S.players.forEach(p=>{ if(p.rw&&!(p.rw instanceof Float32Array)) p.rw=Float32Array.from(p.rw); p.rc=null; });
   },
   /* a hand that was dealt but not finished (the page was closed): the hero folds it and pays the blind and ante he would have posted */
   settlePend(){
@@ -3232,7 +3261,7 @@ Object.assign(MT,{
   start(){
     if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
     this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
-    this.pend=null; this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
+    this.pend=null; this.clearHand(); this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
   },
   /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
   prepare(){
@@ -3255,14 +3284,14 @@ Object.assign(MT,{
     MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
     const mine=T.moves.slice(mv0).filter(m=>m.id===0).pop();
     if(mine){ this.moved=true; this.note=(mine.reason==='break'?'テーブルが崩れました。':'人数調整のため')+'卓'+(mine.to+1)+'の'+(mine.seat+1)+'番席に移動します'; }
-    this.pend=null; this.saveHandChunk();
+    this.pend=null; this.clearHand(); this.saveHandChunk();
     if(T.players[0].out||T.done) this.finish(); else this.persist();
   },
   finish(extra){
     if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
     const d=this.load(), res=Object.assign({id:this.id,t:Date.now(),startedAt:this.t0,place,field:MTT.FIELD,buyIn:MTT.BUY_IN,prize,net:prize-MTT.BUY_IN,hands:this.hands.length,
       level:MTT.stats(T).level,speed:T.speed,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
-    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearActive(); this.saveHandChunk(); this.archive();
+    d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearHand(); this.clearActive(); this.saveHandChunk(); this.archive();
   },
   forfeit(){   // leaving a tournament counts as busting out now, in last place of those still in
     if(!this.active()||S.running) return; const T=this.T;

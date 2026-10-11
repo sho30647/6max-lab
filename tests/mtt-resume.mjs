@@ -41,11 +41,12 @@ if (!after.tableOk || after.pend) bad.push('table not restored');
 const mid = await page.evaluate(async () => {
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; S.autoHero = true;
   for (let i = 0; i < 10 && !MT.over; i++) await playHand();
-  S.autoHero = false; const T = MT.T, p = playHand();   // deal a hand and leave the hero's decision pending
+  document.getElementById('optAutoFold').checked = false; S.autoHero = false; const T = MT.T, p = playHand();   // deal a hand and leave the hero's decision pending
   await new Promise(r => setTimeout(r, 300));
-  const a = JSON.parse(localStorage.getItem(MT.key() + '__act')); return { stack: T.players[0].stack, pendSaved: !!a.pend, total: T.players.filter(q => !q.out).reduce((x, q) => x + q.stack, 0), hands: MT.hands.length, remaining: T.remaining };
+  const a = JSON.parse(localStorage.getItem(MT.key() + '__act')); localStorage.removeItem(MT.handKey());   // as on another device: no snapshot of the hand, only the pending marker
+  return { stack: T.players[0].stack, pendSaved: !!a.pend, total: T.players.filter(q => !q.out).reduce((x, q) => x + q.stack, 0), hands: MT.hands.length, remaining: T.remaining };
 });
-console.log('mid-hand     ', JSON.stringify(mid));
+console.log('mid-hand (no snapshot)', JSON.stringify(mid));
 if (!mid.pendSaved) bad.push('the dealt hand was not saved as pending');
 await page.close();
 page = await open();
@@ -56,5 +57,37 @@ const fin = await page.evaluate(async () => {
 console.log('after quitting mid-hand', JSON.stringify(fin));
 if (fin.total !== 10000000 && !fin.over) bad.push('chips not conserved after the pending hand: ' + fin.total);
 if (fin.stack > mid.stack) bad.push('the hero must not gain from quitting a hand'); if (!/フォールド/.test(fin.note || '') && !fin.over) bad.push('no note about the folded hand');
+// 4. quit on the flop with the decision pending: the same hand (cards, board, pot) comes back and can be finished
+let pg = await open();
+const flop = await pg.evaluate(async () => {
+  Nav.setScreen('mtt'); document.getElementById('mttResume').click(); await new Promise(r => setTimeout(r, 150));
+  while (S.running) await new Promise(r => setTimeout(r, 50));   // a resumed hand may be waiting: finish it first
+  document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; S.autoHero = false;
+  for (let g = 0; g < 60; g++) {
+    if (MT.over) break;
+    window.__h = playHand(); const t0 = Date.now();
+    while (Date.now() - t0 < 8000) { if (S.heroResolve && S.street >= 1) break; if (S.heroResolve) { const p = S.players[0]; heroChoose({ act: S.currentBet - p.bet > 0 ? 'call' : 'check' }); } if (!S.running) break; await new Promise(r => setTimeout(r, 20)); }
+    if (S.heroResolve && S.street >= 1) break; await window.__h;
+  }
+  const T = MT.T, h = S.players[0];
+  return { ok: !!S.heroResolve && S.street >= 1, hole: h.hole.join(','), board: S.board.join(','), street: S.street, pot: potTotal(), cur: S.currentBet, bet: h.bet, stack: h.stack, hands: MT.hands.length, handSaved: !!localStorage.getItem(MT.handKey()) };
+});
+console.log('flop pending ', JSON.stringify(flop));
+if (!flop.ok) bad.push('could not reach a flop decision'); if (!flop.handSaved) bad.push('the hand in progress was not saved');
+await pg.close();
+pg = await open();
+const back = await pg.evaluate(async () => {
+  Nav.setScreen('mtt'); document.getElementById('mttResume').click();
+  const t0 = Date.now(); while (!S.heroResolve && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 20));
+  const h = S.players[0], same = { hole: h.hole.join(','), board: S.board.join(','), street: S.street, pot: potTotal(), cur: S.currentBet, bet: h.bet, stack: h.stack, pending: !!S.heroResolve, note: MT.note };
+  heroChoose({ act: S.currentBet - h.bet > 0 ? 'fold' : 'check' });
+  const t1 = Date.now(); while (S.running && Date.now() - t1 < 15000) { if (S.heroResolve) heroChoose({ act: S.currentBet - S.players[0].bet > 0 ? 'fold' : 'check' }); await new Promise(r => setTimeout(r, 20)); }
+  const T = MT.T; return { same, running: S.running, hands: MT.hands.length, total: T.players.filter(q => !q.out).reduce((x, q) => x + q.stack, 0), pend: MT.pend, handSaved: !!localStorage.getItem(MT.handKey()) };
+});
+console.log('after reload ', JSON.stringify(back));
+for (const k of ['hole', 'board', 'street', 'pot', 'cur', 'bet', 'stack']) if (back.same[k] !== flop[k]) bad.push(`${k} changed across the reload: ${flop[k]} -> ${back.same[k]}`);
+if (!back.same.pending) bad.push('the decision was not pending after the reload'); if (back.running) bad.push('the hand did not finish');
+if (back.hands !== flop.hands + 1) bad.push('hand count ' + flop.hands + ' -> ' + back.hands); if (back.total !== 10000000) bad.push('chips not conserved: ' + back.total);
+if (back.pend || back.handSaved) bad.push('the finished hand is still marked as in progress');
 await browser.close();
 if (bad.length) { console.log('PROBLEMS:', bad); process.exit(1); } else console.log('ok');
