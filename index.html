@@ -1662,7 +1662,7 @@ function pfReviewShow(rv){
     S.reviewRes=done; document.getElementById('rvNext').onclick=done;
   });
 }
-function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; return document.getElementById('optFast').checked?160:620;}
+function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; if(MT.on&&S.players[0].allIn) return 620; return document.getElementById('optFast').checked?160:620;}   // tournament: a hand the hero is all-in in always runs at the normal pace, whatever 「高速に」 says
 
 function sanitize(seat,dec){
   const p=S.players[seat], toCall=S.currentBet-p.bet;
