@@ -3269,7 +3269,7 @@ function ringRestore(){   // back to the ring table (6 seats, 0.5/1bb, the carri
   render(); renderSession(); renderControls();
 }
 Object.assign(MT,{
-  speed:2, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[], popups:[], itmShown:false,
+  speed:2, late:0, t0:0, id:null, note:'', moveIdx:0, data:null, pids:[], popups:[], itmShown:false,
   unit:(()=>{ try{ return localStorage.getItem('sixmaxlab_mtt_unit')==='bb'?'bb':'chip'; }catch(e){ return 'chip'; } })(),   // amounts on the table: chips (点数, default) or bb
   setUnit(u){ this.unit=u; try{ localStorage.setItem('sixmaxlab_mtt_unit',u); }catch(e){} render(); if(S.heroResolve) renderControls(); },
   key(){ return 'sixmaxlab_mtt__'+UserGate.safe(UserGate.get()||''); },
@@ -3405,7 +3405,7 @@ Object.assign(MT,{
   mkPlayer(cp){ return {name:cp.name,isHero:cp.isHero,style:cp.style,tune:cp.tune||null,stack:cp.stack,hole:[],folded:true,bet:0,contrib:0,allIn:false,acted:false,la:null,range:[0,100],postAggr:0,shown:false}; },
   start(){
     if(S.running) return; const d=this.load(); if(this.bank()<MTT.BUY_IN) return;
-    this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
+    this.T=MTT.create({heroName:UserGate.get()||'あなた',speed:this.speed,lateLevel:this.late}); this.over=false; this.hands=[]; this.t0=Date.now(); this.id='t'+this.t0; this.note=''; this.moveIdx=0;
     this.pend=null; this.clearHand(); this.popups=[]; this.itmShown=false; this.hc=0; this.on=true; this.preview(); this.view(); render(); renderControls(); this.hud(); this.persist();
   },
   /* before each hand: seat the hero's table from the core (waits out a break, moves the button) */
@@ -3456,7 +3456,7 @@ Object.assign(MT,{
   finish(extra){
     if(this.over) return; const T=this.T, h=T.players[0], place=h.place||1, prize=MTT.prizeFor(place); this.over=true;
     const d=this.load(), res=Object.assign({id:this.id,t:Date.now(),startedAt:this.t0,place,field:MTT.FIELD,buyIn:MTT.BUY_IN,prize,net:prize-MTT.BUY_IN,hands:this.hands.length,
-      level:MTT.stats(T).level,speed:T.speed,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
+      level:MTT.stats(T).level,speed:T.speed,late:T.late||0,itm:place<=MTT.PAID,ft:place<=MTT.SEATS,left:T.remaining},extra||{});
     d.results.push(res); res.bankAfter=this.bank(); this.save(); this.result=res; this.pend=null; this.clearHand(); this.clearActive(); this.saveHandChunk(); this.archive();
   },
   forfeit(){   // leaving a tournament counts as busting out now, in last place of those still in
@@ -3656,14 +3656,16 @@ Object.assign(MT,{
     el.innerHTML=`<div class="mcard"><h2>バンクロール</h2><div class="mkv"><div>現在<b>${fmtYen(bank)}</b></div><div>初期<b>${fmtYen(d.bank0)}</b></div><div>通算収支<b style="color:var(--${net>=0?'win':'loss'})">${net>=0?'+':''}${fmtYen(net)}</b></div>
         <div>参加回数<b>${n}</b></div><div>ITM率<b>${n?(itm/n*100).toFixed(0)+'%':'—'}</b></div><div>ROI<b>${n?(net/(n*MTT.BUY_IN)*100).toFixed(0)+'%':'—'}</b></div><div>平均順位<b>${n?avgP.toFixed(1):'—'}</b></div><div>FT到達<b>${n?ft+'回':'—'}</b></div></div></div>
       <div class="mcard"><h2>${resumable?'進行中のトーナメントがあります':'新しいトーナメント'}</h2>
-        <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">8max・100人・持ち点100,000・参加費${fmtYen(MTT.BUY_IN)}・賞金総額${fmtYen(MTT.POOL)}（${MTT.PAID}位まで）・リバイなし。</p>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">8max・100人・持ち点100,000・参加費${fmtYen(MTT.BUY_IN)}・賞金総額${fmtYen(MTT.POOL)}（${MTT.PAID}位まで）・リバイなし。レイトレジは、15bb前後になるレベルから参加できます（自分が入るまで他の卓は進み、参加者は減っています）。</p>
         ${resumable?`<div class="row"><button class="btn main grow" id="mttResume">続きから</button></div>`:`<div class="row" style="align-items:center"><label style="font-size:13px">進行速度 <select id="mttSpeed"><option value="1">×1（実戦並み・長い）</option><option value="2">×2（推奨）</option><option value="3">×3（短め）</option></select></label>
+        <label style="font-size:13px">参加 <select id="mttLate"><option value="0">開始時から</option>${[12,13].map(n=>{ const L=MTT.LEVELS[n-1]; return `<option value="${n}">レイトレジ Lv${n}（BB ${fmtN(L.bb)}・${(MTT.START_STACK/L.bb).toFixed(1)}bb）</option>`; }).join('')}</select></label>
         <button class="btn main grow" id="mttGo" ${canGo?'':'disabled'}>エントリー（${fmtYen(MTT.BUY_IN)}）</button></div>`}
         ${!resumable&&bank<MTT.BUY_IN?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px"><b style="color:var(--loss);font-size:14px">バンクロールが参加費（${fmtYen(MTT.BUY_IN)}）に足りません。</b><p style="margin:4px 0 6px;font-size:13px;color:var(--muted)">働いて稼ぎましょう。バイトを選んでください。</p><div class="jobs">${MT_JOBS.map(j=>`<button type="button" data-job="${j.k}"><b>${j.name}</b><small>${j.desc}</small><em>+${fmtYen(j.amt)}</em></button>`).join('')}</div></div>`:''}
         <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">賞金表</summary><table style="margin-top:6px"><tbody>${MTT.PAYOUTS.map((v,i)=>`<tr><td>${i+1}位</td><td>${fmtN(v)}</td><td>${(v/MTT.BUY_IN).toFixed(1)}x</td></tr>`).join('')}</tbody></table></details></div>
       <div class="mcard"><h2>分析</h2>${this.chart()}${this.analysis()}</div>
       ${n?`<div class="mcard"><h2>最近の結果</h2><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
     const sp=document.getElementById('mttSpeed'); if(sp){ sp.value=String(this.speed); sp.onchange=()=>{ this.speed=+sp.value; }; }
+    const lt=document.getElementById('mttLate'); if(lt){ lt.value=String(this.late); lt.onchange=()=>{ this.late=+lt.value; }; }
     const go=document.getElementById('mttGo'); if(go) go.onclick=()=>this.start();
     el.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>this.work(b.dataset.job));
     const rb=document.getElementById('mttResume'); if(rb) rb.onclick=()=>{ if(this.active()) this.enter(); else this.resume(); };
