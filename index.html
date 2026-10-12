@@ -577,6 +577,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .mttboard .mbrt.me{background:#2c3a8a;border-radius:6px;padding:3px 6px}.mttboard .mbrt.cut{border-top:2px solid #f48a8a}
 .mttboard .mbrt span:first-child{color:#aab5ff}
 .mttboard .mbval{text-align:center;font-size:30px;font-weight:700;margin-bottom:4px}
+.mttboard .trleg{display:flex;gap:14px;font-size:13px;margin-bottom:4px}.mttboard .trleg i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.mttboard .trread{min-height:20px;font-size:13px;margin:4px 0}.mttboard .trsum{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#aab5ff}.mttboard .trsum b{display:block;font-size:18px;color:#fff}
+.trrow{cursor:pointer}.trrow:active td{background:var(--surface2)}
 .mttboard .mbclose{display:block;margin:10px auto 0;background:#fff;color:#0f1a44;border:0;border-radius:9px;padding:8px 22px;font-weight:700}
 .mttboard .mbrank{font-size:14px;width:100%;border-collapse:collapse}.mttboard .mbrank td,.mttboard .mbrank th{padding:3px 8px;border-bottom:1px solid #2a3680;text-align:right}
 .mttboard .mbrank td:nth-child(2),.mttboard .mbrank th:nth-child(2){text-align:left}.mttboard .mbrank tr.me td{background:#2c3a8a}.mttboard .mbrank tr.cut td{border-top:2px solid #f48a8a}
@@ -3329,7 +3332,7 @@ Object.assign(MT,{
     this.preview(); this.view(); render(); renderControls(); this.hud();
   },
   /* ---- analysis: the hero's hands from finished tournaments (a slim copy kept on this device) and the one in progress ---- */
-  slim(r){ const mine=(r.sk||'').split(' ').find(x=>x.startsWith(r.pos+':')); return {tid:r.tid,t:r.t,pos:r.pos,hc:r.hc,cls:r.cls,pf:r.pf,vpip:r.vpip,pfr:r.pfr,o3:r.o3,b3:r.b3,sf:r.sf,sd:r.sd,wsd:r.wsd,net:r.net,lvl:r.lvl,bb:r.bb,left:r.left,m:r.m,dep:mine?+mine.split(':')[1]:null}; },
+  slim(r){ const mine=(r.sk||'').split(' ').find(x=>x.startsWith(r.pos+':')); return {tid:r.tid,t:r.t,pos:r.pos,hc:r.hc,cls:r.cls,pf:r.pf,vpip:r.vpip,pfr:r.pfr,o3:r.o3,b3:r.b3,sf:r.sf,sd:r.sd,wsd:r.wsd,net:r.net,lvl:r.lvl,bb:r.bb,left:r.left,m:r.m,st:r.st,av:r.av,en:r.en,dep:mine?+mine.split(':')[1]:null}; },
   archKey(){ return this.key()+'__hands'; },
   arch(){ try{ return JSON.parse(localStorage.getItem(this.archKey())||'[]'); }catch(e){ return []; } },
   archive(){ const a=this.arch().filter(h=>h.tid!==this.id).concat(this.hands.map(r=>this.slim(r))).slice(-5000); try{ localStorage.setItem(this.archKey(),JSON.stringify(a)); }catch(e){} },
@@ -3343,6 +3346,53 @@ Object.assign(MT,{
     const pos=['UTG','UTG1','LJ','HJ','CO','BTN','SB','BB'];
     return tbl('スタックの深さ別',zones.map(([k,f])=>[k,hs.filter(h=>h.dep!=null&&f(h))]))+tbl('ステージ別（残り人数）',stages.map(([k,f])=>[k,hs.filter(f)]))+tbl('ポジション別',pos.map(k=>[k,hs.filter(h=>h.pos===k)]))
       +'<p style="font-size:12px;color:var(--muted);margin:8px 0 0">収支はそのハンドのbbで割った値です（ブラインドが上がるため、チップではなくbbで比べます）。この端末に残っているハンドの集計です。</p>';
+  },
+  /* ---- chip trend: the hero's stack and the average stack at the start of each hand (x = hand number, y = chips) ---- */
+  trendHands(tid){ return tid===this.id&&this.T&&!this.over?this.hands.map(r=>this.slim(r)):this.arch().filter(h=>h.tid===tid); },
+  trendPts(tid){
+    const hs=this.trendHands(tid); if(!hs.length) return tid===this.id&&this.T&&!this.over?{you:[],avg:[],n:0}:null;
+    const stk=h=>{ if(h.st!=null) return h.st; const L=MTT.LEVELS[(h.lvl||0)-1]; return L&&h.m!=null?Math.round(h.m*(L.sb+L.bb+L.ante)):null; };   // hands saved before the trend existed: worked back from the M ratio
+    const you=hs.map(stk), avg=hs.map(h=>h.av!=null?h.av:null), last=hs[hs.length-1];
+    if(last.en!=null){ you.push(last.en); avg.push(null); }
+    return you.some(v=>v==null)?null:{you,avg,n:hs.length};
+  },
+  trendSvg(pt){
+    const {you,avg}=pt, W=640, H=260, L=52, R=10, T=12, B=26, N=you.length-1, vals=you.concat(avg.filter(v=>v!=null)), hi=Math.max(...vals,1), top=hi*1.05;
+    const nice=(()=>{ const raw=top/4, e=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/e; return (f<=1?1:f<=2?2:f<=5?5:10)*e; })();
+    const sx=i=>L+(N?i/N:0.5)*(W-L-R), sy=v=>T+(1-v/(nice*4))*(H-T-B), line=(a,c,w)=>{ const seg=a.map((v,i)=>v==null?null:sx(i).toFixed(1)+','+sy(v).toFixed(1)).filter(Boolean); return seg.length>1?`<polyline fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" points="${seg.join(' ')}"/>`:''; };
+    let g=''; for(let k=0;k<=4;k++){ const v=nice*k; g+=`<line x1="${L}" x2="${W-R}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}" stroke="#33408a"/><text x="${L-6}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#aab5ff">${fmtN(v)}</text>`; }
+    const st=Math.max(1,Math.ceil(N/5/5)*5); for(let i=0;i<=N;i+=st) g+=`<text x="${sx(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#aab5ff">${i}</text>`;
+    return `<svg class="trsvg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;touch-action:pan-y">${g}${line(avg,'#F5B921',2)}${line(you,'#6BD6FF',2.5)}<line class="trcur" y1="${T}" y2="${H-B}" stroke="#fff" stroke-opacity=".5" display="none"/><circle class="trdot" r="4" fill="#6BD6FF" display="none"/><circle class="trdot2" r="4" fill="#F5B921" display="none"/></svg>`;
+  },
+  /* the trend in the board overlay: tid = the tournament, title = what to call it */
+  trend(tid,title){
+    tid=tid||this.id; const el=document.getElementById('mttBoard'), pt=this.trendPts(tid);
+    const head=`<div class="mbhead"><h3>${escHtml(title||'チップの推移')}</h3><button class="mbx" id="mttBoardX" type="button" aria-label="閉じる">×</button></div>`;
+    let body;
+    if(!pt) body='<div class="mbpn" style="font-size:14px">このトーナメントのハンドの記録が端末に残っていないため、推移を表示できません。</div>';
+    else if(pt.you.length<2) body='<div class="mbpn" style="font-size:14px">1ハンド終わると、推移が表示されます。</div>';
+    else {
+      const you=pt.you, mx=Math.max(...you), mn=Math.min(...you), a=pt.avg.filter(v=>v!=null), last=a.length?a[a.length-1]:null;
+      body=`<div class="mbpn"><div class="trleg"><span><i style="background:#6BD6FF"></i>あなた</span><span><i style="background:#F5B921"></i>アベレージ</span></div>${this.trendSvg(pt)}
+        <div class="trread" id="mttTrRead">グラフをなぞると、そのハンドの値が出ます</div>
+        <div class="trsum"><div>最高<b>${fmtN(mx)}</b></div><div>最低<b>${fmtN(mn)}</b></div><div>いま<b>${fmtN(you[you.length-1])}</b></div>${last!=null?`<div>アベレージ<b>${fmtN(last)}</b></div>`:''}</div>
+        <div style="font-size:12px;color:#aab5ff;margin-top:6px">横軸＝ハンド数、縦軸＝点数（各ハンド開始時）${a.length<pt.n?'。アベレージは記録のないハンドを除きます':''}</div></div>`;
+    }
+    el.innerHTML=`<div class="mttboard">${head}${body}</div>`; el.classList.remove('hidden');
+    const closeB=()=>el.classList.add('hidden'); document.getElementById('mttBoardX').onclick=closeB; el.onclick=e=>{ if(e.target===el) closeB(); };
+    if(pt&&pt.you.length>=2) this.trendHover(pt);
+  },
+  trendHover(pt){   // finger or mouse over the graph: the nearest hand's values
+    const svg=document.querySelector('#mttBoard .trsvg'), rd=document.getElementById('mttTrRead'); if(!svg||!rd||svg._on) return; svg._on=true;
+    const vb=svg.viewBox.baseVal, L=52, R=10, T=12, B=26, N=pt.you.length-1, cur=svg.querySelector('.trcur'), d1=svg.querySelector('.trdot'), d2=svg.querySelector('.trdot2');
+    const top=Math.max(...pt.you.concat(pt.avg.filter(v=>v!=null)),1)*1.05, raw=top/4, e=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/e, nice=(f<=1?1:f<=2?2:f<=5?5:10)*e;
+    const sx=i=>L+(N?i/N:0.5)*(vb.width-L-R), sy=v=>T+(1-v/(nice*4))*(vb.height-T-B);
+    const mv=ev=>{ const r=svg.getBoundingClientRect(), x=(ev.clientX-r.left)/r.width*vb.width; const i=Math.max(0,Math.min(N,Math.round((x-L)/(vb.width-L-R)*N)));
+      cur.setAttribute('display',''); cur.setAttribute('x1',sx(i)); cur.setAttribute('x2',sx(i));
+      d1.setAttribute('display',''); d1.setAttribute('cx',sx(i)); d1.setAttribute('cy',sy(pt.you[i]));
+      const av=pt.avg[i]; if(av!=null){ d2.setAttribute('display',''); d2.setAttribute('cx',sx(i)); d2.setAttribute('cy',sy(av)); } else d2.setAttribute('display','none');
+      rd.innerHTML=`<b>${i}ハンド目${i===N&&pt.n<pt.you.length?'（終了時）':''}</b>　あなた <b style="color:#6BD6FF">${fmtN(pt.you[i])}</b>${av!=null?`　アベレージ <b style="color:#F5B921">${fmtN(av)}</b>（${(pt.you[i]/av).toFixed(2)}倍）`:''}`; };
+    svg.addEventListener('pointermove',mv); svg.addEventListener('pointerdown',mv);
   },
   chart(){
     const d=this.load(), rs=d.results; if(rs.length<2) return '';
@@ -3363,6 +3413,7 @@ Object.assign(MT,{
   /* put the saved hand back on the table; the caller then continues it with playHand(true) */
   restoreHand(hd){
     [SB,BB,ANTE]=hd.blinds; this.level=hd.level; this.pids=hd.pids;
+    this.hs={avg:MTT.stats(this.T).avg};
     Object.keys(S).forEach(k=>{ if(!['heroResolve','session','heroProfile','autoHero','running','abort'].includes(k)) delete S[k]; });
     Object.assign(S,hd.S); S.autoHero=false; S.heroResolve=null; S.running=false; S.abort=false;
     S.players.forEach(p=>{ if(p.rw&&!(p.rw instanceof Float32Array)) p.rw=Float32Array.from(p.rw); p.rc=null; });
@@ -3426,7 +3477,7 @@ Object.assign(MT,{
     S.players.forEach((p,i)=>{ startStacks[this.pids[i]]=p.start; endStacks[this.pids[i]]=p.stack; });
     const seconds=MTT.handSeconds({streets:bl>=5?3:bl>=4?2:bl>=3?1:0,showdown:S.showdown,allIn:S.players.some(p=>p.allIn)},T.rng.next,T.speed);
     const h=S.players[0], handBB=BB, mr=h.start/(SB+BB+ANTE);
-    Object.assign(rec,{mt:1,tid:this.id,lvl:this.level,bb:handBB,ante:ANTE,left:T.remaining,m:Math.round(mr*10)/10,sb:SB});
+    Object.assign(rec,{mt:1,tid:this.id,lvl:this.level,bb:handBB,ante:ANTE,left:T.remaining,m:Math.round(mr*10)/10,sb:SB,st:h.start,av:Math.round(this.hs.avg),en:h.stack});
     this.hands.push(rec);
     const mv0=T.moves.length, tbBefore=MTT.heroTable(T).id, idsBefore=this.pids.slice();
     MTT.reportLiveHand(T,{startStacks,endStacks,seconds});
@@ -3622,9 +3673,10 @@ Object.assign(MT,{
       <div class="mr2"><div>残り人数<b>${st.remaining} / ${st.field}</b></div><div class="${st.bubble?'hot':st.itm?'good':''}">インマネまで<b>${itmTxt}</b></div>
         <div>平均スタック<b>${fmtN(st.avg)}</b>${Math.round(st.avgBB)}bb</div><div>あなた<b>${fmtN(hero.stack)}</b>${Math.round(st.heroBB)}bb・${st.heroRank}位</div>
         <div>卓<b>${MTT.heroTable(T).id+1}</b>${st.hfh?'ハンドフォーハンド':st.tables+'卓で進行'}</div></div>
-      <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttUnitBtn" type="button">表示：${this.unit==='chip'?'点数':'bb'}</button><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
+      <div class="mbar"><span class="mnote">${this.note||''}</span><button id="mttUnitBtn" type="button">表示：${this.unit==='chip'?'点数':'bb'}</button><button id="mttTrendBtn" type="button">推移</button><button id="mttBoardBtn" type="button">ボード</button><button id="mttQuitBtn" type="button">途中放棄</button></div>`;
     const bl=document.getElementById('mttBlinds'); if(bl) bl.innerHTML='SB '+fmtN(SB)+' / BB '+fmtN(BB)+'<small>Ante '+fmtN(ANTE)+'</small>';
     document.getElementById('mttBoardBtn').onclick=()=>this.board();
+    document.getElementById('mttTrendBtn').onclick=()=>this.trend(this.id,'チップの推移');
     document.getElementById('mttUnitBtn').onclick=()=>this.setUnit(this.unit==='chip'?'bb':'chip');
     document.getElementById('mttQuitBtn').onclick=()=>{ if(S.running){ setMsg('ハンドが終わってから放棄できます'); return; } if(confirm('途中放棄すると、いまの順位から最下位として扱い、参加費は戻りません。放棄しますか？')) this.forfeit(); };
   },
@@ -3652,7 +3704,7 @@ Object.assign(MT,{
     const d=this.load(), el=document.getElementById('mttLobby'), rs=d.results, n=rs.length, net=rs.reduce((a,r)=>a+r.net,0);
     const itm=rs.filter(r=>r.itm).length, ft=rs.filter(r=>r.ft).length, avgP=n?rs.reduce((a,r)=>a+r.place,0)/n:0, bank=this.bank();
     const resumable=this.active()||this.stored(), canGo=bank>=MTT.BUY_IN&&!S.running&&!resumable;
-    const rows=rs.slice(-15).reverse().map(r=>`<tr><td>${new Date(r.t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})}</td><td>${r.place}位</td><td>${fmtN(r.prize)}</td><td style="color:var(--${r.net>=0?'win':'loss'})">${r.net>=0?'+':''}${fmtN(r.net)}</td><td>${r.hands}</td><td>${fmtN(r.bankAfter)}</td></tr>`).join('');
+    const rows=rs.slice(-15).reverse().map(r=>`<tr data-trend="${r.id}" class="trrow"><td>${new Date(r.t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})}</td><td>${r.place}位</td><td>${fmtN(r.prize)}</td><td style="color:var(--${r.net>=0?'win':'loss'})">${r.net>=0?'+':''}${fmtN(r.net)}</td><td>${r.hands}</td><td>${fmtN(r.bankAfter)}</td></tr>`).join('');
     el.innerHTML=`<div class="mcard"><h2>バンクロール</h2><div class="mkv"><div>現在<b>${fmtYen(bank)}</b></div><div>初期<b>${fmtYen(d.bank0)}</b></div><div>通算収支<b style="color:var(--${net>=0?'win':'loss'})">${net>=0?'+':''}${fmtYen(net)}</b></div>
         <div>参加回数<b>${n}</b></div><div>ITM率<b>${n?(itm/n*100).toFixed(0)+'%':'—'}</b></div><div>ROI<b>${n?(net/(n*MTT.BUY_IN)*100).toFixed(0)+'%':'—'}</b></div><div>平均順位<b>${n?avgP.toFixed(1):'—'}</b></div><div>FT到達<b>${n?ft+'回':'—'}</b></div></div></div>
       <div class="mcard"><h2>${resumable?'進行中のトーナメントがあります':'新しいトーナメント'}</h2>
@@ -3662,7 +3714,8 @@ Object.assign(MT,{
         ${!resumable&&bank<MTT.BUY_IN?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px"><b style="color:var(--loss);font-size:14px">バンクロールが参加費（${fmtYen(MTT.BUY_IN)}）に足りません。</b><p style="margin:4px 0 6px;font-size:13px;color:var(--muted)">働いて稼ぎましょう。バイトを選んでください。</p><div class="jobs">${MT_JOBS.map(j=>`<button type="button" data-job="${j.k}"><b>${j.name}</b><small>${j.desc}</small><em>+${fmtYen(j.amt)}</em></button>`).join('')}</div></div>`:''}
         <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">賞金表</summary><table style="margin-top:6px"><tbody>${MTT.PAYOUTS.map((v,i)=>`<tr><td>${i+1}位</td><td>${fmtN(v)}</td><td>${(v/MTT.BUY_IN).toFixed(1)}x</td></tr>`).join('')}</tbody></table></details></div>
       <div class="mcard"><h2>分析</h2>${this.chart()}${this.analysis()}</div>
-      ${n?`<div class="mcard"><h2>最近の結果</h2><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
+      ${n?`<div class="mcard"><h2>最近の結果</h2><div style="font-size:12px;color:var(--muted);margin:-4px 0 6px">行をタップすると、チップの推移が見られます</div><div class="tscroll"><table><thead><tr><th>日付</th><th>順位</th><th>賞金</th><th>収支</th><th>ハンド</th><th>バンクロール</th></tr></thead><tbody>${rows}</tbody></table></div></div>`:''}`;
+    el.querySelectorAll('[data-trend]').forEach(tr=>tr.onclick=()=>{ const r=rs.find(x=>x.id===tr.dataset.trend); this.trend(tr.dataset.trend,r?new Date(r.t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})+' '+r.place+'位のチップ推移':''); });
     const sp=document.getElementById('mttSpeed'); if(sp){ sp.value=String(this.speed); sp.onchange=()=>{ this.speed=+sp.value; }; }
     const go=document.getElementById('mttGo'); if(go) go.onclick=()=>this.start();
     el.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>this.work(b.dataset.job));
