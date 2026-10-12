@@ -69,21 +69,35 @@
   const normal = rnd => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
   function makeStyle(rnd) { return { loose: clamp(1 + 0.14 * normal(rnd), 0.7, 1.35), aggr: clamp(1 + 0.18 * normal(rnd), 0.6, 1.5), three: clamp(1 + 0.2 * normal(rnd), 0.6, 1.6) }; }
 
-  /* create a tournament. opts: {seed, speed (1|2|3), heroName, heroLight (the hero's table is simulated like the others — for tests)} */
+  /* create a tournament. opts: {seed, speed (1|2|3), heroName, heroLight (the hero's table is simulated like the others — for tests),
+     lateLevel (1-based level at whose start the hero registers late; the field is played up to that moment first, the hero joins with the starting stack)} */
   function create(opts = {}) {
     const rng = makeRng(opts.seed == null ? (Math.random() * 4294967296) >>> 0 : opts.seed), rnd = rng.next;
-    const T = { v: 1, speed: opts.speed || 2, heroLight: !!opts.heroLight, rng, clock: 0, players: [], tables: [], remaining: FIELD, nextPlace: FIELD,
+    const late = opts.lateLevel > 1 && !opts.heroLight ? Math.min(opts.lateLevel, LEVELS.length) : 0;
+    const T = { v: 1, speed: opts.speed || 2, heroLight: !!opts.heroLight, late, rng, clock: 0, players: [], tables: [], remaining: late ? FIELD - 1 : FIELD, nextPlace: FIELD,
       busts: [], moves: [], handsPlayed: 0, hfh: false, done: false, log: [] };
     const names = makeNames(rnd, FIELD - 1);
-    for (let i = 0; i < FIELD; i++) T.players.push({ id: i, name: i === 0 ? (opts.heroName || 'あなた') : names[i - 1], isHero: i === 0, stack: START_STACK, tableId: -1, seat: -1, out: false, place: null,
+    for (let i = 0; i < FIELD; i++) T.players.push({ id: i, name: i === 0 ? (opts.heroName || 'あなた') : names[i - 1], isHero: i === 0, stack: i === 0 && late ? 0 : START_STACK, tableId: -1, seat: -1, out: false, place: null,
       style: i === 0 ? { loose: 1, aggr: 1, three: 1 } : makeStyle(rnd) });
     // seat everyone: 100 players on 13 tables (9 of 8 and 4 of 7), random order
-    const order = T.players.map(p => p.id); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    const nt = Math.ceil(FIELD / SEATS);
+    const order = T.players.filter(p => !(late && p.isHero)).map(p => p.id); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    const nt = Math.ceil(order.length / SEATS);
     for (let t = 0; t < nt; t++) T.tables.push({ id: t, seats: new Array(SEATS).fill(null), button: Math.floor(rnd() * SEATS), t: 0, live: false });
     order.forEach((pid, k) => { const tb = T.tables[k % nt]; const free = tb.seats.map((v, i) => v == null ? i : -1).filter(i => i >= 0); const s = free[Math.floor(rnd() * free.length)]; tb.seats[s] = pid; T.players[pid].tableId = tb.id; T.players[pid].seat = s; });
+    if (late) { lateRegister(T, late); return T; }
     if (!T.heroLight) T.tables[T.players[0].tableId].live = true;
     return T;
+  }
+  /* late registration: play the field up to the start of level `lvl`, then seat the hero with the starting stack */
+  function lateRegister(T, lvl) {
+    const seg = TIMELINE.find(s => s.type === 'level' && s.idx === lvl - 1), at = seg ? seg.start : 0, hero = T.players[0];
+    advanceTo(T, at, null); T.clock = at;
+    rebalance(T);
+    const room = liveTables(T).filter(t => count(t) < SEATS).sort((a, b) => count(a) - count(b) || a.id - b.id)[0] || T.tables.find(t => count(t) === 0);
+    hero.stack = START_STACK; T.remaining++;   // chips: the field's total grows by one starting stack
+    seatInto(T, 0, room, 'late'); room.t = Math.max(room.t, at);
+    rebalance(T);
+    T.tables.forEach(t => t.live = false); heroTable(T).live = true;
   }
 
   const occ = tb => tb.seats.map((p, i) => p == null ? -1 : i).filter(i => i >= 0);   // occupied seat numbers
@@ -189,7 +203,7 @@
       seatInto(T, mover, small, 'balance');
     }
     // the hero's table is the live one
-    if (!T.heroLight && !T.players[0].out && !skipTb) { T.tables.forEach(t => t.live = false); heroTable(T).live = true; }
+    if (!T.heroLight && !T.players[0].out && T.players[0].tableId >= 0 && !skipTb) { T.tables.forEach(t => t.live = false); heroTable(T).live = true; }
     // a table that has just received players starts when the others do
     T.tables.forEach(t => { if (count(t) > 0 && t.t < T.clock) t.t = T.clock; });
     T.hfh = T.remaining > PAID && T.remaining <= PAID + liveTables(T).length + 1;
