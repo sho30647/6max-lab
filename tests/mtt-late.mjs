@@ -18,7 +18,7 @@ async function open() {
 let page = await open();
 const r = await page.evaluate(async () => {
   localStorage.clear(); MT.data = null; Nav.setScreen('mtt'); document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false;
-  const sel = document.getElementById('mttLate'); sel.value = '12'; sel.onchange(); document.getElementById('mttGo').click();
+  document.querySelector('.mtlate [data-late="12"]').click(); if (document.querySelector('.mtlate [data-late="12"]').getAttribute('aria-pressed') !== 'true') throw new Error('LR button not pressed'); const bh = document.querySelector('.mtlate button').getBoundingClientRect().height; if (bh < 48) throw new Error('LR button too small: ' + bh); document.getElementById('mttGo').click();
   const T = MT.T, st = MTT.stats(T), first = { late: T.late, level: st.level, remaining: st.remaining, heroBB: +st.heroBB.toFixed(1), avgBB: +st.avgBB.toFixed(1), stack: T.players[0].stack };
   S.autoHero = true; let n = 0; while (!MT.over && n < 400) { await playHand(); n++; }
   const res = MT.load().results.slice(-1)[0];
