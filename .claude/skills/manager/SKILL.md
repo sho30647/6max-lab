@@ -22,3 +22,10 @@ description: 6max-lab全体の管理担当。依頼の整理、優先順位づ�
 
 ## 返答の形
 現状（一覧）→ 課題（詰まり・衝突）→ 打ち手（次にやる順番、頼む文面）の順で、簡潔に。
+
+## 併用するスキル
+- `brainstorming`：曖昧な依頼を、実装前に整理する。
+- `writing-plans` / `executing-plans`：複数ステップの依頼を計画にして進める。
+- `dispatching-parallel-agents`：独立した依頼を並行して進めるとき。
+- `using-git-worktrees`：依頼ごとに作業場所を分け、同時進行で衝突しないようにする。
+- PRの出し先は `staging`（`CLAUDE.md` のブランチ運用に従う）。
