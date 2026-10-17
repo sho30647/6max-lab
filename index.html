@@ -17,7 +17,7 @@
 :root{
   --bg:#E9EDEF; --surface:#FFFFFF; --surface2:#F4F6F7; --ink:#18232C; --muted:#5B6975; --line:#D3DADF;
   --felt:#2D5B61; --felt2:#23494E; --rail:#3A2F27; --brass:#A9833A; --win:#2B7A57; --loss:#B6443A; --sd:#3A6FB0;
-  --card:#FCFCFA; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
+  --card:#FCFCFA; --turn:#1F6FEB; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
   --num:'Barlow Condensed','Zen Kaku Gothic New',system-ui,sans-serif;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -25,13 +25,13 @@
   :root:not([data-theme="light"]){
     --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
     --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-    --card:#F2F2EE;
+    --card:#F2F2EE; --turn:#5AA2FF;
   }
 }
 :root[data-theme="dark"]{
   --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
   --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-  --card:#F2F2EE;
+  --card:#F2F2EE; --turn:#5AA2FF;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:border-box}
@@ -59,12 +59,17 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 .seat .cards{display:flex;justify-content:center;gap:3px;height:52px;margin-bottom:-8px;position:relative;z-index:1}
 .seat .plate{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 6px 4px;line-height:1.25}
 .seat.hero .plate{border-color:var(--brass);border-width:2px}
-.seat.acting .plate{box-shadow:0 0 0 3px var(--brass)}
-.seat.folded{opacity:.42}
+.seat.acting .plate{box-shadow:0 0 0 4px var(--turn);animation:turnpulse 1.4s ease-in-out infinite}   /* whose turn: blue, distinct from the hero's own brass frame */
+@keyframes turnpulse{50%{box-shadow:0 0 0 6px var(--turn)}}
+.seat.folded{opacity:.8}
+.seat.folded .plate{background:var(--surface2);border-color:transparent}
+.seat.folded .nm,.seat.folded .stk,.seat.folded .act{color:var(--muted)}
+.seat.hero .cards{height:70px}
+.seat.hero .cards .card{width:50px;height:70px;font-size:28px}.seat.hero .cards .card i{font-size:22px}
 .seat .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seat .stk{font-family:var(--num);font-size:16px;font-weight:600}
 .seat .pos{display:inline-block;vertical-align:1px;margin-right:4px;background:var(--ink);color:var(--bg);font-family:var(--num);font-size:12px;font-weight:600;line-height:16px;padding:0 5px;border-radius:5px;letter-spacing:.03em}   /* position tag, left of the name (clear of the cards) */
-.seat .act{font-size:11px;color:var(--muted);min-height:15px;white-space:nowrap}
+.seat .act{font-size:12px;font-weight:600;color:var(--ink);min-height:15px;white-space:nowrap}
 .dealer{display:inline-block;vertical-align:1px;margin-right:4px;width:16px;height:16px;border-radius:50%;background:#F5F1E6;color:#222;font-family:var(--num);font-weight:700;font-size:11px;line-height:15px;border:1px solid #999;text-align:center}
 .betchip{position:absolute;transform:translate(-50%,-50%);background:rgba(0,0,0,.38);color:#F7E7B8;font-family:var(--num);font-weight:600;font-size:15px;padding:1px 8px;border-radius:12px;white-space:nowrap}
 .card{width:38px;height:52px;border-radius:5px;background:var(--card);color:var(--s0);display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--num);font-weight:700;font-size:21px;line-height:.95;box-shadow:0 1px 2px rgba(0,0,0,.35)}
@@ -120,9 +125,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 .btn.grow{flex:1 1 0}
 .btn:disabled{opacity:.4;cursor:default}
 .presets{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 6px}
-.presets button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:4px 10px;font-size:13px}
+.presets button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:4px 10px;font-size:13px;min-height:38px}
 input[type=range]{width:100%;accent-color:var(--brass)}
-.szrow{display:flex;align-items:center;gap:8px}.szrow input{flex:1}.szb{flex:none;width:44px;height:36px;border-radius:8px;border:1px solid var(--line,#444);background:transparent;color:inherit;font-size:20px;line-height:1}
+.szrow{display:flex;align-items:center;gap:8px}.szrow input{flex:1}.szb{flex:none;width:44px;height:44px;border-radius:8px;border:1px solid var(--line,#444);background:transparent;color:inherit;font-size:20px;line-height:1}
 .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px}
 .opts label{display:flex;align-items:center;gap:5px}
 .session{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
@@ -139,6 +144,17 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 section.block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px;margin-bottom:14px}
 section.block h2{font-size:16px;margin:0 0 2px}
 section.block .sub{font-size:12px;color:var(--muted);margin:0 0 10px}
+.fold-bar{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.fold-bar span{font-size:12px;color:var(--muted);margin-right:auto}
+.fold-bar button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;min-height:36px;white-space:nowrap}
+section.block.fold>h2{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin:-14px -14px -10px;padding:0 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+section.block.fold>h2::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+section.block.fold.open>h2{margin-bottom:2px}
+section.block.fold.open>h2::after{transform:rotate(-135deg) translateY(-2px)}
+section.block.fold:not(.open)>:not(h2){display:none}
+section.block.fold:not(.open){padding-bottom:0}
+section.block.fold>h2:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;border-radius:12px}
+@media (prefers-reduced-motion: reduce){section.block.fold>h2::after{transition:none}}
 .insight p{margin:0 0 8px;max-width:72ch}
 .insight p:last-child{margin-bottom:0}
 .tscroll{overflow-x:auto}
@@ -159,7 +175,7 @@ table.t td.few{color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
 svg.chart{width:100%;height:auto;display:block}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:760px){.two{grid-template-columns:1fr}}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}   /* minmax(0,…): a wide table must scroll in its own box, not stretch the page */
 
 /* ===== history ===== */
 .hlist{display:flex;flex-direction:column;gap:6px}
@@ -210,7 +226,7 @@ svg.chart{width:100%;height:auto;display:block}
   .center{width:78%}
   .brand h1{font-size:24px}
 }
-@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}.seat.acting .plate{animation:none}}
 /* ===== preflop trainer ===== */
 .modes{display:flex;gap:6px;flex-wrap:wrap;max-width:820px;margin:0 auto 8px}
 .modes button{flex:1 1 0;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 6px;font-size:14px;font-weight:700;line-height:1.25}
@@ -239,7 +255,7 @@ svg.chart{width:100%;height:auto;display:block}
 .setin{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px;font-size:13px}
 .checks{display:flex;gap:12px;flex-wrap:wrap}
 .checks label{display:flex;align-items:center;gap:4px}
-.setin select{font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.setin select{max-width:100%;min-width:0;font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .soon{max-width:820px;margin:0 auto}
 .grid13 button{font-size:10.5px}
 .grid13 button.nod{opacity:.45}
@@ -328,8 +344,9 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .seat{width:82px}
   .seat .cards{height:38px;margin-bottom:-7px}
   .card{width:27px;height:38px;font-size:16px}.card i{font-size:12px}
+  .seat.hero .cards{height:50px}.seat.hero .cards .card{width:36px;height:50px;font-size:21px}.seat.hero .cards .card i{font-size:16px}
   .seat .plate{padding:7px 3px 2px;border-radius:8px}
-  .seat .nm{font-size:11px}.seat .stk{font-size:14px}.seat .act{font-size:10px;min-height:13px}
+  .seat .nm{font-size:11px}.seat .stk{font-size:14px}.seat .act{font-size:11px;min-height:14px}
   .seat .pos{font-size:10px;line-height:14px;padding:0 3px;margin-right:2px}
   .board{min-height:46px;gap:3px}
   .board .card{width:32px;height:44px;font-size:18px}.board .card i{font-size:14px}
@@ -338,7 +355,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
   .betchip{font-size:13px;padding:0 6px}
   .controls{margin-top:6px;padding:8px}
   .presets{margin:6px 0 4px}.presets button{padding:3px 8px}
-  .btn{min-height:40px;padding:8px 10px}
+  .btn{min-height:44px;padding:8px 10px}
   .modes{margin-bottom:6px}.modes button{padding:5px 4px;font-size:13px}
   .session{margin-top:4px;font-size:12px}
 }
@@ -391,6 +408,14 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .rov .estv{display:flex;gap:4px}
 .rov .estv button{border:1px solid var(--line);background:var(--surface2);border-radius:7px;padding:3px 10px;font-size:12px}
 .rov .estv button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.rov .estv button{white-space:nowrap}
+#pf-nextRow:not([style*="none"])+#pf-estRow{margin-top:8px}
+/* the answer-check header (a long title + the 乖離／正解／あなた buttons): the title wraps and the buttons take their own row, so nothing is pushed off the screen */
+.rov.est .rovhead{flex-wrap:wrap}
+.rov.est .rovhead b{white-space:normal;flex:1 1 0;min-width:0}
+.rov.est .rovhead .estv{order:3;flex:1 1 100%}
+.rov.est .rovhead .estv button{flex:1 1 0;min-height:32px}
+.rov.est .rovhead .rovx{order:2;flex:none}
 @media (max-width:600px){ .tablebox:has(.rov.est){aspect-ratio:auto;height:calc(100vw + 85px)} .modes button small{display:none} .modes2 button{padding:5px 4px;font-size:12.5px} .mprog{font-size:12px;margin-bottom:4px} .mchips{gap:3px} .mchip{padding:1px 7px;font-size:11px} }
 /* preflop: whole spot range drawn over the table after a stopped answer */
 .rov{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
@@ -407,7 +432,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 @media (max-width:600px){ #pf-controls .nextrow .btn{flex:0 0 calc(50% - 8px)} }
 .tablebox:has(.rov) .seat,.tablebox:has(.rov) .betchip{visibility:hidden}
 #pf-btnRng[aria-pressed="true"]{background:var(--surface2)}
-@media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} }
+@media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} .rov.est .rovhead b{white-space:normal} }
 /* ===== navigation: home screen, preflop menu, back bar (replaces the top tab bar and the preflop mode/sub-tab rows) ===== */
 header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .brand h1{cursor:pointer}
@@ -427,7 +452,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .nv-tiles.five{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
 .nv-tile.nodata{opacity:.7}
 .tablebox.t8 .seat{width:96px}
-@media (max-width:600px){ .tablebox.t8 .seat{width:72px} .tablebox.t8 .seat .nm{font-size:10px} .tablebox.t8 .seat .stk{font-size:12px} .tablebox.t8 .seat .act{font-size:9px} .tablebox.t8 .card{width:23px;height:32px;font-size:13px} .tablebox.t8 .seat .cards{height:32px} }
+@media (max-width:600px){ .tablebox.t8 .seat{width:72px} .tablebox.t8 .seat .nm{font-size:10px} .tablebox.t8 .seat .stk{font-size:12px} .tablebox.t8 .seat .act{font-size:9px} .tablebox.t8 .card{width:23px;height:32px;font-size:13px} .tablebox.t8 .seat .cards{height:32px} .tablebox.t8 .seat.hero .cards{height:40px} .tablebox.t8 .seat.hero .cards .card{width:29px;height:40px;font-size:16px} }
 .wrap.onrpm>#tab-ring,.wrap.onrpm>#tab-pf,.wrap.onrpm>#tab-admin{display:none!important}
 .wrap:not(.onrpm)>#rp-menu{display:none}
 .wrap.inrp #tab-ring>.subtabs{display:none}
@@ -471,6 +496,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .nv-card:hover,.nv-tile:hover{border-color:var(--brass)}
 .nv-card .t{display:block;font-family:var(--num);font-size:24px;font-weight:700;line-height:1.1}
 .nv-card .d{display:block;font-size:12.5px;color:var(--muted)}
+.nv-card .s{display:block;margin-top:3px;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.01em}
+.nv-card .s:empty{display:none}
+.nv-card .s .pos-c,.nv-card .s .neg-c{font-weight:700}
 .nv-chip{width:56px;height:56px;border-radius:50%;background:var(--felt);display:grid;place-items:center;box-shadow:inset 0 0 0 4px var(--felt2),inset 0 0 0 6px color-mix(in srgb,var(--brass) 70%,transparent)}
 .nv-chip svg{width:26px;height:26px;fill:none;stroke:#f4efe0;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nv-card.admin .nv-chip{background:var(--ink)}
@@ -668,7 +696,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <div class="nv-cards">
       <button class="nv-card" data-nv="ring" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
-        <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span></span>
+        <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span><span class="s" id="nvSRing"></span></span>
       </button>
       <button class="nv-card" data-nv="rp-menu" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H10l-5 4z"/><path d="M9 9h6M9 12h4"/></svg></span>
@@ -680,7 +708,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       </button>
       <button class="nv-card" data-nv="mtt" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4M8 20h8M10 17h4"/></svg></span>
-        <span><span class="t">MTT</span><span class="d">8maxの100人トーナメント。ブラインドが上がり、人が減り、バブルとICMを経験する</span></span>
+        <span><span class="t">MTT</span><span class="d">8maxの100人トーナメント。ブラインドが上がり、人が減り、バブルとICMを経験する</span><span class="s" id="nvSMtt"></span></span>
       </button>
       <button class="nv-card admin hidden" id="nvAdminCard" data-nv="admin" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg></span>
@@ -764,7 +792,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       <div class="nv-cards">
         <button class="nv-card" data-pfgame="cash" type="button">
           <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
-          <span><span class="t">Cash</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
+          <span><span class="t">リングゲーム</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
         </button>
         <button class="nv-card" data-pfgame="mtt" type="button">
           <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span>
@@ -775,7 +803,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <div id="pf-depth">
       <div class="nv-sec">MTT（8人テーブル・BBアンティ）　スタック量を選ぶ</div>
       <div class="nv-tiles five" id="pfMttTiles"></div>
-      <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。Cashと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
+      <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。リングゲームと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
     </div>
     <div id="pf-menu">
       <div class="nv-sec" id="pfCtxLbl"></div>
@@ -840,6 +868,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
           <button class="btn jam grow hidden" data-a="J" id="pf-btnJam">オールイン<br><small>100bb</small></button>
         </div>
         <div class="row" id="pf-nextRow" style="display:none"><button class="btn main grow" id="pf-btnNext" type="button">次のハンド</button></div>
+        <div class="row" id="pf-estRow" style="display:none"><button class="btn grow" id="pf-estChart" type="button">3ベットのレンジ表</button><button class="btn main grow" id="pf-estOpen" type="button">相手のレンジを推定する</button></div>
         <div class="fb hidden" id="pf-fb"></div>
       </div>
       <details class="setbox" id="pf-setbox">
@@ -849,6 +878,16 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
             <div class="row" style="gap:6px;margin-bottom:6px"><button class="btn" id="pf-posAll" type="button">全部選択</button><button class="btn" id="pf-posNone" type="button">全部クリア</button></div>
             <div class="checks" id="pf-posChecks"></div>
             <p class="help">1つも選ばないときは、すべてのポジションから出題します</p></div>
+          <div id="pf-estKindBox" class="hidden"><p class="lbl">推定する対象</p>
+            <select id="pf-estKind">
+              <option value="mix">ランダム（すべて出題）</option>
+              <option value="act">相手のオープン／3ベットのレンジ</option>
+              <option value="call">自分の3ベットへの相手のコール</option>
+              <option value="callo">自分のオープンへの相手のコール</option>
+              <option value="call4">自分の4ベットへのBTNのコール（COのみ）</option>
+            </select>
+            <p class="help">3ベット：vsオープンのスポットで、あなたが3ベットしたとき、オープンした相手がコールするハンド（相手のオープン頻度 × 3ベットに対するコール頻度）。オープン：あなたのオープンに、後ろの相手がコール（フラット）するハンド。4ベット：COでオープンしてBTNに3ベットされ、あなたが4ベットしたとき、BTNがコールするハンド（Cashのみ）</p>
+          </div>
           <div><p class="lbl">ハンドの出方</p>
             <select id="pf-dealMode">
               <option value="all">実戦と同じ頻度（ランダム配布）</option>
@@ -1479,7 +1518,7 @@ const pts=ch=>Math.round(ch/PT*10)/10;
 const mtChips=()=>MT.on&&MT.unit==='chip';   // tournament: show chips (点数) instead of bb
 const chipTxt=ch=>Math.round(ch).toLocaleString('en-US');
 const amtShort=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch);        // bet chips, action labels, buttons
-const ptTxt=ch=>mtChips()?chipTxt(ch)+'点':MT.on?bbs(ch)+'bb':pts(ch)+'点';   // pot and win/lose amounts: 点 (half a big blind) as in beginner mode; tournament: chips, or bb when switched
+const ptTxt=ch=>mtChips()?chipTxt(ch)+'点':MT.on||!isBeginner()?bbs(ch)+'bb':pts(ch)+'点';   // pot and win/lose amounts: bb like the stacks; beginner mode: 点 (half a big blind); tournament: chips, or bb when switched
 const amtLong=ch=>mtChips()?chipTxt(ch):isBeginner()?pts(ch)+'点':bbs(ch)+'bb';     // stacks, pot
 const netTxt=bb=>{ if(mtChips()){ const v=Math.round(bb*BB); return (v>0?'+':'')+chipTxt(v); } const v=isBeginner()?Math.round(bb*BB/PT*10)/10:Math.round(bb*100)/100; return (v>0?'+':'')+v+(isBeginner()?'点':'bb'); };
 const roundBet=v=>isBeginner()?Math.round(v/PT)*PT:Math.round(v);
@@ -2457,6 +2496,20 @@ function insights(hs,all){
   if(f3o.length>=15){ const r=pct(f3f,f3o.length); if(r>65) out.push(`オープン後に3ベットされてフォールドする率が ${r.toFixed(0)}%（n=${f3o.length}）。一般的な目安（50〜60%）より高く、相手の3ベットに降りすぎている可能性があります。`); }
   return out.map(t=>`<p>${t}</p>`).join('');
 }
+/* analysis screen: the detail sections (everything after the KPIs, the insight and the cumulative chart) fold behind their headings; which ones are open is remembered for the session */
+const statsOpen=new Set();
+function foldStats(body){
+  const secs=[...body.querySelectorAll('section.block')].filter(x=>!x.classList.contains('insight')).slice(1);   // the first is the cumulative-profit chart: it stays open
+  if(!secs.length) return;
+  const set=(sec,on)=>{ sec.classList.toggle('open',on); const h=sec.querySelector(':scope>h2'); h.setAttribute('aria-expanded',String(on)); const t=h.textContent; if(on) statsOpen.add(t); else statsOpen.delete(t); };
+  secs.forEach(sec=>{ const h=sec.querySelector(':scope>h2'); if(!h) return; sec.classList.add('fold'); h.setAttribute('role','button'); h.tabIndex=0;
+    set(sec,statsOpen.has(h.textContent));
+    const tog=()=>set(sec,!sec.classList.contains('open')); h.onclick=tog; h.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); tog(); } }; });
+  const bar=document.createElement('div'); bar.className='fold-bar'; bar.innerHTML='<span>詳しい集計</span><button type="button" data-f="open">すべて開く</button><button type="button" data-f="close">すべて閉じる</button>';
+  bar.querySelector('[data-f=open]').onclick=()=>secs.forEach(x=>x.classList.contains('fold')&&set(x,true));
+  bar.querySelector('[data-f=close]').onclick=()=>secs.forEach(x=>x.classList.contains('fold')&&set(x,false));
+  secs[0].parentNode.insertBefore(bar,secs[0]);
+}
 function renderStats(){
   const body=document.getElementById('statsBody');
   const fp=document.getElementById('fPos').value, fr=+document.getElementById('fRange').value;
@@ -2498,6 +2551,7 @@ function renderStats(){
     <section class="block"><h2>最後のストリートの動き</h2><p class="sub">ハンドが決着したストリートで、自分に何が起きたか。相手のハンドは、記録されている実際のカードと比べています（相手のハンドを記録する前の古いハンドは「判定できない」）。ハンドの強さは、そのストリートのボードでの自分の役です（ペアは自分のホールカードで判定。ハイカードは自分の一番高いホールカード）。</p>${lastStreetSection(hs)}</section>
     <section class="block"><h2>スターティングハンド別</h2><p class="sub">色は1ハンドあたりの収支（緑=プラス、赤=マイナス）。</p>${grid.html}</section>
   `;
+  foldStats(body);
   const gi=document.getElementById('grid13');
   gi.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     gi.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
@@ -3806,6 +3860,14 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 /* Navigation: home -> (ring | preflop menu -> preflop screen | admin). The old tab bars stay in the DOM (other code clicks them)
    but are hidden; this layer decides which screen is showing. */
 let pfBootP=Promise.resolve();
+/* home cards: the player's own numbers (ring: hands and result in bb, MTT: bankroll); nothing is shown before the first hand */
+function renderHomeStats(){
+  const r=document.getElementById('nvSRing'), m=document.getElementById('nvSMtt'); if(!r||!m) return;
+  const hs=Store.hands||[], n=hs.length, net=hs.reduce((a,h)=>a+(+h.net||0),0);
+  r.innerHTML=n?`累計 ${n} ハンド　<span class="${net>=0?'pos-c':'neg-c'}">${net>=0?'+':'−'}${Math.abs(net).toFixed(1)} bb</span>`:'';
+  let mt=''; try{ const d=MT.load(), tot=d.results.reduce((x,y)=>x+y.net,0); mt=`バンクロール ${fmtYen(MT.bank())}`+(d.results.length?`　<span class="${tot>=0?'pos-c':'neg-c'}">通算 ${tot>=0?'+':''}${fmtYen(tot)}</span>`:''); }catch(e){}
+  m.innerHTML=mt;
+}
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
@@ -3826,6 +3888,7 @@ const Nav={screen:'home',
     document.querySelector('.wrap').classList.toggle('inrp',s==='rp'); if(typeof MT.view==='function') MT.view();
     el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu'); el('tab-pf').classList.toggle('depth',s==='pf-depth');
     if(s==='pf-depth'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
+    if(s==='home') renderHomeStats();
     el('navbar').classList.toggle('hidden',s==='home'); el('navSet').classList.toggle('hidden',!(s==='ring'||s==='rp'||s==='mtt'));
     el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'||s==='pf-depth'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
@@ -3919,7 +3982,7 @@ document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.runn
   catch(e){ console.error('init',e); setStatus('記録の読み込みでエラーが起きました（'+(e&&e.message||e)+'）。記録自体は保存先に残っています'); }
   if(!CLASS_LIST.length) buildPreflop();
   setMsg(Store.hands.length?`${Store.hands.length}ハンドの記録を読み込みました`+(Store.mode==='cloud'?'':'（端末内の一時保存分）'):'');
-  renderSession(); renderControls();
+  renderSession(); renderControls(); renderHomeStats();
   initSheets();
 })();
 </script>
@@ -3970,7 +4033,7 @@ const GAMES={cash:{name:'Cash',pos:POS6,ante:0},mtt:{name:'MTT',pos:POS8,ante:1}
 const CTX={game:'cash',depth:null,key:'cash',suffix:''};
 const stackBB=()=>CTX.game==='mtt'?CTX.depth:100;
 const K=k=>k+CTX.suffix;   // per-box localStorage key
-const ctxName=()=>CTX.game==='mtt'?'MTT '+CTX.depth+'bb':'Cash';
+const ctxName=()=>CTX.game==='mtt'?'MTT '+CTX.depth+'bb':'リングゲーム';
 const hasJam=m=>isSpot(m)||CTX.game==='mtt';   // MTT stacks are short: the open spots have an all-in answer too
 
 /* =========================================================
@@ -4253,7 +4316,8 @@ const cfg={mpos:new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]),   // he
   farD:lsGet('pflab_fard')===null?DEF.farD:+lsGet('pflab_fard'),
   useGameLog:true,   // table-play decisions are always part of the analysis
   stopMix:lsGet('pflab_stopmix')==='1',
-  border:lsGet('pflab_border')==='1'};
+  border:lsGet('pflab_border')==='1',
+  estKind:['mix','act','call','callo','call4'].includes(lsGet('pflab_estkind'))?lsGet('pflab_estkind'):'mix'};   // range-estimation special: what to estimate
 
 function gameLogOpenRecords(hands){
   try{
@@ -4329,8 +4393,13 @@ function deal(){
   if(P.special?!anyRanges():!modeReady(P.mode)) return;   // a box without ranges for this mode has nothing to deal
   if(P.special==='range'){   // vs open / vs 3bet spots, hero position limited by the special-menu position checks
     const ms=['vsOpen','vs3bet'].filter(m=>MODE_POS[m].some(p=>heroOk(heroOf(p)))); const c=ms.length?ms:['vsOpen','vs3bet'];
-    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false; }
-  const avail=P.special?MODE_POS[P.mode].filter(p=>heroOk(heroOf(p))):modePos(P.mode); const pos=avail[Math.floor(Math.random()*avail.length)];
+    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false; EST.view='gap';
+    // call kinds: the villain's calling range after the hero's own action — each needs charted spots; the mode and the hero's seat follow the kind
+    const A=estAvail(), ks=['act',...Object.keys(A)];
+    EST.kind=cfg.estKind==='mix'?ks[Math.floor(Math.random()*ks.length)]:A[cfg.estKind]?cfg.estKind:'act';
+    EST.ps=EST.kind==='act'?null:A[EST.kind].ps; if(EST.kind!=='act') P.mode=A[EST.kind].m; }
+  const avail=EST.ps&&P.special==='range'?EST.ps:P.special?MODE_POS[P.mode].filter(p=>heroOk(heroOf(p))):modePos(P.mode); const pos=avail[Math.floor(Math.random()*avail.length)];
+  if(P.special==='range'&&EST.kind==='callo'){ const vs=estOpenVils(pos); EST.vil=vs[Math.floor(Math.random()*vs.length)]; }
   const v3=P.mode==='vs3bet';
   let cards=null, k=null;
   const far=cfg.far&&!v3?farSet(P.mode,pos,cfg.farD):new Set();
@@ -4340,6 +4409,7 @@ function deal(){
   if(!k&&cfg.deal==='edge'){ const s=edgeSet(P.mode,pos); if(s.length){ k=pickWeighted(s.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)}))); } }
   if(!k&&cfg.deal==='weak'){ const s=weakSet(P.mode,pos).filter(x=>!far.has(x.k)); if(s.length&&Math.random()<0.8){ k=pickWeighted(s); } }
   if(!k&&v3) k=pickWeighted(CLASSES.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)})).filter(x=>x.w>0));   // only hands the hero actually opened
+  if(P.special==='range'&&EST.kind!=='act'){ const hk=estHandFor(pos); if(hk) k=hk; }   // call questions: a hand the hero acts with
   if(k) cards=cardsForCls(k);
   else { for(let t=0;t<500;t++){ const a=Math.floor(Math.random()*52); let b; do{ b=Math.floor(Math.random()*52); }while(b===a); cards=[a,b]; k=cardsToCls(a,b); if(!far.has(k)) break; } }
   if(P.last&&P.last===pos+k&&cfg.deal!=='all'){ return deal(); }
@@ -4349,6 +4419,7 @@ function deal(){
   setMsg(spotMsg(pos));
 }
 function spotMsg(pos){
+  if(estCallNow()){ const I=estInfo(); return `${I.act} ${I.size}bb → ${I.vil}がコール`; }
   if(!Ranges.has(P.mode,pos)) return 'このポジションはレンジ未登録（記録のみ）';
   if(P.mode==='vs3bet'){ const R=Ranges.get('vs3bet',pos)||{}, s=spotOf(pos); return `あなたの${s.hero} ${openSize(s.hero)}bbオープンに ${s.vil} が ${R.vs||'?'}bb に3ベット`; }
   if(P.mode==='vsOpen'){ const R=Ranges.get('vsOpen',pos)||{}, s=spotOf(pos); return `${s.vil} が ${R.vs||'?'}bb でオープン`; }
@@ -4395,12 +4466,52 @@ function renderMprog(){
 }
 
 /* ---------- special menu 2: range estimation — paint the opponent's range, then compare with the chart ---------- */
-const EST={cells:{},done:false,view:'gap'};
+const EST={cells:{},done:false,view:'gap',kind:'act',ps:null,vil:null};   // kind: 'act' = the villain's own action range; 'call' = the opener's range after calling the hero's 3bet; 'callo' = a seat behind calling the hero's open (EST.vil); 'call4' = BTN calling the hero's CO 4bet
+const estCallOk=p=>{ const s=spotOf(p); return Ranges.has('open',s.vil)&&hasCall('vs3bet',s.vil+'vs'+s.hero); };
+const hasCall=(m,key)=>{ const R=Ranges.get(m,key); return !!(R&&R.h&&Object.values(R.h).some(x=>+x.c>0)); };   // the chart has any calling hand (a spot that only 3bets or folds has no call range to estimate)
+const estOpenVils=p=>POS.slice(POS.indexOf(p)+1).filter(v=>hasCall('vsOpen',v+'vs'+p));   // seats behind the opener that have a call chart against this open
+const estCallNow=()=>P.special==='range'&&EST.kind!=='act'&&!!P.cur;   // a 'call' question: the hero already acted and the villain called
+function estInfo(){   // who acted, with what size, for the table drawing and the labels
+  const p=P.cur.pos, s=spotOf(p);
+  if(EST.kind==='callo') return {hero:p,vil:EST.vil,size:openSize(p),act:'オープン',chart:'オープンのレンジ表'};
+  if(EST.kind==='call4') return {hero:'CO',vil:'BTN',size:+(Ranges.get('vs3bet',p)||{}).size||0,act:'4ベット',chart:'4ベットのレンジ表'};
+  return {hero:s.hero,vil:s.vil,size:+(Ranges.get('vsOpen',p)||{}).size||0,act:'3ベット',chart:'3ベットのレンジ表'};
+}
+function estHandFor(pos){   // a hand the hero would take that action with
+  const l=CLASSES.map(x=>({k:x,w:combos(x)*dealWeight(P.mode,pos,x)*(Ranges.exp(P.mode,pos,x).r||0)})).filter(x=>x.w>0);
+  return l.length?pickWeighted(l):null;
+}
+/* the call question's buttons: the hero's own range chart (was that action right?) and the start of the range building */
+function bindEstRow(){
+  const rec=()=>({m:P.mode,p:P.cur.pos,k:P.cur.k}), I=estInfo();
+  const ch=document.getElementById('pf-estChart'), go=document.getElementById('pf-estOpen');
+  ch.textContent=I.chart;
+  ch.onclick=()=>{ const o=document.getElementById('pf-rov'); if(o&&o.classList.contains('chart')){ hideRangeOverlay(); return; } drawRangeOverlay(rec(),false); const n=document.getElementById('pf-rov'); if(n) n.classList.add('chart'); };
+  go.textContent=EST.done?'答え合わせを見る':'相手のレンジを推定する';
+  go.onclick=()=>showEstOverlay(rec());
+}
+/* BTN's calling range against a CO 4bet (100bb Cash, solver; share of all combos of each hand: the height of the call colour in its cell) */
+const EST_CALL4={AA:1,'AKs':0.43,'AQs':1,'AJs':0.46,'ATs':0.3,'A9s':0.11,'A5s':0.68,'A4s':0.52,'A3s':0.11,'KK':0.2,'KQs':0.54,'KJs':0.73,'KTs':0.61,'K9s':0.27,'K6s':0.2,'AQo':0.54,'QQ':0.29,'QJs':0.41,'JJ':0.57,'JTs':0.62,'TT':0.59,'T9s':0.34,'99':0.52,'98s':0.02,'88':0.43,'87s':0.18,'77':0.27,'76s':0.12,'66':0.34,'65s':0.14,'55':0.09,'54s':0.11};
+/* the same BTN response in full: [call, all-in, fold] shares of all combos per hand (what is left of the cell is not in BTN's 3bet range) */
+const EST_FULL4={'AA':[1,0,0],'AKs':[0.43,0.57,0],'AQs':[1,0,0],'AJs':[0.46,0,0],'ATs':[0.3,0,0],'A9s':[0.11,0,0.59],'A8s':[0,0,0.64],'A7s':[0,0,0.77],'A6s':[0,0,0.89],'A5s':[0.68,0.05,0],'A4s':[0.52,0,0.09],'A3s':[0.11,0,0.27],'AKo':[0,1,0],'KK':[0.2,0.8,0],'KQs':[0.54,0,0],'KJs':[0.73,0,0],'KTs':[0.61,0,0],'K9s':[0.27,0,0.36],'K8s':[0,0,0.52],'K7s':[0,0,0.09],'K6s':[0.2,0,0],'AQo':[0.54,0,0.07],'KQo':[0,0,0.75],'QQ':[0.29,0.71,0],'QJs':[0.41,0,0],'QTs':[0,0,0.46],'Q9s':[0,0,0.98],'AJo':[0,0,0.79],'KJo':[0,0,0.41],'QJo':[0,0,0.34],'JJ':[0.57,0.27,0],'JTs':[0.62,0,0],'J9s':[0,0,0.82],'ATo':[0,0,0.54],'KTo':[0,0,0.07],'TT':[0.59,0,0],'T9s':[0.34,0,0.29],'T8s':[0,0,0.2],'99':[0.52,0,0],'98s':[0.02,0,0.04],'88':[0.43,0,0],'87s':[0.18,0,0],'77':[0.27,0,0.11],'76s':[0.12,0,0],'66':[0.34,0,0.07],'65s':[0.14,0,0],'55':[0.09,0,0],'54s':[0.11,0,0]};
+function estAvail(){   // kind -> {m: the mode to deal, ps: the spots to deal}; only the kinds that can be asked right now
+  const A={}, vo=MODE_POS.vsOpen.filter(p=>heroOk(heroOf(p))&&estCallOk(p)), op=MODE_POS.open.filter(p=>heroOk(p)&&estOpenVils(p).length);
+  if(vo.length) A.call={m:'vsOpen',ps:vo};
+  if(op.length) A.callo={m:'open',ps:op};
+  if(CTX.game==='cash'&&heroOk('CO')&&MODE_POS.vs3bet.includes('COvsBTN')&&Ranges.has('open','CO')) A.call4={m:'vs3bet',ps:['COvsBTN']};
+  return A;
+}
 function estTarget(m,p){
   const s=spotOf(p);
-  if(m==='vsOpen'){ const R=Ranges.get('open',s.vil)||{}; return {label:`${s.vil} のオープンレンジ（${R.size||'?'}bb）`,f:k=>Ranges.exp('open',s.vil,k).r}; }
+  if(EST.kind==='callo'){ const V=EST.vil; return {label:`あなたの${p} のオープン（${openSize(p)}bb）に ${V} がコールするレンジ`,full:{m:'vsOpen',p:V+'vs'+p},f:k=>Ranges.exp('vsOpen',V+'vs'+p,k).c}; }
+  if(EST.kind==='call4'){ const R=Ranges.get('vs3bet','COvsBTN')||{}; return {label:`あなたのCOの4ベット（${R.size||'?'}bb）に BTN がコールするレンジ`,full:{four:true},f:k=>EST_CALL4[k]||0}; }
+  if(EST.kind==='call'){   // the opener (s.vil) opened at the open frequency, then called the hero's 3bet at the vs3bet call frequency
+    const k3=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',p)||{};
+    return {label:`あなたの3ベット（${R.size||'?'}bb）に ${s.vil} がコールするレンジ`,full:{m:'vs3bet',p:k3},f:k=>Ranges.exp('open',s.vil,k).r*Ranges.exp('vs3bet',k3,k).c};
+  }
+  if(m==='vsOpen'){ const R=Ranges.get('open',s.vil)||{}; return {label:`${s.vil} のオープンレンジ（${R.size||'?'}bb）`,full:{m:'open',p:s.vil},f:k=>Ranges.exp('open',s.vil,k).r}; }
   const key=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',key)||{};
-  return {label:`${s.vil} の3ベットレンジ（${R.size||'?'}bb）`,f:k=>{ const e=Ranges.exp('vsOpen',key,k); return Math.min(1,e.r+e.j); }};
+  return {label:`${s.vil} の3ベットレンジ（${R.size||'?'}bb）`,full:{m:'vsOpen',p:key},f:k=>{ const e=Ranges.exp('vsOpen',key,k); return Math.min(1,e.r+e.j); }};
 }
 const estBg=v=>v>=0.999?'var(--win)':v>0.001?`linear-gradient(90deg,var(--win) ${v*100}%,var(--surface2) ${v*100}%)`:'';
 function estCell(k,v,extraCls){ const bg=estBg(v); return `<button data-k="${k}" class="${v>0.001&&v<0.999?'mixf ':''}${extraCls||''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }
@@ -4433,25 +4544,40 @@ function showEstOverlay(rec){
   o.querySelector('#pf-estClr').onclick=()=>{ EST.cells={}; showEstOverlay(rec); };
   o.querySelector('#pf-estGo').onclick=()=>{
     EST.done=true; const r=estScore(T.f);
-    try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
-    showEstOverlay(rec); };
+    try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000,...(EST.kind!=='act'?{e:EST.kind}:{})}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
+    showEstOverlay(rec); if(estCallNow()){ syncNext(false); bindEstRow(); } };
+}
+/* the villain's whole response (call / raise / all-in / fold), to see what else a hand does when the call range was over- or under-estimated */
+function estFull(T){
+  const F=T.full, pc=v=>Math.round(v*100)+'%';
+  if(F.four){   // BTN vs the hero's CO 4bet: call / all-in / fold shares of all combos
+    const sw=(bg,n)=>`<span><i style="background:${bg}"></i>${n}</span>`; let c=0,j=0,f=0;
+    CLASSES.forEach(k=>{ const v=EST_FULL4[k]||[0,0,0], w=combos(k); c+=w*v[0]; j+=w*v[1]; f+=w*v[2]; });
+    return {caption:'BTN vs CO 4ベット',
+      cells:CLASSES.map(k=>{ const [c,j,f]=EST_FULL4[k]||[0,0,0], J=j*100, C=(j+c)*100, X=(j+c+f)*100, bg=c+j+f>0?`linear-gradient(90deg,var(--jam) ${J}%,var(--sd) ${J}% ${C}%,#7C8790 ${C}% ${X}%,var(--surface2) ${X}%)`:'';
+        return `<button data-k="${k}" class="${c+j+f<0.999&&c+j+f>0?'mixf ':''}${c+j+f?'':'thin'}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join(''),
+      legend:sw('var(--jam)','オールイン')+sw('var(--sd)','コール')+sw('#7C8790','フォールド')+sw('var(--surface2)','3ベットしないハンド'),
+      sum:`コール <b>${pct(c/1326)}</b>　オールイン <b>${pct(j/1326)}</b>　フォールド <b>${pct(f/1326)}</b>（1326組中。数値は画像から読み取った概算）`,
+      one:k=>{ const v=EST_FULL4[k]||[0,0,0]; return `コール ${pc(v[0])}／オールイン ${pc(v[1])}／フォールド ${pc(v[2])}${v[0]+v[1]+v[2]?'':'（3ベットしないハンド）'}`; }};
+  }
+  return {caption:posLabel(F.p),cells:rangeCells(F.m,F.p),legend:rangeLegend(F.m),sum:rangeSumText(F.m,F.p),one:k=>expText(Ranges.exp(F.m,F.p,k))};
 }
 function renderEstResult(o,T,rec,close){
-  const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた']];
+  const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた'],['all','全アクション']], FU=EST.view==='all'&&T.full?estFull(T):null;
   const miss=[], extra=[]; CLASSES.forEach(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, w=combos(k)*Math.abs(d); if(d>=0.25) miss.push({k,w}); else if(d<=-0.25) extra.push({k,w}); });
   const top=a=>a.sort((x,y)=>y.w-x.w).slice(0,8).map(x=>x.k).join('、')||'なし';
-  let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').slice(-20); }catch(e){}
+  let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').filter(x=>(x.e||'act')===EST.kind).slice(-20); }catch(e){}
   const avg=hist.length?Math.round(hist.reduce((s,x)=>s+x.s,0)/hist.length*100):null;
-  const cellsHTML=EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
+  const cellsHTML=FU?FU.cells:EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
       if(d>=0.25){ bg=`rgba(58,111,176,${0.35+0.65*a})`; col='#fff'; } else if(d<=-0.25){ bg=`rgba(217,130,43,${0.35+0.65*a})`; col='#fff'; } else if(t>0.001||e>0.001){ bg='var(--surface2)'; }
       return `<button data-k="${k}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}${t<0.001&&e<0.001?';opacity:.45':''}">${k}</button>`; }).join('');
-  o.innerHTML=`<div class="rovhead"><b>${T.label}：一致度 ${Math.round(r.score*100)}%</b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
+  o.innerHTML=`<div class="rovhead"><b>${T.label}<span style="white-space:nowrap">：一致度 ${Math.round(r.score*100)}%</span></b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
     <div class="grid13">${cellsHTML}</div>
-    <div class="rovinfo">正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}</div>`;
+    <div class="rovinfo">${FU?`<div class="legend" style="justify-content:center;margin:0 0 2px">${FU.legend}</div>相手の全アクション（${FU.caption}）<br>${FU.sum}`:`正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}`}</div>`;
   o.querySelector('.rovx').onclick=close;
   o.querySelectorAll('.estv button').forEach(b=>b.onclick=()=>{ EST.view=b.dataset.v; renderEstResult(o,T,rec,close); });
-  o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：正解 ${Math.round(T.f(k)*100)}%／あなた ${Math.round((EST.cells[k]||0)*100)}%`; });
+  o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(FU){ o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：${FU.one(k)}`; return; } o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：正解 ${Math.round(T.f(k)*100)}%／あなた ${Math.round((EST.cells[k]||0)*100)}%`; });
 }
 /* positions/spots to deal for a mode: the checked ones, or all of them when none of this mode's are checked */
 function modePos(m){ const l=MODE_POS[m].filter(p=>cfg.pos.has(p)); return l.length?l:MODE_POS[m]; }
@@ -4460,21 +4586,23 @@ const openSize=pos=>+((Ranges.get('open',pos)||{}).size)||2;
 function renderTable(heroAct){
   const box=document.getElementById('pf-tablebox'); box.querySelectorAll('.seat,.betchip').forEach(e=>e.remove());
   const c=P.cur; if(!c) return; const v3=P.mode==='vs3bet', vo=P.mode==='vsOpen', sp=(v3||vo)?spotOf(c.pos):null;
-  const hi=POS.indexOf((v3||vo)?sp.hero:c.pos), N=POS.length, STK=stackBB(); let pot=GAMES[CTX.game].ante;   // MTT: the big-blind ante is in the pot
+  const E=estCallNow()?estInfo():null;   // call question: hero's raise and the villain's call are drawn, everyone else has folded
+  const hi=POS.indexOf(E?E.hero:(v3||vo)?sp.hero:c.pos), N=POS.length, STK=stackBB(); let pot=GAMES[CTX.game].ante;   // MTT: the big-blind ante is in the pot
   for(let i=0;i<N;i++){
     const pi=(hi+i)%N, pos=POS[pi], hero=i===0, vil=(v3||vo)&&pos===sp.vil;
     // vs3bet: everyone but the opener and the 3bettor has folded; vsOpen: seats before the hero other than the opener have folded, seats after the hero still have to act
-    const folded=v3?(!hero&&!vil):vo?(!hero&&!vil&&pi<hi):pi<hi;
+    const folded=E?(!hero&&pos!==E.vil):v3?(!hero&&!vil):vo?(!hero&&!vil&&pi<hi):pi<hi;
     const [x,y]=seatXY(i); const el=document.createElement('div');
-    el.className='seat'+(hero?' hero':'')+(hero&&!P.answered?' acting':'')+(folded?' folded':'');
+    el.className='seat'+(hero?' hero':'')+(hero&&!P.answered&&!E?' acting':'')+(folded?' folded':'');
     el.style.left=x+'%'; el.style.top=y+'%';
     const cards=hero?c.cards.map(cc=>cardHTML(cc)).join(''):(folded?'':'<span class="card back"></span><span class="card back"></span>');
     let act=folded?'フォールド':''; if(hero&&heroAct) act=heroAct;
     let bet=pos==='SB'?0.5:pos==='BB'?1:0;
     if(v3&&hero){ bet=openSize(sp.hero); if(!heroAct) act='オープン '+bet; }
     if(vil){ bet=+(Ranges.get(P.mode,c.pos)||{}).vs||0; act=(vo?'オープン ':'3ベット ')+bet; }
+    if(E){ const v2=pos===E.vil; bet=hero||v2?E.size:pos==='SB'?0.5:pos==='BB'?1:0; act=hero?(heroAct||E.act+' '+E.size):v2?'コール '+E.size:'フォールド'; }
     pot+=bet;
-    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${(v3||vo||CTX.game==='mtt')?Math.round((STK-bet)*10)/10:STK}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
+    el.innerHTML=`<div class="cards">${cards}</div><div class="plate"><div class="nm"><span class="pos">${pos}</span>${pos==='BTN'?'<span class="dealer">D</span>':''}${hero?'あなた':''}</div><div class="stk">${(E||v3||vo||CTX.game==='mtt')?Math.round((STK-bet)*10)/10:STK}bb</div><div class="act">${act||'&nbsp;'}</div></div>`;
     box.appendChild(el);
     if(bet&&!(hero&&P.answered)){ const ch=document.createElement('div'); ch.className='betchip'; const [bx,by]=matchMedia('(max-width:600px)').matches?(N===8?SPOT8_XY_M:SPOT_XY_M)[i]:[x+(50-x)*0.42,y+(46-y)*0.42]; ch.style.left=bx+'%'; ch.style.top=by+'%'; ch.textContent=bet; box.appendChild(ch); }
   }
@@ -4484,7 +4612,7 @@ function renderTable(heroAct){
 const sizeOnNow=()=>cfg.sizeOn&&CTX.game==='cash';   // picking the open size only makes sense in Cash (MTT opens are one fixed size)
 function renderChips(){
   const v3=isSpot(P.mode);
-  document.querySelectorAll('.sizeUI').forEach(e=>e.classList.toggle('hidden',!sizeOnNow()||v3));
+  document.querySelectorAll('.sizeUI').forEach(e=>e.classList.toggle('hidden',!sizeOnNow()||v3||estCallNow()));
   // vs3bet / vsOpen: four answers (fold / call / 4bet or 3bet at the chart size / all-in); no size picking
   document.getElementById('pf-btnJam').classList.toggle('hidden',!hasJam(P.mode)); document.getElementById('pf-btnJam').innerHTML='オールイン<br><small>'+stackBB()+'bb</small>';
   document.getElementById('pf-btnCall').innerHTML=v3?'コール':'コール<br><small>（リンプ）</small>';
@@ -4496,14 +4624,15 @@ function renderChips(){
 function renderButtons(){ document.querySelectorAll('#pf-controls [data-a]').forEach(b=>b.disabled=P.answered||!P.cur); syncNext(false); }
 /* after an answer the action buttons give way to the next button in the same spot (not while an auto-advance is about to fire) */
 function syncNext(hold){
-  const ans=P.answered&&!hold, btn=document.getElementById('pf-btnNext');
-  document.getElementById('pf-actRow').style.display=ans?'none':''; document.getElementById('pf-nextRow').style.display=ans?'':'none';
+  const ans=P.answered&&!hold, btn=document.getElementById('pf-btnNext'), est=estCallNow();
+  document.getElementById('pf-actRow').style.display=ans||est?'none':''; document.getElementById('pf-nextRow').style.display=est?(EST.done?'':'none'):ans?'':'none';
+  document.getElementById('pf-estRow').style.display=est?'':'none'; if(est) bindEstRow();
   btn.textContent=P.special==='master'&&P.master&&P.master.i<P.master.queue.length-1?'次のアクションへ':'次のハンド';
 }
 function setMsg(t){ document.getElementById('pf-msg').textContent=t; }
 
 function answer(a){
-  if(!P.cur||P.answered) return;
+  if(!P.cur||P.answered||estCallNow()) return;
   const ms=Math.round(performance.now()-P.t0), c=P.cur, e=Ranges.exp(P.mode,c.pos,c.k);
   if(a==='J'&&!hasJam(P.mode)) return;
   const sized=sizeOnNow()&&P.mode==='open';
@@ -4542,6 +4671,9 @@ function renderFeedback(rec,e){
 function hideRangeOverlay(){ const o=document.getElementById('pf-rov'); if(o) o.remove(); const b=document.getElementById('pf-btnRng'); if(b) b.setAttribute('aria-pressed','false'); }
 function showRangeOverlay(rec){
   if(P.special==='range'){ showEstOverlay(rec); return; }
+  drawRangeOverlay(rec,true);
+}
+function drawRangeOverlay(rec,remember){
   hideRangeOverlay(); if(!Ranges.has(rec.m,rec.p)) return;
   const o=document.createElement('div'); o.className='rov'; o.id='pf-rov';
   o.innerHTML=`<div class="rovhead"><b>${posLabel(rec.p)}<span class="pcOnly"> のレンジ全体</span></b><span class="legend">${rangeLegend(rec.m)}<span><i class="curmark"></i>${rec.k}</span></span><button class="rovx" aria-label="閉じる">×</button></div>
@@ -4550,7 +4682,7 @@ function showRangeOverlay(rec){
   document.getElementById('pf-tablebox').appendChild(o);
   const cur=o.querySelector(`.grid13 [data-k="${rec.k}"]`); if(cur) cur.classList.add('cur');
   o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ o.querySelector('.rovinfo').innerHTML=`<b>${b.dataset.k}</b>：${expText(Ranges.exp(rec.m,rec.p,b.dataset.k))}`; });
-  o.querySelector('.rovx').onclick=()=>{ lsSet('pflab_fbrange','0'); hideRangeOverlay(); };
+  o.querySelector('.rovx').onclick=()=>{ if(remember) lsSet('pflab_fbrange','0'); hideRangeOverlay(); };
   const b=document.getElementById('pf-btnRng'); if(b) b.setAttribute('aria-pressed','true');
 }
 function setStatus(t){ const e=document.getElementById('pf-session'); e.dataset.status=t; renderSession(); }
@@ -4972,12 +5104,15 @@ document.getElementById('pf-optFar').checked=cfg.far; document.getElementById('p
 document.getElementById('pf-optFar').onchange=e=>{ cfg.far=e.target.checked; lsSet('pflab_far',cfg.far?'1':'0'); renderFarInfo(); };
 document.getElementById('pf-farD').onchange=e=>{ cfg.farD=+e.target.value; lsSet('pflab_fard',cfg.farD); renderFarInfo(); };
 function renderFarInfo(){ const el=document.getElementById('pf-farInfo');
+  document.getElementById('pf-estKindBox').classList.toggle('hidden',P.special!=='range');
   if(P.special==='master'){ el.textContent=cfg.far?'オン：どの場面でも明らかにフォールドになるハンドは出題しません（ハンド別マスターのみ。ハンドの出方の設定は使いません）':'オフ：どの場面でもフォールドのハンドも出題します'; return; }
-  if(P.special==='range'){ el.textContent='vsオープン／vs3betのスポットをランダムに出題し、相手のアクションのレンジを推定します（自動で次へは使いません）'; return; }
+  if(P.special==='range'){ el.textContent='vsオープン／vs3betのスポットをランダムに出題し、相手のアクションのレンジ（または、あなたの3ベットにコールした相手のレンジ）を推定します（自動で次へは使いません）'; return; }
   if(P.mode==='vs3bet'){ el.textContent='vs3betでは、自分（オープンした側）のオープンレンジに入るハンドだけを（オープン頻度に応じた割合で）出題します'; return; }
   const parts=MODE_POS[P.mode].filter(p=>Ranges.has(P.mode,p)).map(p=>{ const f=farSet(P.mode,p,cfg.farD); let c=0; f.forEach(k=>c+=combos(k)); return `${p} ${f.size}種（${pct(c/1326,0)}）`; });
   el.textContent=cfg.far?('除外されるハンド：'+parts.join('／')):'オフ：実戦どおり、明らかなフォールドも出題します'; }
 document.getElementById('pf-dealMode').onchange=e=>{ cfg.deal=e.target.value; lsSet('pflab_deal',cfg.deal); };
+document.getElementById('pf-estKind').value=cfg.estKind;
+document.getElementById('pf-estKind').onchange=e=>{ cfg.estKind=e.target.value; lsSet('pflab_estkind',cfg.estKind); if(P.special==='range') deal(); };
 document.getElementById('pf-optBorder').checked=cfg.border;
 document.getElementById('pf-optBorder').onchange=e=>{ cfg.border=e.target.checked; lsSet('pflab_border',cfg.border?'1':'0'); };
 document.getElementById('pf-optAuto').checked=lsGet('pflab_auto')!=='0';
@@ -5063,7 +5198,7 @@ async function setCtx(game,depth){
   cfg.pos=new Set(JSON.parse(lsGet(K('pflab_pos'))||'null')||MODE_POS.open); cfg.mpos=new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]);
   document.getElementById('pf-tablebox').classList.toggle('t8',POS.length===8);
   const so=document.getElementById('pf-optSize'), sw=so&&so.closest('.checks')&&so.closest('.checks').parentNode; if(sw) sw.classList.toggle('hidden',CTX.game!=='cash');   // the open-size option is Cash only
-  const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'Cash（6人テーブル・100bb）';
+  const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'リングゲーム（6人テーブル・100bb）';
   const ch=await SharedRanges.fetch(); if(ch&&CTX.key===(game==='mtt'?'mtt'+depth:'cash')) Ranges.load();
   const fm=document.getElementById('pf-fMode'); fm.value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
   document.getElementById('pf-fPos').value=MODE_POS[fm.value].includes(lsGet(K('pflab_fpos')))?lsGet(K('pflab_fpos')):'';
