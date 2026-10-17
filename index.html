@@ -144,6 +144,17 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 section.block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px;margin-bottom:14px}
 section.block h2{font-size:16px;margin:0 0 2px}
 section.block .sub{font-size:12px;color:var(--muted);margin:0 0 10px}
+.fold-bar{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.fold-bar span{font-size:12px;color:var(--muted);margin-right:auto}
+.fold-bar button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;min-height:36px;white-space:nowrap}
+section.block.fold>h2{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin:-14px -14px -10px;padding:0 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+section.block.fold>h2::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+section.block.fold.open>h2{margin-bottom:2px}
+section.block.fold.open>h2::after{transform:rotate(-135deg) translateY(-2px)}
+section.block.fold:not(.open)>:not(h2){display:none}
+section.block.fold:not(.open){padding-bottom:0}
+section.block.fold>h2:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;border-radius:12px}
+@media (prefers-reduced-motion: reduce){section.block.fold>h2::after{transition:none}}
 .insight p{margin:0 0 8px;max-width:72ch}
 .insight p:last-child{margin-bottom:0}
 .tscroll{overflow-x:auto}
@@ -2463,6 +2474,20 @@ function insights(hs,all){
   if(f3o.length>=15){ const r=pct(f3f,f3o.length); if(r>65) out.push(`オープン後に3ベットされてフォールドする率が ${r.toFixed(0)}%（n=${f3o.length}）。一般的な目安（50〜60%）より高く、相手の3ベットに降りすぎている可能性があります。`); }
   return out.map(t=>`<p>${t}</p>`).join('');
 }
+/* analysis screen: the detail sections (everything after the KPIs, the insight and the cumulative chart) fold behind their headings; which ones are open is remembered for the session */
+const statsOpen=new Set();
+function foldStats(body){
+  const secs=[...body.querySelectorAll('section.block')].filter(x=>!x.classList.contains('insight')).slice(1);   // the first is the cumulative-profit chart: it stays open
+  if(!secs.length) return;
+  const set=(sec,on)=>{ sec.classList.toggle('open',on); const h=sec.querySelector(':scope>h2'); h.setAttribute('aria-expanded',String(on)); const t=h.textContent; if(on) statsOpen.add(t); else statsOpen.delete(t); };
+  secs.forEach(sec=>{ const h=sec.querySelector(':scope>h2'); if(!h) return; sec.classList.add('fold'); h.setAttribute('role','button'); h.tabIndex=0;
+    set(sec,statsOpen.has(h.textContent));
+    const tog=()=>set(sec,!sec.classList.contains('open')); h.onclick=tog; h.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); tog(); } }; });
+  const bar=document.createElement('div'); bar.className='fold-bar'; bar.innerHTML='<span>詳しい集計</span><button type="button" data-f="open">すべて開く</button><button type="button" data-f="close">すべて閉じる</button>';
+  bar.querySelector('[data-f=open]').onclick=()=>secs.forEach(x=>x.classList.contains('fold')&&set(x,true));
+  bar.querySelector('[data-f=close]').onclick=()=>secs.forEach(x=>x.classList.contains('fold')&&set(x,false));
+  secs[0].parentNode.insertBefore(bar,secs[0]);
+}
 function renderStats(){
   const body=document.getElementById('statsBody');
   const fp=document.getElementById('fPos').value, fr=+document.getElementById('fRange').value;
@@ -2504,6 +2529,7 @@ function renderStats(){
     <section class="block"><h2>最後のストリートの動き</h2><p class="sub">ハンドが決着したストリートで、自分に何が起きたか。相手のハンドは、記録されている実際のカードと比べています（相手のハンドを記録する前の古いハンドは「判定できない」）。ハンドの強さは、そのストリートのボードでの自分の役です（ペアは自分のホールカードで判定。ハイカードは自分の一番高いホールカード）。</p>${lastStreetSection(hs)}</section>
     <section class="block"><h2>スターティングハンド別</h2><p class="sub">色は1ハンドあたりの収支（緑=プラス、赤=マイナス）。</p>${grid.html}</section>
   `;
+  foldStats(body);
   const gi=document.getElementById('grid13');
   gi.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     gi.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
