@@ -488,6 +488,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .nv-card:hover,.nv-tile:hover{border-color:var(--brass)}
 .nv-card .t{display:block;font-family:var(--num);font-size:24px;font-weight:700;line-height:1.1}
 .nv-card .d{display:block;font-size:12.5px;color:var(--muted)}
+.nv-card .s{display:block;margin-top:3px;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.01em}
+.nv-card .s:empty{display:none}
+.nv-card .s .pos-c,.nv-card .s .neg-c{font-weight:700}
 .nv-chip{width:56px;height:56px;border-radius:50%;background:var(--felt);display:grid;place-items:center;box-shadow:inset 0 0 0 4px var(--felt2),inset 0 0 0 6px color-mix(in srgb,var(--brass) 70%,transparent)}
 .nv-chip svg{width:26px;height:26px;fill:none;stroke:#f4efe0;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nv-card.admin .nv-chip{background:var(--ink)}
@@ -685,7 +688,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <div class="nv-cards">
       <button class="nv-card" data-nv="ring" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
-        <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span></span>
+        <span><span class="t">リングゲーム</span><span class="d">ボット5人と6人テーブルで実戦。初心者モードあり</span><span class="s" id="nvSRing"></span></span>
       </button>
       <button class="nv-card" data-nv="rp-menu" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H10l-5 4z"/><path d="M9 9h6M9 12h4"/></svg></span>
@@ -697,7 +700,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       </button>
       <button class="nv-card" data-nv="mtt" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4M8 20h8M10 17h4"/></svg></span>
-        <span><span class="t">MTT</span><span class="d">8maxの100人トーナメント。ブラインドが上がり、人が減り、バブルとICMを経験する</span></span>
+        <span><span class="t">MTT</span><span class="d">8maxの100人トーナメント。ブラインドが上がり、人が減り、バブルとICMを経験する</span><span class="s" id="nvSMtt"></span></span>
       </button>
       <button class="nv-card admin hidden" id="nvAdminCard" data-nv="admin" type="button">
         <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg></span>
@@ -781,7 +784,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
       <div class="nv-cards">
         <button class="nv-card" data-pfgame="cash" type="button">
           <span class="nv-chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="7"/><path d="M8 12h8"/></svg></span>
-          <span><span class="t">Cash</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
+          <span><span class="t">リングゲーム</span><span class="d">6人テーブル・100bb。オープン、vsオープン、vs3bet、ハンド別マスター、レンジ推定、分析</span></span>
         </button>
         <button class="nv-card" data-pfgame="mtt" type="button">
           <span class="nv-chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span>
@@ -792,7 +795,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <div id="pf-depth">
       <div class="nv-sec">MTT（8人テーブル・BBアンティ）　スタック量を選ぶ</div>
       <div class="nv-tiles five" id="pfMttTiles"></div>
-      <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。Cashと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
+      <p class="rpnote" style="margin-top:10px">スタック量ごとに、別のレンジ表・別の記録（箱）になります。リングゲームと同じ練習・分析が、それぞれの箱の中でできます。レンジ表が未登録のスポットは、管理者が「レンジ編集」から登録します。</p>
     </div>
     <div id="pf-menu">
       <div class="nv-sec" id="pfCtxLbl"></div>
@@ -3838,6 +3841,14 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 /* Navigation: home -> (ring | preflop menu -> preflop screen | admin). The old tab bars stay in the DOM (other code clicks them)
    but are hidden; this layer decides which screen is showing. */
 let pfBootP=Promise.resolve();
+/* home cards: the player's own numbers (ring: hands and result in bb, MTT: bankroll); nothing is shown before the first hand */
+function renderHomeStats(){
+  const r=document.getElementById('nvSRing'), m=document.getElementById('nvSMtt'); if(!r||!m) return;
+  const hs=Store.hands||[], n=hs.length, net=hs.reduce((a,h)=>a+(+h.net||0),0);
+  r.innerHTML=n?`累計 ${n} ハンド　<span class="${net>=0?'pos-c':'neg-c'}">${net>=0?'+':'−'}${Math.abs(net).toFixed(1)} bb</span>`:'';
+  let mt=''; try{ const d=MT.load(), tot=d.results.reduce((x,y)=>x+y.net,0); mt=`バンクロール ${fmtYen(MT.bank())}`+(d.results.length?`　<span class="${tot>=0?'pos-c':'neg-c'}">通算 ${tot>=0?'+':''}${fmtYen(tot)}</span>`:''); }catch(e){}
+  m.innerHTML=mt;
+}
 const Nav={screen:'home',
   isOwner(){ try{ return sessionStorage.getItem('sixmaxlab_admin_ok')==='1'; }catch(e){ return false; } },
   sync(){   // a tab was switched by other code (e.g. the admin opening a member's analysis)
@@ -3858,6 +3869,7 @@ const Nav={screen:'home',
     document.querySelector('.wrap').classList.toggle('inrp',s==='rp'); if(typeof MT.view==='function') MT.view();
     el('tab-pf').classList.toggle('menu',s==='pf-box'); el('tab-pf').classList.toggle('gate',s==='pf-menu'); el('tab-pf').classList.toggle('depth',s==='pf-depth');
     if(s==='pf-depth'&&window.PF&&window.PF.depthInfo){ const t=el('pfMttTiles'); t.innerHTML=window.PF.depths.map(d=>{ const ok=window.PF.depthInfo(d); return `<button class="nv-tile${ok?'':' nodata'}" data-pfmtt="${d}" type="button"><b>${d}bb</b><small>${ok?'レンジ表あり':'レンジ未登録'}</small></button>`; }).join(''); }
+    if(s==='home') renderHomeStats();
     el('navbar').classList.toggle('hidden',s==='home'); el('navSet').classList.toggle('hidden',!(s==='ring'||s==='rp'||s==='mtt'));
     el('navBack').textContent=s==='pf'||s==='rp'||s==='pf-box'||s==='pf-depth'?'← 戻る':'← トップ'; el('navTitle').textContent=this.title();
     const owner=this.isOwner();
@@ -3951,7 +3963,7 @@ document.getElementById('btnResetStacks').onclick=()=>{ resetStacks(); if(S.runn
   catch(e){ console.error('init',e); setStatus('記録の読み込みでエラーが起きました（'+(e&&e.message||e)+'）。記録自体は保存先に残っています'); }
   if(!CLASS_LIST.length) buildPreflop();
   setMsg(Store.hands.length?`${Store.hands.length}ハンドの記録を読み込みました`+(Store.mode==='cloud'?'':'（端末内の一時保存分）'):'');
-  renderSession(); renderControls();
+  renderSession(); renderControls(); renderHomeStats();
   initSheets();
 })();
 </script>
@@ -4002,7 +4014,7 @@ const GAMES={cash:{name:'Cash',pos:POS6,ante:0},mtt:{name:'MTT',pos:POS8,ante:1}
 const CTX={game:'cash',depth:null,key:'cash',suffix:''};
 const stackBB=()=>CTX.game==='mtt'?CTX.depth:100;
 const K=k=>k+CTX.suffix;   // per-box localStorage key
-const ctxName=()=>CTX.game==='mtt'?'MTT '+CTX.depth+'bb':'Cash';
+const ctxName=()=>CTX.game==='mtt'?'MTT '+CTX.depth+'bb':'リングゲーム';
 const hasJam=m=>isSpot(m)||CTX.game==='mtt';   // MTT stacks are short: the open spots have an all-in answer too
 
 /* =========================================================
@@ -5095,7 +5107,7 @@ async function setCtx(game,depth){
   cfg.pos=new Set(JSON.parse(lsGet(K('pflab_pos'))||'null')||MODE_POS.open); cfg.mpos=new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]);
   document.getElementById('pf-tablebox').classList.toggle('t8',POS.length===8);
   const so=document.getElementById('pf-optSize'), sw=so&&so.closest('.checks')&&so.closest('.checks').parentNode; if(sw) sw.classList.toggle('hidden',CTX.game!=='cash');   // the open-size option is Cash only
-  const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'Cash（6人テーブル・100bb）';
+  const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'リングゲーム（6人テーブル・100bb）';
   const ch=await SharedRanges.fetch(); if(ch&&CTX.key===(game==='mtt'?'mtt'+depth:'cash')) Ranges.load();
   const fm=document.getElementById('pf-fMode'); fm.value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
   document.getElementById('pf-fPos').value=MODE_POS[fm.value].includes(lsGet(K('pflab_fpos')))?lsGet(K('pflab_fpos')):'';
