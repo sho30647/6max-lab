@@ -4412,8 +4412,9 @@ function renderMprog(){
 
 /* ---------- special menu 2: range estimation — paint the opponent's range, then compare with the chart ---------- */
 const EST={cells:{},done:false,view:'gap',kind:'act',ps:null,vil:null};   // kind: 'act' = the villain's own action range; 'call' = the opener's range after calling the hero's 3bet; 'callo' = a seat behind calling the hero's open (EST.vil); 'call4' = BTN calling the hero's CO 4bet
-const estCallOk=p=>{ const s=spotOf(p); return Ranges.has('open',s.vil)&&Ranges.has('vs3bet',s.vil+'vs'+s.hero); };
-const estOpenVils=p=>POS.slice(POS.indexOf(p)+1).filter(v=>Ranges.has('vsOpen',v+'vs'+p));   // seats behind the opener that have a call chart against this open
+const estCallOk=p=>{ const s=spotOf(p); return Ranges.has('open',s.vil)&&hasCall('vs3bet',s.vil+'vs'+s.hero); };
+const hasCall=(m,key)=>{ const R=Ranges.get(m,key); return !!(R&&R.h&&Object.values(R.h).some(x=>+x.c>0)); };   // the chart has any calling hand (a spot that only 3bets or folds has no call range to estimate)
+const estOpenVils=p=>POS.slice(POS.indexOf(p)+1).filter(v=>hasCall('vsOpen',v+'vs'+p));   // seats behind the opener that have a call chart against this open
 /* BTN's calling range against a CO 4bet (100bb Cash, solver; share of all combos of each hand: the height of the call colour in its cell) */
 const EST_CALL4={AA:1,'AKs':0.43,'AQs':1,'AJs':0.46,'ATs':0.3,'A9s':0.11,'A5s':0.68,'A4s':0.52,'A3s':0.11,'KK':0.2,'KQs':0.54,'KJs':0.73,'KTs':0.61,'K9s':0.27,'K6s':0.2,'AQo':0.54,'QQ':0.29,'QJs':0.41,'JJ':0.57,'JTs':0.62,'TT':0.59,'T9s':0.34,'99':0.52,'98s':0.02,'88':0.43,'87s':0.18,'77':0.27,'76s':0.12,'66':0.34,'65s':0.14,'55':0.09,'54s':0.11};
 function estAvail(){   // kind -> {m: the mode to deal, ps: the spots to deal}; only the kinds that can be asked right now
