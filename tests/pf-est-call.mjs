@@ -48,6 +48,19 @@ for (const [kind, act, re] of KINDS) {
     const tt = +(res.info.match(/正解レンジ ([\d.]+)%/) || [0, -1])[1];
     if (kind === 'call4' && Math.abs(tt - EXPECT4) > 0.3) bad.push('call4 width ' + tt + ' != ' + EXPECT4);
     if (kind !== 'call4' && !(tt > 0 && tt < 60)) bad.push(tag + ' width ' + tt);
+    // the villain's full action chart (call / raise / all-in / fold), to see what else those hands do when the call range is off
+    const allBtn = await p.$('#pf-rov .estv button[data-v="all"]');
+    if (!allBtn) bad.push(tag + ' no 全アクション view button');
+    else {
+      await allBtn.click(); await p.waitForTimeout(60);
+      const all = await p.$eval('#pf-rov', e => ({ cells: e.querySelectorAll('.grid13 button').length, info: e.querySelector('.rovinfo').innerText }));
+      if (all.cells !== 169) bad.push(tag + ' all-actions cells ' + all.cells);
+      if (!/コール/.test(all.info) || !/フォールド/.test(all.info)) bad.push(tag + ' all-actions legend/summary: ' + all.info);
+      if (kind === 'call4' && !/オールイン/.test(all.info)) bad.push(tag + ' call4 all-actions lacks オールイン: ' + all.info);
+      await p.click('#pf-rov .grid13 button[data-k="AA"]');
+      const one = await p.$eval('#pf-rov .rovinfo', e => e.innerText);
+      if (!/AA/.test(one)) bad.push(tag + ' cell tap shows nothing: ' + one);
+    }
     if (!(await vis('#pf-btnNext'))) bad.push(tag + ' no next button after the answer check');
     await p.click('#pf-btnNext'); await p.waitForTimeout(80);
   }

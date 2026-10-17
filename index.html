@@ -4393,7 +4393,7 @@ function deal(){
   if(P.special?!anyRanges():!modeReady(P.mode)) return;   // a box without ranges for this mode has nothing to deal
   if(P.special==='range'){   // vs open / vs 3bet spots, hero position limited by the special-menu position checks
     const ms=['vsOpen','vs3bet'].filter(m=>MODE_POS[m].some(p=>heroOk(heroOf(p)))); const c=ms.length?ms:['vsOpen','vs3bet'];
-    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false;
+    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false; EST.view='gap';
     // call kinds: the villain's calling range after the hero's own action — each needs charted spots; the mode and the hero's seat follow the kind
     const A=estAvail(), ks=['act',...Object.keys(A)];
     EST.kind=cfg.estKind==='mix'?ks[Math.floor(Math.random()*ks.length)]:A[cfg.estKind]?cfg.estKind:'act';
@@ -4492,6 +4492,8 @@ function bindEstRow(){
 }
 /* BTN's calling range against a CO 4bet (100bb Cash, solver; share of all combos of each hand: the height of the call colour in its cell) */
 const EST_CALL4={AA:1,'AKs':0.43,'AQs':1,'AJs':0.46,'ATs':0.3,'A9s':0.11,'A5s':0.68,'A4s':0.52,'A3s':0.11,'KK':0.2,'KQs':0.54,'KJs':0.73,'KTs':0.61,'K9s':0.27,'K6s':0.2,'AQo':0.54,'QQ':0.29,'QJs':0.41,'JJ':0.57,'JTs':0.62,'TT':0.59,'T9s':0.34,'99':0.52,'98s':0.02,'88':0.43,'87s':0.18,'77':0.27,'76s':0.12,'66':0.34,'65s':0.14,'55':0.09,'54s':0.11};
+/* the same BTN response in full: [call, all-in, fold] shares of all combos per hand (what is left of the cell is not in BTN's 3bet range) */
+const EST_FULL4={'AA':[1,0,0],'AKs':[0.43,0.57,0],'AQs':[1,0,0],'AJs':[0.46,0,0],'ATs':[0.3,0,0],'A9s':[0.11,0,0.59],'A8s':[0,0,0.64],'A7s':[0,0,0.77],'A6s':[0,0,0.89],'A5s':[0.68,0.05,0],'A4s':[0.52,0,0.09],'A3s':[0.11,0,0.27],'AKo':[0,1,0],'KK':[0.2,0.8,0],'KQs':[0.54,0,0],'KJs':[0.73,0,0],'KTs':[0.61,0,0],'K9s':[0.27,0,0.36],'K8s':[0,0,0.52],'K7s':[0,0,0.09],'K6s':[0.2,0,0],'AQo':[0.54,0,0.07],'KQo':[0,0,0.75],'QQ':[0.29,0.71,0],'QJs':[0.41,0,0],'QTs':[0,0,0.46],'Q9s':[0,0,0.98],'AJo':[0,0,0.79],'KJo':[0,0,0.41],'QJo':[0,0,0.34],'JJ':[0.57,0.27,0],'JTs':[0.62,0,0],'J9s':[0,0,0.82],'ATo':[0,0,0.54],'KTo':[0,0,0.07],'TT':[0.59,0,0],'T9s':[0.34,0,0.29],'T8s':[0,0,0.2],'99':[0.52,0,0],'98s':[0.02,0,0.04],'88':[0.43,0,0],'87s':[0.18,0,0],'77':[0.27,0,0.11],'76s':[0.12,0,0],'66':[0.34,0,0.07],'65s':[0.14,0,0],'55':[0.09,0,0],'54s':[0.11,0,0]};
 function estAvail(){   // kind -> {m: the mode to deal, ps: the spots to deal}; only the kinds that can be asked right now
   const A={}, vo=MODE_POS.vsOpen.filter(p=>heroOk(heroOf(p))&&estCallOk(p)), op=MODE_POS.open.filter(p=>heroOk(p)&&estOpenVils(p).length);
   if(vo.length) A.call={m:'vsOpen',ps:vo};
@@ -4501,15 +4503,15 @@ function estAvail(){   // kind -> {m: the mode to deal, ps: the spots to deal}; 
 }
 function estTarget(m,p){
   const s=spotOf(p);
-  if(EST.kind==='callo'){ const V=EST.vil; return {label:`あなたの${p} のオープン（${openSize(p)}bb）に ${V} がコールするレンジ`,f:k=>Ranges.exp('vsOpen',V+'vs'+p,k).c}; }
-  if(EST.kind==='call4'){ const R=Ranges.get('vs3bet','COvsBTN')||{}; return {label:`あなたのCOの4ベット（${R.size||'?'}bb）に BTN がコールするレンジ`,f:k=>EST_CALL4[k]||0}; }
+  if(EST.kind==='callo'){ const V=EST.vil; return {label:`あなたの${p} のオープン（${openSize(p)}bb）に ${V} がコールするレンジ`,full:{m:'vsOpen',p:V+'vs'+p},f:k=>Ranges.exp('vsOpen',V+'vs'+p,k).c}; }
+  if(EST.kind==='call4'){ const R=Ranges.get('vs3bet','COvsBTN')||{}; return {label:`あなたのCOの4ベット（${R.size||'?'}bb）に BTN がコールするレンジ`,full:{four:true},f:k=>EST_CALL4[k]||0}; }
   if(EST.kind==='call'){   // the opener (s.vil) opened at the open frequency, then called the hero's 3bet at the vs3bet call frequency
     const k3=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',p)||{};
-    return {label:`あなたの3ベット（${R.size||'?'}bb）に ${s.vil} がコールするレンジ`,f:k=>Ranges.exp('open',s.vil,k).r*Ranges.exp('vs3bet',k3,k).c};
+    return {label:`あなたの3ベット（${R.size||'?'}bb）に ${s.vil} がコールするレンジ`,full:{m:'vs3bet',p:k3},f:k=>Ranges.exp('open',s.vil,k).r*Ranges.exp('vs3bet',k3,k).c};
   }
-  if(m==='vsOpen'){ const R=Ranges.get('open',s.vil)||{}; return {label:`${s.vil} のオープンレンジ（${R.size||'?'}bb）`,f:k=>Ranges.exp('open',s.vil,k).r}; }
+  if(m==='vsOpen'){ const R=Ranges.get('open',s.vil)||{}; return {label:`${s.vil} のオープンレンジ（${R.size||'?'}bb）`,full:{m:'open',p:s.vil},f:k=>Ranges.exp('open',s.vil,k).r}; }
   const key=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',key)||{};
-  return {label:`${s.vil} の3ベットレンジ（${R.size||'?'}bb）`,f:k=>{ const e=Ranges.exp('vsOpen',key,k); return Math.min(1,e.r+e.j); }};
+  return {label:`${s.vil} の3ベットレンジ（${R.size||'?'}bb）`,full:{m:'vsOpen',p:key},f:k=>{ const e=Ranges.exp('vsOpen',key,k); return Math.min(1,e.r+e.j); }};
 }
 const estBg=v=>v>=0.999?'var(--win)':v>0.001?`linear-gradient(90deg,var(--win) ${v*100}%,var(--surface2) ${v*100}%)`:'';
 function estCell(k,v,extraCls){ const bg=estBg(v); return `<button data-k="${k}" class="${v>0.001&&v<0.999?'mixf ':''}${extraCls||''}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }
@@ -4545,22 +4547,37 @@ function showEstOverlay(rec){
     try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000,...(EST.kind!=='act'?{e:EST.kind}:{})}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
     showEstOverlay(rec); if(estCallNow()){ syncNext(false); bindEstRow(); } };
 }
+/* the villain's whole response (call / raise / all-in / fold), to see what else a hand does when the call range was over- or under-estimated */
+function estFull(T){
+  const F=T.full, pc=v=>Math.round(v*100)+'%';
+  if(F.four){   // BTN vs the hero's CO 4bet: call / all-in / fold shares of all combos
+    const sw=(bg,n)=>`<span><i style="background:${bg}"></i>${n}</span>`; let c=0,j=0,f=0;
+    CLASSES.forEach(k=>{ const v=EST_FULL4[k]||[0,0,0], w=combos(k); c+=w*v[0]; j+=w*v[1]; f+=w*v[2]; });
+    return {caption:'BTN vs CO 4ベット',
+      cells:CLASSES.map(k=>{ const [c,j,f]=EST_FULL4[k]||[0,0,0], J=j*100, C=(j+c)*100, X=(j+c+f)*100, bg=c+j+f>0?`linear-gradient(90deg,var(--jam) ${J}%,var(--sd) ${J}% ${C}%,#7C8790 ${C}% ${X}%,var(--surface2) ${X}%)`:'';
+        return `<button data-k="${k}" class="${c+j+f<0.999&&c+j+f>0?'mixf ':''}${c+j+f?'':'thin'}" style="${bg?'background:'+bg+';color:#fff':''}">${k}</button>`; }).join(''),
+      legend:sw('var(--jam)','オールイン')+sw('var(--sd)','コール')+sw('#7C8790','フォールド')+sw('var(--surface2)','3ベットしないハンド'),
+      sum:`コール <b>${pct(c/1326)}</b>　オールイン <b>${pct(j/1326)}</b>　フォールド <b>${pct(f/1326)}</b>（1326組中。数値は画像から読み取った概算）`,
+      one:k=>{ const v=EST_FULL4[k]||[0,0,0]; return `コール ${pc(v[0])}／オールイン ${pc(v[1])}／フォールド ${pc(v[2])}${v[0]+v[1]+v[2]?'':'（3ベットしないハンド）'}`; }};
+  }
+  return {caption:posLabel(F.p),cells:rangeCells(F.m,F.p),legend:rangeLegend(F.m),sum:rangeSumText(F.m,F.p),one:k=>expText(Ranges.exp(F.m,F.p,k))};
+}
 function renderEstResult(o,T,rec,close){
-  const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた']];
+  const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた'],['all','全アクション']], FU=EST.view==='all'&&T.full?estFull(T):null;
   const miss=[], extra=[]; CLASSES.forEach(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, w=combos(k)*Math.abs(d); if(d>=0.25) miss.push({k,w}); else if(d<=-0.25) extra.push({k,w}); });
   const top=a=>a.sort((x,y)=>y.w-x.w).slice(0,8).map(x=>x.k).join('、')||'なし';
   let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').filter(x=>(x.e||'act')===EST.kind).slice(-20); }catch(e){}
   const avg=hist.length?Math.round(hist.reduce((s,x)=>s+x.s,0)/hist.length*100):null;
-  const cellsHTML=EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
+  const cellsHTML=FU?FU.cells:EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
       if(d>=0.25){ bg=`rgba(58,111,176,${0.35+0.65*a})`; col='#fff'; } else if(d<=-0.25){ bg=`rgba(217,130,43,${0.35+0.65*a})`; col='#fff'; } else if(t>0.001||e>0.001){ bg='var(--surface2)'; }
       return `<button data-k="${k}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}${t<0.001&&e<0.001?';opacity:.45':''}">${k}</button>`; }).join('');
   o.innerHTML=`<div class="rovhead"><b>${T.label}<span style="white-space:nowrap">：一致度 ${Math.round(r.score*100)}%</span></b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
     <div class="grid13">${cellsHTML}</div>
-    <div class="rovinfo">正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}</div>`;
+    <div class="rovinfo">${FU?`<div class="legend" style="justify-content:center;margin:0 0 2px">${FU.legend}</div>相手の全アクション（${FU.caption}）<br>${FU.sum}`:`正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}`}</div>`;
   o.querySelector('.rovx').onclick=close;
   o.querySelectorAll('.estv button').forEach(b=>b.onclick=()=>{ EST.view=b.dataset.v; renderEstResult(o,T,rec,close); });
-  o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：正解 ${Math.round(T.f(k)*100)}%／あなた ${Math.round((EST.cells[k]||0)*100)}%`; });
+  o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(FU){ o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：${FU.one(k)}`; return; } o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：正解 ${Math.round(T.f(k)*100)}%／あなた ${Math.round((EST.cells[k]||0)*100)}%`; });
 }
 /* positions/spots to deal for a mode: the checked ones, or all of them when none of this mode's are checked */
 function modePos(m){ const l=MODE_POS[m].filter(p=>cfg.pos.has(p)); return l.length?l:MODE_POS[m]; }
