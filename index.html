@@ -391,6 +391,14 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .rov .estv{display:flex;gap:4px}
 .rov .estv button{border:1px solid var(--line);background:var(--surface2);border-radius:7px;padding:3px 10px;font-size:12px}
 .rov .estv button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.rov .estv button{white-space:nowrap}
+#pf-nextRow:not([style*="none"])+#pf-estRow{margin-top:8px}
+/* the answer-check header (a long title + the 乖離／正解／あなた buttons): the title wraps and the buttons take their own row, so nothing is pushed off the screen */
+.rov.est .rovhead{flex-wrap:wrap}
+.rov.est .rovhead b{white-space:normal;flex:1 1 0;min-width:0}
+.rov.est .rovhead .estv{order:3;flex:1 1 100%}
+.rov.est .rovhead .estv button{flex:1 1 0;min-height:32px}
+.rov.est .rovhead .rovx{order:2;flex:none}
 @media (max-width:600px){ .tablebox:has(.rov.est){aspect-ratio:auto;height:calc(100vw + 85px)} .modes button small{display:none} .modes2 button{padding:5px 4px;font-size:12.5px} .mprog{font-size:12px;margin-bottom:4px} .mchips{gap:3px} .mchip{padding:1px 7px;font-size:11px} }
 /* preflop: whole spot range drawn over the table after a stopped answer */
 .rov{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
@@ -407,7 +415,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 @media (max-width:600px){ #pf-controls .nextrow .btn{flex:0 0 calc(50% - 8px)} }
 .tablebox:has(.rov) .seat,.tablebox:has(.rov) .betchip{visibility:hidden}
 #pf-btnRng[aria-pressed="true"]{background:var(--surface2)}
-@media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} }
+@media (max-width:600px){ .rov{padding:4px 4px 2px;gap:2px} .rov .grid13 button{font-size:8px} .rovinfo{font-size:11px} .rovhead{gap:6px;font-size:12px} .rovhead .legend{gap:5px;font-size:10px} .rovhead .legend i{width:8px;margin-right:2px} .rovhead .pcOnly{display:none} .rovhead b{white-space:nowrap} .rov.est .rovhead b{white-space:normal} }
 /* ===== navigation: home screen, preflop menu, back bar (replaces the top tab bar and the preflop mode/sub-tab rows) ===== */
 header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .brand h1{cursor:pointer}
@@ -4503,7 +4511,7 @@ function renderEstResult(o,T,rec,close){
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
       if(d>=0.25){ bg=`rgba(58,111,176,${0.35+0.65*a})`; col='#fff'; } else if(d<=-0.25){ bg=`rgba(217,130,43,${0.35+0.65*a})`; col='#fff'; } else if(t>0.001||e>0.001){ bg='var(--surface2)'; }
       return `<button data-k="${k}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}${t<0.001&&e<0.001?';opacity:.45':''}">${k}</button>`; }).join('');
-  o.innerHTML=`<div class="rovhead"><b>${T.label}：一致度 ${Math.round(r.score*100)}%</b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
+  o.innerHTML=`<div class="rovhead"><b>${T.label}<span style="white-space:nowrap">：一致度 ${Math.round(r.score*100)}%</span></b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
     <div class="grid13">${cellsHTML}</div>
     <div class="rovinfo">正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}</div>`;
   o.querySelector('.rovx').onclick=close;

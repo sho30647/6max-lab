@@ -20,6 +20,15 @@ for (const w of [360, 390, 430]) {
   console.log(w, JSON.stringify(r));
   if (r.selR > r.boxR) bad.push(`${w}: select right ${r.selR} > box right ${r.boxR}`);
   if (r.scrollW > r.vw) bad.push(`${w}: page scrolls sideways (${r.scrollW} > ${r.vw})`);
+  // the answer-check screen: the long title wraps, the 乖離／正解／あなた buttons stay inside the overlay, and the page does not scroll sideways
+  await p.selectOption('#pf-estKind', 'call'); await p.click('#pf-setbox summary');
+  await p.click('#pf-estOpen'); await p.click('#pf-estGo'); await p.waitForTimeout(150);
+  const q = await p.evaluate(() => { const o = document.querySelector('#pf-rov').getBoundingClientRect(); const bs = [...document.querySelectorAll('#pf-rov .estv button')].map(e => { const r = e.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), h: Math.round(r.height), w: Math.round(r.width) }; });
+    return { oL: Math.round(o.left), oR: Math.round(o.right), bs, scrollW: document.documentElement.scrollWidth, vw: innerWidth }; });
+  console.log(w, 'result', JSON.stringify(q));
+  if (q.scrollW > q.vw) bad.push(`${w}: result screen scrolls sideways (${q.scrollW} > ${q.vw})`);
+  if (q.bs.length !== 3 || q.bs.some(e => e.r > q.oR || e.l < q.oL)) bad.push(`${w}: view buttons outside the overlay ${JSON.stringify(q)}`);
+  if (q.bs.some(e => e.h > 44)) bad.push(`${w}: view buttons wrap into tall columns`);
   await ctx.close();
 }
 await b.close();
