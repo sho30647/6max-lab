@@ -27,7 +27,7 @@ for (const w of [360, 390, 430]) {
     return { oL: Math.round(o.left), oR: Math.round(o.right), bs, scrollW: document.documentElement.scrollWidth, vw: innerWidth }; });
   console.log(w, 'result', JSON.stringify(q));
   if (q.scrollW > q.vw) bad.push(`${w}: result screen scrolls sideways (${q.scrollW} > ${q.vw})`);
-  if (q.bs.length !== 3 || q.bs.some(e => e.r > q.oR || e.l < q.oL)) bad.push(`${w}: view buttons outside the overlay ${JSON.stringify(q)}`);
+  if (q.bs.length !== 4 || q.bs.some(e => e.r > q.oR || e.l < q.oL)) bad.push(`${w}: view buttons outside the overlay ${JSON.stringify(q)}`);
   if (q.bs.some(e => e.h > 44)) bad.push(`${w}: view buttons wrap into tall columns`);
   await ctx.close();
 }
