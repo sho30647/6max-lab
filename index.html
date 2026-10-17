@@ -164,7 +164,7 @@ table.t td.few{color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
 svg.chart{width:100%;height:auto;display:block}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:760px){.two{grid-template-columns:1fr}}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}   /* minmax(0,…): a wide table must scroll in its own box, not stretch the page */
 
 /* ===== history ===== */
 .hlist{display:flex;flex-direction:column;gap:6px}
