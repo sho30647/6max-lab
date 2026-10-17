@@ -849,6 +849,14 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
             <div class="row" style="gap:6px;margin-bottom:6px"><button class="btn" id="pf-posAll" type="button">全部選択</button><button class="btn" id="pf-posNone" type="button">全部クリア</button></div>
             <div class="checks" id="pf-posChecks"></div>
             <p class="help">1つも選ばないときは、すべてのポジションから出題します</p></div>
+          <div id="pf-estKindBox" class="hidden"><p class="lbl">推定する対象</p>
+            <select id="pf-estKind">
+              <option value="mix">ランダム（両方を出題）</option>
+              <option value="act">相手のアクションのレンジ（オープン／3ベット）</option>
+              <option value="call">自分の3ベットにコールした相手のレンジ</option>
+            </select>
+            <p class="help">「コール」は、vsオープンのスポットであなたが3ベットしたとき、オープンした相手が降りずにコールしてくるハンドを推定します（相手のオープン頻度 × 3ベットに対するコール頻度）</p>
+          </div>
           <div><p class="lbl">ハンドの出方</p>
             <select id="pf-dealMode">
               <option value="all">実戦と同じ頻度（ランダム配布）</option>
@@ -4253,7 +4261,8 @@ const cfg={mpos:new Set(JSON.parse(lsGet(K('pflab_mpos'))||'null')||[]),   // he
   farD:lsGet('pflab_fard')===null?DEF.farD:+lsGet('pflab_fard'),
   useGameLog:true,   // table-play decisions are always part of the analysis
   stopMix:lsGet('pflab_stopmix')==='1',
-  border:lsGet('pflab_border')==='1'};
+  border:lsGet('pflab_border')==='1',
+  estKind:['mix','act','call'].includes(lsGet('pflab_estkind'))?lsGet('pflab_estkind'):'mix'};   // range-estimation special: what to estimate
 
 function gameLogOpenRecords(hands){
   try{
@@ -4329,8 +4338,12 @@ function deal(){
   if(P.special?!anyRanges():!modeReady(P.mode)) return;   // a box without ranges for this mode has nothing to deal
   if(P.special==='range'){   // vs open / vs 3bet spots, hero position limited by the special-menu position checks
     const ms=['vsOpen','vs3bet'].filter(m=>MODE_POS[m].some(p=>heroOk(heroOf(p)))); const c=ms.length?ms:['vsOpen','vs3bet'];
-    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false; }
-  const avail=P.special?MODE_POS[P.mode].filter(p=>heroOk(heroOf(p))):modePos(P.mode); const pos=avail[Math.floor(Math.random()*avail.length)];
+    P.mode=c[Math.floor(Math.random()*c.length)]; EST.cells={}; EST.done=false;
+    // 'call': the opener's calling range after the hero's 3bet — only vsOpen spots whose open range and vs-3bet response are both charted
+    const callable=MODE_POS.vsOpen.filter(p=>heroOk(heroOf(p))&&estCallOk(p));
+    EST.kind=callable.length&&(cfg.estKind==='call'||(cfg.estKind==='mix'&&Math.random()<0.5))?'call':'act';
+    if(EST.kind==='call') P.mode='vsOpen'; }
+  const avail=P.special?MODE_POS[P.mode].filter(p=>heroOk(heroOf(p))&&(P.special!=='range'||EST.kind!=='call'||estCallOk(p))):modePos(P.mode); const pos=avail[Math.floor(Math.random()*avail.length)];
   const v3=P.mode==='vs3bet';
   let cards=null, k=null;
   const far=cfg.far&&!v3?farSet(P.mode,pos,cfg.farD):new Set();
@@ -4395,9 +4408,14 @@ function renderMprog(){
 }
 
 /* ---------- special menu 2: range estimation — paint the opponent's range, then compare with the chart ---------- */
-const EST={cells:{},done:false,view:'gap'};
+const EST={cells:{},done:false,view:'gap',kind:'act'};   // kind: 'act' = the villain's own action range, 'call' = the opener's range after calling the hero's 3bet
+const estCallOk=p=>{ const s=spotOf(p); return Ranges.has('open',s.vil)&&Ranges.has('vs3bet',s.vil+'vs'+s.hero); };
 function estTarget(m,p){
   const s=spotOf(p);
+  if(EST.kind==='call'){   // the opener (s.vil) opened at the open frequency, then called the hero's 3bet at the vs3bet call frequency
+    const k3=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',p)||{};
+    return {label:`あなたの3ベット（${R.size||'?'}bb）に ${s.vil} がコールするレンジ`,f:k=>Ranges.exp('open',s.vil,k).r*Ranges.exp('vs3bet',k3,k).c};
+  }
   if(m==='vsOpen'){ const R=Ranges.get('open',s.vil)||{}; return {label:`${s.vil} のオープンレンジ（${R.size||'?'}bb）`,f:k=>Ranges.exp('open',s.vil,k).r}; }
   const key=s.vil+'vs'+s.hero, R=Ranges.get('vsOpen',key)||{};
   return {label:`${s.vil} の3ベットレンジ（${R.size||'?'}bb）`,f:k=>{ const e=Ranges.exp('vsOpen',key,k); return Math.min(1,e.r+e.j); }};
@@ -4433,14 +4451,14 @@ function showEstOverlay(rec){
   o.querySelector('#pf-estClr').onclick=()=>{ EST.cells={}; showEstOverlay(rec); };
   o.querySelector('#pf-estGo').onclick=()=>{
     EST.done=true; const r=estScore(T.f);
-    try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
+    try{ const key=K('pflab_recs_est'), a=JSON.parse(lsGet(key)||'[]'); a.push({t:Date.now(),m:rec.m,p:rec.p,s:Math.round(r.score*1000)/1000,...(EST.kind==='call'?{e:'call'}:{})}); lsSet(key,JSON.stringify(a.slice(-200))); }catch(e){}
     showEstOverlay(rec); };
 }
 function renderEstResult(o,T,rec,close){
   const r=estScore(T.f), views=[['gap','乖離'],['ok','正解'],['me','あなた']];
   const miss=[], extra=[]; CLASSES.forEach(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, w=combos(k)*Math.abs(d); if(d>=0.25) miss.push({k,w}); else if(d<=-0.25) extra.push({k,w}); });
   const top=a=>a.sort((x,y)=>y.w-x.w).slice(0,8).map(x=>x.k).join('、')||'なし';
-  let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').slice(-20); }catch(e){}
+  let hist=[]; try{ hist=JSON.parse(lsGet(K('pflab_recs_est'))||'[]').filter(x=>(x.e||'act')===EST.kind).slice(-20); }catch(e){}
   const avg=hist.length?Math.round(hist.reduce((s,x)=>s+x.s,0)/hist.length*100):null;
   const cellsHTML=EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
@@ -4972,12 +4990,15 @@ document.getElementById('pf-optFar').checked=cfg.far; document.getElementById('p
 document.getElementById('pf-optFar').onchange=e=>{ cfg.far=e.target.checked; lsSet('pflab_far',cfg.far?'1':'0'); renderFarInfo(); };
 document.getElementById('pf-farD').onchange=e=>{ cfg.farD=+e.target.value; lsSet('pflab_fard',cfg.farD); renderFarInfo(); };
 function renderFarInfo(){ const el=document.getElementById('pf-farInfo');
+  document.getElementById('pf-estKindBox').classList.toggle('hidden',P.special!=='range');
   if(P.special==='master'){ el.textContent=cfg.far?'オン：どの場面でも明らかにフォールドになるハンドは出題しません（ハンド別マスターのみ。ハンドの出方の設定は使いません）':'オフ：どの場面でもフォールドのハンドも出題します'; return; }
-  if(P.special==='range'){ el.textContent='vsオープン／vs3betのスポットをランダムに出題し、相手のアクションのレンジを推定します（自動で次へは使いません）'; return; }
+  if(P.special==='range'){ el.textContent='vsオープン／vs3betのスポットをランダムに出題し、相手のアクションのレンジ（または、あなたの3ベットにコールした相手のレンジ）を推定します（自動で次へは使いません）'; return; }
   if(P.mode==='vs3bet'){ el.textContent='vs3betでは、自分（オープンした側）のオープンレンジに入るハンドだけを（オープン頻度に応じた割合で）出題します'; return; }
   const parts=MODE_POS[P.mode].filter(p=>Ranges.has(P.mode,p)).map(p=>{ const f=farSet(P.mode,p,cfg.farD); let c=0; f.forEach(k=>c+=combos(k)); return `${p} ${f.size}種（${pct(c/1326,0)}）`; });
   el.textContent=cfg.far?('除外されるハンド：'+parts.join('／')):'オフ：実戦どおり、明らかなフォールドも出題します'; }
 document.getElementById('pf-dealMode').onchange=e=>{ cfg.deal=e.target.value; lsSet('pflab_deal',cfg.deal); };
+document.getElementById('pf-estKind').value=cfg.estKind;
+document.getElementById('pf-estKind').onchange=e=>{ cfg.estKind=e.target.value; lsSet('pflab_estkind',cfg.estKind); if(P.special==='range') deal(); };
 document.getElementById('pf-optBorder').checked=cfg.border;
 document.getElementById('pf-optBorder').onchange=e=>{ cfg.border=e.target.checked; lsSet('pflab_border',cfg.border?'1':'0'); };
 document.getElementById('pf-optAuto').checked=lsGet('pflab_auto')!=='0';
