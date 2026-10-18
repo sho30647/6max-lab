@@ -6,6 +6,7 @@
 - ホスティングはNetlify（`main` へのpushで自動デプロイ）、データはFirebase（Firestore / Google認証）。`firestore.rules` は、変更しても自動では反映されない。ユーザーがFirebaseコンソールで公開する。
 - **デモのリンク**：ユーザーが「デモのリンク出して」と言ったら、`python3 tools/build-demo.py <出力.html>` で、いまのブランチの内容を1枚のHTML（Firebaseはログインなしの偽物に差し替え）にして、Artifactで公開してリンクを出す。ログインもクラウド保存も無く、保存はそのブラウザ内だけで、本番のデータには触れない。公開は、次のURLを `url` に指定して**同じURLを更新**する（先に `action: "read"` で読む）：`https://claude.ai/artifact/5fGCgc25UFSzdj2Mjqfug3`。
 - **開発の返答にはデモのリンクを付ける**：ユーザーの依頼でブランチに変更をコミットしたら、返答の最後に、上のデモを更新してリンクを出す（ユーザーは `main` に出す前に、それで触って確認する）。コードを変えていない返答（質問への回答など）では更新しない。
+- **AIコーチはデモ専用**：`dev/ai-coach.js` に分けてあり、`tools/build-demo.py` がデモにだけ差し込む。`index.html` にはAIの記述を入れない（本番にAIは出さない）。アプリ本体の機能は `index.html` 1本に入れるので、デモと本番で内容がずれない。AIが本体の状態を読む口は、`index.html` のグローバル（`S`、`CH`、`posOf` など）。これらを改名・削除したら `node tests/ai-coach.mjs` で確認する。デモを公開するときは `capabilities: {sample: {}}` を付ける。
 - 画面の挙動を変えたら、`tests/` に確認用のテストを足す（修正前に失敗し、修正後に通ることを確かめる）。
 
 ## ブランチ運用

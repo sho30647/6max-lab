@@ -23,6 +23,9 @@ assert 'firebasejs' not in body, 'firebase script tags were not removed'
 marker = '<script src="mtt/core.js"></script>'
 assert marker in body, 'mtt/core.js script tag not found'
 body = body.replace(marker, '<script>\n' + core + '\n</script>\n' + stub)
+# demo only: the AI coach (dev/ai-coach.js). index.html never references it, so production has no AI and there is no second copy of the app.
+ai = open(os.path.join(root, 'dev', 'ai-coach.js'), encoding='utf-8').read()
+body = body.rstrip() + '\n<script>\n' + ai + '\n</script>\n'
 out = '<title>6-Max Lab デモ</title>\n' + font + '\n' + style + '\n' + body
 open(sys.argv[1], 'w', encoding='utf-8').write(out)
 print('wrote', sys.argv[1], len(out), 'bytes')

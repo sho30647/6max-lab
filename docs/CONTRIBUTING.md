@@ -6,6 +6,7 @@ Claude Code（またはClaudeアプリのコードセッション）でこのリ
 - `index.html` … アプリ本体（リング + プリフロップ練習 + MTTの接続部）。1ファイル。
 - `mtt/core.js` … MTTの計算部（UMD）。仕様は `docs/mtt-spec.md`。
 - `tests/` … Playwrightで画面を動かす回帰テスト（`node tests/xxx.mjs`）。リングの挙動は `ring-regression.mjs` と `ring-baseline.json` で固定している。変えてよいのは挙動を意図して変えるときだけ。
+- `dev/ai-coach.js` … デモ専用のAIコーチ（Artifactの `sample` 機能で、閲覧者自身のClaudeに質問する）。`tools/build-demo.py` がデモにだけ差し込み、`index.html` は参照しない。本番にAIは出ない。
 - `tools/build-demo.py` … 現在のブランチを、Firebaseを偽物に差し替えた1枚のHTMLにする（本番データに触れない）。
 - `BACKLOG.md` … 未実装の依頼。新しい依頼は末尾に足し、`main` に入れたら消す。
 
