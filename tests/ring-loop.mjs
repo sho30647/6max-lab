@@ -5,7 +5,7 @@
 import { execFileSync } from 'child_process'; import path from 'path'; import { fileURLToPath } from 'url';
 const par = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'ring-bench-par.mjs');
 const [start = '6+riverBluff=2+riverDefend=0', rounds = '6', deals = '2000'] = process.argv.slice(2);
-const KNOBS = { riverBluff: { steps: [1, 2], min: 0, max: 5 }, riverDefend: { steps: [0.25, 0.5], min: 0, max: 1 } };   // small steps alone drown in the noise (+0.9 ± 0.9): try a big one too
+const KNOBS = { riverBluff: { steps: [1, 2], min: 0, max: 5 }, riverLoosen: { steps: [0.2, 0.4], min: 0, max: 0.8 }, riverDefend: { steps: [0.25, 0.5], min: 0, max: 1 } };   // small steps alone drown in the noise (+0.9 ± 0.9): try a big one too
 const parse = s => { const [v, ...t] = s.split('+'); const o = {}; t.forEach(x => { const [k, y] = x.split('='); o[k] = +y; }); return { v, o }; };
 const spec = c => c.v + Object.entries(c.o).map(([k, x]) => `+${k}=${+x.toFixed(2)}`).join('');
 let cur = parse(start), seed = 1000;

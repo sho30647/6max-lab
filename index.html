@@ -757,7 +757,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <option value="">全ポジション</option><option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
       </select>
       <select id="fBot" aria-label="対戦ボット">
-        <option value="">全ボット</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
+        <option value="">全ボット</option><option value="7">ボットv7（自己対戦で均衡に寄せた版）</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
       </select>
       <select id="fRange" aria-label="対象期間">
         <option value="0">全ハンド</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
@@ -2086,13 +2086,16 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
        pays against that, higher the bigger the bet. A player with .ver===3 plays plain v3; the ring bots play the latest version (RING_VER).
    v5: v4 + the same for turn bets: v3's turn calls of pot-sized and bigger bets lost money too.
    v6: v5 + twice the river bluffs, all with the big size: v3 (and v4/v5 even more) folds big river bets more often than the bet needs.
+   v7: where the self-play loop (tests/ring-loop.mjs) stopped, starting from v6: no one-knob change of the river bluffs or calls wins against it.
+       v6 folded ~98% to pot-sized river bets and lost to more bluffs; v7 bluffs the river with (nearly) all its air and calls with the top of
+       its range as often as the bet's minimum defence (1 - alpha) asks, so its river folds are close to the theory (pot bet: 54%, 50% in theory).
    (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
    Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT = x the air bluffs on the flop / turn,
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
-   range (1 = defend the share the bet's price needs), sizeF = x every flop bet size. */
-const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2}};
-const RING_VER=6;
+   range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this. */
+const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1}};
+const RING_VER=7;
 function botPostflopV3(seat){
   const p=S.players[seat], st=p.style, R=Math.random;
   const X=MT.on||p.ver===3?{}:(p.tw||BOT_TWEAKS[p.ver]||BOT_TWEAKS[RING_VER]);
@@ -2158,7 +2161,7 @@ function botPostflopV3(seat){
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }
   if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
-  if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)||X.riverDefend>0&&q>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
+  if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)-(X.riverLoosen||0)||X.riverDefend>0&&q>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
   const eC=dr&&street===1?e*(X.drawEq??1):e;
   const byOdds=eC+implied>=potOdds;
   const byMDF=!reraise&&q>=(X.mdf===undefined?foldCut:1-X.mdf*(1-foldCut))&&eC>=potOdds*0.55;
@@ -2831,7 +2834,7 @@ const COL_DOC={
   pact:['ポストフロップの行動回数','フロップ以降に行動した回数（pb÷pactがアグレッション頻度）'],
   log:['アクションログ','P=プリフロップ F=フロップ T=ターン R=リバー。*=自分。f=フォールド x=チェック c=コール b=ベット r=レイズ、数字はその時点の合計額(bb)、(AI)=オールイン'],
   sh:['相手の公開ハンド','ショーダウンで見えた相手のハンド（ポジション:ハンド）'],
-  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）。空欄は1'],
+  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）、7=自己対戦で均衡に寄せた版（リング）。空欄は1'],
   vh:['相手全員のハンド','ハンド終了後に公開した相手5人のハンド。末尾:SD=ショーダウンまで残った、:W=降りずに勝った、無印=途中で降りた']
 };
 function rowValues(h,cols){
