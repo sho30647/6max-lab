@@ -1,6 +1,6 @@
 {
-  "champion": "6",
-  "championNote": "v6（claude/ring-bot-exploit）。v3の弱点を突く調整で、v3相手に有利。均衡に近いかは未測定。",
+  "champion": "7",
+  "championNote": "v7（claude/ring-bot-exploit）。v6から、リバーのブラフ5倍・上位は最低防御まで必ずコール。自己対戦ループ（tests/ring-loop.mjs）で、リバーのブラフ量とコール量のどちらをずらしても勝てなくなった点。v3相手に+7.6 ± 4.4、v6相手に+1.5 ± 2.7（差なし）。このチャンピオンの偵察（probe）は未実施。",
   "exploiters": [
     {
       "id": "riverBluff4",

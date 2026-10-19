@@ -1,6 +1,7 @@
-// Ring bots play v6 (BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
+// (file name kept: docs/bot-lab/policy.md calls it) Ring bots play the latest version (RING_VER = 7, BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
 // Spot: river, heads-up, facing a pot-sized bet, with 50% equity against the bettor's range as the bot reads it.
 // v3 calls it (50% > the 33% the price needs); v6 folds it (v3's big river bets are mostly value: it needs 75%).
+// v7 folds it with a hand in the bottom half of its range and calls it with one in the top half (the minimum defence of a pot bet).
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
 const require = createRequire('/opt/node-tools/node_modules/');
@@ -14,20 +15,20 @@ await page.route('**/*', r => { const u = r.request().url(); if (u.includes('gst
 await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 const r = await page.evaluate(() => {
-  const spot = ver => {
+  const spot = (ver, q) => {
     S.button = 0; S.street = 3; S.board = [0, 5, 10, 15, 20];
-    S.players.forEach((p, i) => { p.folded = i > 2; p.bet = 0; p.contrib = 1000; p.stack = 9000; p.allIn = false; p.hole = [24 + 2 * i, 25 + 2 * i]; p.rw = FULL_RANGE.slice(); p.rc = null; p.ver = 3; p.tw = null; });
-    S.players[2].folded = true; S.players[1].bet = 2000; S.players[1].contrib = 3000;   // seat 1 bets the pot (2000 into 2000)
+    S.players.forEach((p, i) => { p.folded = i > 1; p.bet = 0; p.contrib = i < 2 ? 1000 : 0; p.stack = 9000; p.allIn = false; p.hole = [24 + 2 * i, 25 + 2 * i]; p.rw = FULL_RANGE.slice(); p.rc = null; p.ver = 3; p.tw = null; });
+    S.players[1].bet = 2000; S.players[1].contrib = 3000;   // seat 1 bets the pot (2000 into 2000)
     S.currentBet = 2000; S.raiseCount = 1; S.pfAggr = 1; S.prevStreetAggr = 1;
     S.players[0].ver = ver;
-    const eq = window.equity; window.equity = () => 0.5;
-    try { return botPostflop(0).act; } finally { window.equity = eq; }
+    const eq = window.equity, pc = window.percentileOf; window.equity = () => 0.5; window.percentileOf = () => q;
+    try { return botPostflop(0).act; } finally { window.equity = eq; window.percentileOf = pc; }
   };
-  const ring = spot(undefined), v3 = spot(3);
-  MT.on = true; const mtt = spot(undefined); MT.on = false;
-  return { ring, v3, mtt, ringVer: RING_VER };
+  const ringLow = spot(undefined, 0.3), ringHigh = spot(undefined, 0.7), v6 = spot(6, 0.7), v3 = spot(3, 0.3);
+  MT.on = true; const mtt = spot(undefined, 0.3); MT.on = false;
+  return { ringLow, ringHigh, v6, v3, mtt, ringVer: RING_VER };
 });
 await browser.close();
-const ok = r.ring === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 6 && !errors.length;
+const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 7 && !errors.length;
 console.log(ok ? 'OK' : 'FAIL', JSON.stringify(r), errors.slice(0, 2).join(' | '));
 process.exit(ok ? 0 : 1);
