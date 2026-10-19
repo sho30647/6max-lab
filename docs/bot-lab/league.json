@@ -82,6 +82,60 @@
       ]
     }
   ],
-  "probe": null,
+  "probe": {
+    "spec": "6",
+    "deals": 4000,
+    "seed": 1,
+    "results": {
+      "riverBluff4": {
+        "mean": 3.1,
+        "ci": 1.6
+      },
+      "overbetBluff": {
+        "mean": 1.6,
+        "ci": 2.8
+      },
+      "thinValue": {
+        "mean": 2.2,
+        "ci": 4.6
+      },
+      "bigFlopValue": {
+        "mean": 3.6,
+        "ci": 6.2
+      },
+      "maniac": {
+        "mean": 2.1,
+        "ci": 2.1
+      },
+      "valueOnly": {
+        "mean": 0.4,
+        "ci": 4.7
+      },
+      "station": {
+        "mean": -3.3,
+        "ci": 2
+      },
+      "nit": {
+        "mean": 0,
+        "ci": 2.2
+      },
+      "drawTight": {
+        "mean": -1.8,
+        "ci": 3.4
+      },
+      "thinFold": {
+        "mean": -0.5,
+        "ci": 2.1
+      }
+    },
+    "date": "2026-10-19",
+    "leaks": [
+      {
+        "id": "riverBluff4",
+        "mean": 3.1,
+        "ci": 1.6
+      }
+    ]
+  },
   "history": []
 }
