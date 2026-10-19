@@ -2086,7 +2086,11 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
        pays against that, higher the bigger the bet. A player with .ver===3 plays plain v3; the ring bots play the latest version (RING_VER).
    v5: v4 + the same for turn bets: v3's turn calls of pot-sized and bigger bets lost money too.
    v6: v5 + twice the river bluffs, all with the big size: v3 (and v4/v5 even more) folds big river bets more often than the bet needs.
-   (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.) */
+   (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
+   Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT = x the air bluffs on the flop / turn,
+   thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
+   (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
+   range (1 = defend the share the bet's price needs), sizeF = x every flop bet size. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2}};
 const RING_VER=6;
 function botPostflopV3(seat){
@@ -2102,7 +2106,8 @@ function botPostflopV3(seat){
   const jam={act:'raise',to:p.stack+p.bet};
   // tournament: chips either side can still lose. A bet that leaves no more behind than the pot it makes commits the bettor, so it is played as a shove (air does that only some of the time)
   const effB=Math.min(p.stack,Math.max(0,...opps.map(o=>o.stack)));
-  const bet=(f,bluff)=>{ const amt=r5(pot*f); if(amt>=p.stack*0.6) return jam;
+  const sF=street===1?(X.sizeF??1):1;
+  const bet=(f,bluff)=>{ const amt=r5(pot*f*sF); if(amt>=p.stack*0.6) return jam;
     if(MT.on&&(amt>=effB||effB-amt<=pot+2*amt)) return bluff&&R()<0.55?{act:'check'}:jam;
     return {act:'raise',to:amt}; };
   if(toCall===0){
@@ -2115,13 +2120,14 @@ function botPostflopV3(seat){
     else F=0.06;
     F=clamp(F*st.aggr,0,0.85);
     // the sizes of this spot: BIG for the polar part, SMALL for merged value, MID for semi-bluffs
-    const big=street===1?wPick([[0.75,0.6],[1,0.4]]):street===2?wPick([[0.75,0.3],[1,0.45],[1.5,0.25]]):wPick([[1,0.4],[1.5,0.3],[2,0.3]]);
+    const big=street===3&&X.bigR?X.bigR:street===1?wPick([[0.75,0.6],[1,0.4]]):street===2?wPick([[0.75,0.3],[1,0.45],[1.5,0.25]]):wPick([[1,0.4],[1.5,0.3],[2,0.3]]);
     const small=street===1?(wet?wPick([[0.5,0.7],[0.75,0.3]]):wPick([[0.33,0.75],[0.5,0.25]])):street===2?wPick([[0.5,0.6],[0.75,0.4]]):wPick([[0.33,0.3],[0.5,0.7]]);
     const mid=street===1?wPick([[0.5,0.5],[0.75,0.5]]):wPick([[0.5,0.4],[0.75,0.4],[1,0.2]]);
     const valueFrac=F*0.62, nutFrac=valueFrac*0.4, thinFrac=valueFrac-nutFrac;
     const bBig=big>0?nutFrac*bluffShare(big)/(1-bluffShare(big)):0, bSmall=thinFrac*bluffShare(small)/(1-bluffShare(small));   // bluff budget (share of the range) for each size
     const eqMin=n===1?0.5:0.4;
-    if((q>=1-valueFrac&&e>eqMin)||e>0.8){
+    const thinV=(valueFrac-nutFrac)*(X.thin??1);
+    if((q>=1-(nutFrac+thinV)&&e>eqMin)||e>0.8){
       if(q>0.93&&street<3&&R()<0.18) return {act:'check'};   // trap
       const nutted=(q>=1-nutFrac&&e>0.7)||e>0.88;
       return bet(nutted?big:small);
@@ -2130,7 +2136,7 @@ function botPostflopV3(seat){
       if(R()<Math.min(1,0.6*(bBig+bSmall)/0.2)) return bet(e>=0.45?big:mid);
     }
     if(q<0.35&&e<0.4){   // air: bluffs, with the big size as often as the nuts need them
-      const budget=(street<3?0.4:1)*(bBig+bSmall);
+      const budget=(street===1?0.4*(X.bluffF??1):street===2?0.4*(X.bluffT??1):1)*(bBig+bSmall);
       if(X.riverBluff&&street===3) return R()<Math.min(1,X.riverBluff*budget/0.35)?bet(big,true):{act:'check'};
       if(R()<Math.min(1,budget/0.35)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small,true);
     }
@@ -2138,7 +2144,7 @@ function botPostflopV3(seat){
   }
   const potOdds=toCall/(pot+toCall), alpha=toCall/pot;
   const foldCut=Math.pow(alpha,1/Math.max(1,n));
-  const implied=dr&&street<3&&p.stack>toCall*3?0.06:0;
+  const implied=dr&&street<3&&p.stack>toCall*3?(X.impl??0.06):0;
   const reraise=S.raiseCount>=2;
   const raiseTo=f=>{ const to=S.currentBet+r5((pot+toCall)*f), put=to-p.bet; if(put>p.stack*0.45) return jam;
     if(MT.on&&(put>=effB||effB-put<=pot+put+(to-S.currentBet))) return jam;   // the raise commits us: shove
@@ -2153,8 +2159,9 @@ function botPostflopV3(seat){
   }
   if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
   if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)||X.riverDefend>0&&q>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
-  const byOdds=e+implied>=potOdds;
-  const byMDF=!reraise&&q>=foldCut&&e>=potOdds*0.55;
+  const eC=dr&&street===1?e*(X.drawEq??1):e;
+  const byOdds=eC+implied>=potOdds;
+  const byMDF=!reraise&&q>=(X.mdf===undefined?foldCut:1-X.mdf*(1-foldCut))&&eC>=potOdds*0.55;
   if(byOdds||byMDF) return {act:'call'};
   return {act:'fold'};
 }

@@ -16,6 +16,7 @@ description: 6max-labのボットの判断ロジック（プリフロップ/ポ�
 1. **変更前の数字を取る**。対象の挙動に合う測定を選ぶ：
    - ボット同士の強さ比較：`node tests/mtt-bench-par.mjs <A> <B> [depths] [deals] [procs]`（同じ配札を席替えして2回打つ。結果は bb/100ハンド、正なら A が強い。標準誤差も見る）。新しい版は変種名として足して比べる。
    - リングゲームのボット同士：`node tests/ring-bench-par.mjs <A> <B> [deals] [procs] [seed]`（版は `BOT_TWEAKS` の番号。`6+riverBluff=4` のように調整を足した版も指定できる）。ベットを受けたときのフォールド率と、コールの実際の損益は `node tests/ring-bench.mjs stats <版> [hands]`。
+   - リングのポストフロップを均衡に近づける作業は、`bot-lab` スキルの手順（エクスプロイト役のリーグ `node tests/ring-league.mjs`）で行う。方針は `docs/bot-lab/policy.md`。
    - 弱点を突く版を作ったら、その版に「突き返す版」（例：`<版>+riverBluff=4`）をぶつけ、新しい穴ができていないかも測る。
    - プリフロップ頻度：`node tests/mtt-bots.mjs`。
    - ブラフ比率など、ベットに含まれるハンドの内訳：`BACKLOG.md` にある12万ハンド規模の対戦シミュレーションと同じ指標で測る。
