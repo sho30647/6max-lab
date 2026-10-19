@@ -2152,7 +2152,7 @@ function botPostflopV3(seat){
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }
   if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
-  if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)||X.riverDefend>0&&q>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
+  if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)-(X.riverLoosen||0)||X.riverDefend>0&&q>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
   const byOdds=e+implied>=potOdds;
   const byMDF=!reraise&&q>=foldCut&&e>=potOdds*0.55;
   if(byOdds||byMDF) return {act:'call'};
