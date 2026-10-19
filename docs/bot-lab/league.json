@@ -1,0 +1,87 @@
+{
+  "champion": "6",
+  "championNote": "v6（claude/ring-bot-exploit）。v3の弱点を突く調整で、v3相手に有利。均衡に近いかは未測定。",
+  "exploiters": [
+    {
+      "id": "riverBluff4",
+      "delta": "+riverBluff=4",
+      "idea": "リバーの大きいサイズで2倍ブラフする。本体がリバーの大ベットに降りすぎていれば勝つ",
+      "obs": [
+        1,
+        4
+      ]
+    },
+    {
+      "id": "overbetBluff",
+      "delta": "+riverBluff=3+bigR=2",
+      "idea": "リバーはポットの2倍で、ブラフ多め。本体がオーバーベットを怖がらず/怖がりすぎていないか",
+      "obs": [
+        2
+      ]
+    },
+    {
+      "id": "thinValue",
+      "delta": "+thin=1.8",
+      "idea": "中くらいの手でも3ストリート薄くバリューベットする。本体の弱いペアのコールしすぎを突く",
+      "obs": [
+        3
+      ]
+    },
+    {
+      "id": "bigFlopValue",
+      "delta": "+sizeF=1.6+thin=1.4",
+      "idea": "フロップを大きく、広くバリューベットする。本体のドローの払いすぎを突く",
+      "obs": [
+        5
+      ]
+    },
+    {
+      "id": "maniac",
+      "delta": "+bluffF=2.5+bluffT=2.5",
+      "idea": "フロップ・ターンのブラフを2.5倍。本体がフロップ・ターンで降りすぎていれば勝つ",
+      "obs": [
+        4
+      ]
+    },
+    {
+      "id": "valueOnly",
+      "delta": "+bluffF=0+bluffT=0+thin=1.5",
+      "idea": "ブラフせず薄いバリューを増やす。本体がコールしすぎ・ブラフを想定しすぎていれば勝つ",
+      "obs": [
+        3
+      ]
+    },
+    {
+      "id": "station",
+      "delta": "+mdf=1.6+drawEq=1.2",
+      "idea": "広くコールする。本体がブラフしすぎていれば勝つ",
+      "obs": []
+    },
+    {
+      "id": "nit",
+      "delta": "+mdf=0.5",
+      "idea": "ベットに狭くしか付いていかない。本体のベットがバリューに偏っていれば勝つ（降りても損しない）",
+      "obs": [
+        1
+      ]
+    },
+    {
+      "id": "drawTight",
+      "delta": "+drawEq=0.6+impl=0",
+      "idea": "ドローのコールを1枚分の勝率で判断する。勝てば、本体のドローのコールが損",
+      "obs": [
+        5
+      ]
+    },
+    {
+      "id": "thinFold",
+      "delta": "+mdf=0.75",
+      "idea": "弱いペアのコールを減らす。勝てば、本体の防御が広すぎる",
+      "obs": [
+        3
+      ]
+    }
+  ],
+  "probe": null,
+  "history": []
+}
