@@ -61,6 +61,12 @@ description: 6max-labの夜間ボット研究ループ。リングのポスト�
 
 そのあと `python3 tools/build-demo.py` でデモを作り、CLAUDE.md のデモのURLを更新して、レポートの末尾にリンクを書く。使えるなら、プッシュ通知でレポートの要約を送る。
 
+## 3.5 マージ滞留のアラート（5時台の回、毎日）
+`git fetch origin staging` のあと、`git log origin/staging..HEAD --format=%ct | tail -1` で、`staging` に入っていない一番古いコミットの時刻を取る。**それが3日（72時間）以上前なら、アラートを出す。** `staging` に入っていない夜間のコミットが無ければ、何もしない。
+- 朝のレポートの**一番上**に、「⚠ 夜間の変更が○日間 `staging` にマージされていません（未マージのコミット○件）。PRの確認とマージをお願いします」と書く。PRのURLが分かれば添える。
+- プッシュ通知の道具（`PushNotification`、ToolSearch で `select:PushNotification` と引いて読み込む）が使えれば、同じ内容を1行で送る。使えなければ、レポートの冒頭だけでよい。
+- マージされるまで、毎朝繰り返す。
+
 ## 4. してはいけないこと
 - 方針書を書き換える。採用の基準を夜の途中で緩める。
 - `main` へのpush、`main` 向けのPR、PRのマージ。
