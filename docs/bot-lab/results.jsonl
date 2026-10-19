@@ -6,3 +6,4 @@
 {"t":"2026-10-19T13:46:08.179Z","kind":"match","A":"6+bluffF=0+bluffT=0+thin=1.5","B":"6","deals":4000,"seed":1,"mean":0.4,"ci":4.7}
 {"t":"2026-10-19T13:47:44.144Z","kind":"match","A":"6+mdf=1.6+drawEq=1.2","B":"6","deals":4000,"seed":1,"mean":-3.3,"ci":2}
 {"t":"2026-10-19T13:49:19.302Z","kind":"match","A":"6+mdf=0.5","B":"6","deals":4000,"seed":1,"mean":0,"ci":2.2}
+{"t":"2026-10-19T13:50:55.075Z","kind":"match","A":"6+drawEq=0.6+impl=0","B":"6","deals":4000,"seed":1,"mean":-1.8,"ci":3.4}
