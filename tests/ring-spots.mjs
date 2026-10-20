@@ -63,13 +63,17 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
         add(`${street} ${small ? 'small' : 'big'} ${cls}`);                         // by street, bet size and hand class
         if (S.street === 1 && small && cls === 'high') { add(`F small high ${bdfd(p.hole, S.board) ? 'with-BDFD' : 'no-BDFD'}`); if (!drawFlag(p.hole[0], p.hole[1], S.board)) add(`F small high nodraw ${bdfd(p.hole, S.board) ? 'with-BDFD' : 'no-BDFD'}`); }   // N3 (nodraw: no flush / straight draw, only backdoors)
         add(`${street} all`);                                                         // N4: raise rate by street
-        const q = percentileOf(p, strengthVal(p.hole[0], p.hole[1], S.board)), e = equity(seat, opp, 250), pr = get('__pairs', () => ({})); (pr[street] || (pr[street] = [])).push([q, w, e]);   // step 2: the bot's strength order against the equity
+        const q = percentileOf(p, strengthVal(p.hole[0], p.hole[1], S.board)), e = equity(seat, opp, 250), pr = get('__pairs', () => ({})); (pr[street] || (pr[street] = [])).push([q, w, e]);
+        // the owner's raise principle (policy 8.6): value raises = near-nut hands (top 10% of the bot's own range) - only some of them raise; bluff raises = low showdown value
+        // (no pair, or an underpair) with a draw or a backdoor flush draw - mixed in until bluffs : value = 0.5 - 1.0
+        if (q >= 0.9) add(`${street} nearnut`);
+        if (act === 'raise') add(`${street} raise-${q >= 0.9 ? 'val' : ((cls === 'high' || cls === 'underpair') && (drawFlag(p.hole[0], p.hole[1], S.board) || bdfd(p.hole, S.board))) ? 'bl' : 'mid'}`);   // step 2: the bot's strength order against the equity
       }
     }
     return d;
   };
   for (let h = 0; h < N; h++) {
-    S.players.forEach(p => { p.ver = +VER; p.tw = null; });
+    S.players.forEach(p => { const [v, ...tw] = String(VER).split('+'); p.ver = +v; p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; });   // "8+turnDrawRaise=2": v8 with a tweak changed
     S.resetStacks = true; S.button = h % 6; Store.hands.length = 0; seed(SEED * 7919 + h * 13);
     await playHand();
   }
@@ -90,5 +94,7 @@ console.log('\nN4  raises when facing a bet (bluff raise = a raise with under 40
 for (const s of 'FTR') { const x = out[`${s} all`]; if (x) console.log(`${s} all`.padEnd(28) + ` n=${String(x.n).padStart(5)}  raise ${pct(x.raise, x.n)}  of the raises, bluffs ${pct(x.bluffRaise, x.raise)}  (${x.bluffRaise}/${x.raise})`); }
 console.log('\nStep 2  the bot\'s strength order against the equity vs the actual hand; the loss from folds that would have earned and calls that lost (per decision)');
 for (const s of 'FTR') { const x = out[`${s} all`], pr = (out.__pairs || {})[s] || []; if (x) console.log(`${s}`.padEnd(4) + ` n=${String(x.n).padStart(5)}  Spearman(order,equity) ${spearman(pr.map(x => [x[0], x[1]])).toFixed(2)}  Spearman(bot's equity vs range,equity) ${spearman(pr.map(x => [x[2], x[1]])).toFixed(2)}  misfold ${(x.missFold / x.n).toFixed(2)}bb  miscall ${(x.missCall / x.n).toFixed(2)}bb  fold ${pct(x.fold, x.n)} call ${pct(x.call, x.n)} raise ${pct(x.raise, x.n)}`); }
+console.log('\nOwner\'s raise principle (policy 8.6): of the near-nut hands (top 10% of the own range) how many raise, and the bluff : value ratio of the raises (target 0.5 - 1.0)');
+for (const s of 'FTR') { const nn = out[`${s} nearnut`], v = out[`${s} raise-val`], b = out[`${s} raise-bl`], m = out[`${s} raise-mid`]; if (nn) console.log(`${s}  near-nut raise ${pct(nn.raise, nn.n)} (n=${nn.n})   raises: value ${v ? v.n : 0}, bluff ${b ? b.n : 0}, other ${m ? m.n : 0}   bluff : value = ${v && v.n ? ((b ? b.n : 0) / v.n).toFixed(2) : '-'}`); }
 console.log('RESULT ' + JSON.stringify(out));
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }

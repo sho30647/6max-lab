@@ -31,3 +31,14 @@
 {"t":"2026-10-20T13:39:09.441Z","kind":"match","A":"7+sizeRange=1+drawEq=0.6+impl=0","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-1.8,"ci":4.2}
 {"t":"2026-10-20T13:40:45.845Z","kind":"match","A":"7+sizeRange=1+mdf=0.75","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-0.8,"ci":2.1}
 {"t":"2026-10-20T13:40:45.847Z","kind":"probe","spec":"7+sizeRange=1","deals":4000,"seed":1,"results":{"riverBluff4":{"mean":-0.7,"ci":0.9},"overbetBluff":{"mean":1.5,"ci":3.9},"thinValue":{"mean":-1.3,"ci":4.4},"bigFlopValue":{"mean":-1.9,"ci":6.6},"maniac":{"mean":2.4,"ci":2.8},"valueOnly":{"mean":-3.8,"ci":3.7},"station":{"mean":-0.9,"ci":2.4},"nit":{"mean":0.1,"ci":2.8},"drawTight":{"mean":-1.8,"ci":4.2},"thinFold":{"mean":-0.8,"ci":2.1}},"leaks":[]}
+{"t":"2026-10-20T17:21:25.559Z","kind":"match","A":"8+turnDrawRaise=2+riverBluff=4","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-0.7,"ci":0.9}
+{"t":"2026-10-20T17:23:00.271Z","kind":"match","A":"8+turnDrawRaise=2+riverBluff=3+bigR=2","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":1.5,"ci":3.9}
+{"t":"2026-10-20T17:24:34.485Z","kind":"match","A":"8+turnDrawRaise=2+thin=1.8","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-1.7,"ci":4}
+{"t":"2026-10-20T17:26:08.263Z","kind":"match","A":"8+turnDrawRaise=2+sizeF=1.6+thin=1.4","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-1.4,"ci":7.3}
+{"t":"2026-10-20T17:27:42.314Z","kind":"match","A":"8+turnDrawRaise=2+bluffF=2.5+bluffT=2.5","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":2.4,"ci":2.8}
+{"t":"2026-10-20T17:30:50.105Z","kind":"match","A":"8+turnDrawRaise=2+bluffF=0+bluffT=0+thin=1.5","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-3,"ci":4}
+{"t":"2026-10-20T17:32:25.220Z","kind":"match","A":"8+turnDrawRaise=2+mdf=1.6+drawEq=1.2","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-0.9,"ci":2.4}
+{"t":"2026-10-20T17:33:57.977Z","kind":"match","A":"8+turnDrawRaise=2+mdf=0.5","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":0.9,"ci":3.2}
+{"t":"2026-10-20T17:35:31.927Z","kind":"match","A":"8+turnDrawRaise=2+drawEq=0.6+impl=0","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":-1.6,"ci":4.2}
+{"t":"2026-10-20T17:37:05.484Z","kind":"match","A":"8+turnDrawRaise=2+mdf=0.75","B":"8+turnDrawRaise=2","deals":4000,"seed":1,"mean":0,"ci":2.7}
+{"t":"2026-10-20T17:37:05.484Z","kind":"probe","spec":"8+turnDrawRaise=2","deals":4000,"seed":1,"results":{"riverBluff4":{"mean":-0.7,"ci":0.9},"overbetBluff":{"mean":1.5,"ci":3.9},"thinValue":{"mean":-1.7,"ci":4},"bigFlopValue":{"mean":-1.4,"ci":7.3},"maniac":{"mean":2.4,"ci":2.8},"valueOnly":{"mean":-3,"ci":4},"station":{"mean":-0.9,"ci":2.4},"nit":{"mean":0.9,"ci":3.2},"drawTight":{"mean":-1.6,"ci":4.2},"thinFold":{"mean":0,"ci":2.7}},"leaks":[]}
