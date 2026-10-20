@@ -6,7 +6,10 @@
 //   range equity E      = the facing player's range against the bettor's betting range, a random turn and river (Monte Carlo over pairs).
 //   bluff share         = the share of the betting range whose equity against the facing player's range is under 40%.
 // Output: for E and the bluff share, the mean error (estimate - true), the mean absolute error and the correlation over the nodes, by bet size class.
-// Usage: node tests/ring-oracle.mjs [ver=7] [hands=1000] [seed=1]
+//   Fitted estimator (offline, the bot is not changed): in the first run the oracle also records, for every hypothetical hand it asks, the
+//   bet size class, the hand's percentile in the range, whether it has a draw and how often it bets: the table P(bet size class | percentile bucket, draw).
+//   Given that table (a file) in a later run on other seeds, the estimate "fit" = the prior range x that table (it reads the bet size, as the owner's theory asks).
+// Usage: node tests/ring-oracle.mjs [ver=7] [hands=1000] [seed=1] [table.json]     (no table: also prints TABLE {...}, the fitted table)
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
 const require = createRequire('/opt/node-tools/node_modules/');
@@ -21,8 +24,9 @@ await page.addInitScript(() => { window.__noPopup = true; const st = window.setT
 await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 await page.waitForTimeout(1500);
-const [VER, N, SEED] = [process.argv[2] || '7', +process.argv[3] || 1000, +process.argv[4] || 1];
-const out = await page.evaluate(async ([VER, N, SEED]) => {
+import fs from 'fs';
+const [VER, N, SEED] = [process.argv[2] || '7', +process.argv[3] || 1000, +process.argv[4] || 1], FIT = process.argv[5] ? JSON.parse(fs.readFileSync(process.argv[5], 'utf8')) : null;
+const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
   const seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
@@ -43,7 +47,8 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
     for (let i = 0; i < BLUFFN; i++) { const b = draw(betL); let e = 0, m = 0; for (let j = 0; j < BLUFFS; j++) { const h = draw(heroL); if (h.a === b.a || h.a === b.b || h.b === b.a || h.b === b.b) continue; e += 1 - runoutWin(h, b, board); m++; } if (m) { bn++; if (e / m < 0.4) bl++; } }
     return [n ? w / n : NaN, bn ? bl / bn : NaN];   // E is the facing player's equity: 1 - the bettor's
   }
-  const rec = [];   // {c, Et, Ee, Bt, Be}
+  const rec = [], bins = {};   // rec: {c, Et, Ee, Bt, Be, (Ef, Bf)}; bins[cls][bucket][draw] = [hits, count]
+  const mult = (c, q, dr) => { const b = FIT && FIT[c] && FIT[c][Math.min(9, Math.floor(q * 10))]; const x = b && b[dr ? 1 : 0]; return x ? (x[0] + 0.2) / (x[1] + 1) : 0.2; };
   let oracle = null;
   const orig = window.botDecide;
   window.botDecide = function(seat) {
@@ -54,9 +59,10 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
     const facingNode = S.street === 1 && toCall > 0 && oracle && oracle.hero === seat && S.raiseCount === 1;
     if (facingNode) {   // the facing player decides: measure the estimate against the truth, then play on
       const hero = p, bet = S.players[oracle.bettor], dead = new Uint8Array(52); S.board.forEach(c => dead[c] = 1);
+      const fitL = oracle.fitW ? sampler(oracle.fitW, dead) : null;
       const heroL = sampler(hero.rw, dead), estL = sampler(bet.rw, dead);
       const trueL = { idx: oracle.idx, cum: oracle.cum, t: oracle.t };
-      if (heroL.t > 0 && estL.t > 0 && trueL.t > 0) { const [Et, Bt] = measure(heroL, trueL, S.board), [Et2, Bt2] = measure(heroL, trueL, S.board), [Ee, Be] = measure(heroL, estL, S.board); rec.push({ c: oracle.c, Et, Et2, Ee, Bt, Bt2, Be }); /* Et2, Bt2: the truth measured again (the noise floor) */ }
+      if (heroL.t > 0 && estL.t > 0 && trueL.t > 0) { const [Et, Bt] = measure(heroL, trueL, S.board), [Et2, Bt2] = measure(heroL, trueL, S.board), [Ee, Be] = measure(heroL, estL, S.board); const row = { c: oracle.c, Et, Et2, Ee, Bt, Bt2, Be }; if (fitL && fitL.t > 0) { const [Ef, Bf] = measure(heroL, fitL, S.board); row.Ef = Ef; row.Bf = Bf; } rec.push(row); /* Et2, Bt2: the truth measured again (the noise floor) */ }
       oracle = null;
     }
     const d = orig(seat);
@@ -67,10 +73,13 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
         for (let k = 0; k < K; k++) {
           const h = draw(L); p.hole = [h.a, h.b]; let hits = 0;
           for (let m = 0; m < M; m++) { const e = orig(seat); if (e.act === 'raise' && cls((e.to - p.bet) / pot0) === c0) hits++; }
+          if (!FIT) { const q = percentileOf(p, strengthVal(h.a, h.b, S.board)), dr = S.board.length < 5 && drawFlag(h.a, h.b, S.board); const bb = ((bins[c0] || (bins[c0] = {}))[Math.min(9, Math.floor(q * 10))] || (bins[c0][Math.min(9, Math.floor(q * 10))] = [[0, 0], [0, 0]]))[dr ? 1 : 0]; bb[0] += hits / M; bb[1] += 1; }
           if (hits) { t += hits; idx.push(ALL.indexOf(h)); cum.push(t); }
         }
         p.hole = real;
-        if (t > 0) oracle = { bettor: S.players.indexOf(p), hero: S.players.indexOf(hero), idx, cum, t, c: c0 };
+        let fitW = null;
+        if (FIT) { const tb = rangeTable(p); fitW = new Array(ALL.length).fill(0); for (const it of tb.items) { const c = ALL[it.i]; fitW[it.i] = it.w * mult(c0, it.q, S.board.length < 5 && drawFlag(c.a, c.b, S.board)); } }
+        if (t > 0) oracle = { bettor: S.players.indexOf(p), hero: S.players.indexOf(hero), idx, cum, t, c: c0, fitW };
       } else p.hole = real;
     }
     return d;
@@ -81,16 +90,17 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
     await playHand();
   }
   window.botDecide = orig;
-  return rec;
-}, [VER, N, SEED]);
+  return { rec, bins };
+}, [VER, N, SEED, FIT]);
 await browser.close();
+const rec = out.rec;
 const stat = (rows, a, b) => { const v = rows.filter(r => isFinite(r[a]) && isFinite(r[b])), n = v.length; if (!n) return null; const d = v.map(r => r[b] - r[a]), bias = d.reduce((x, y) => x + y) / n, mae = d.reduce((x, y) => x + Math.abs(y), 0) / n, ma = v.reduce((x, r) => x + r[a], 0) / n, mb = v.reduce((x, r) => x + r[b], 0) / n; let c = 0, va = 0, vb = 0; for (const r of v) { c += (r[a] - ma) * (r[b] - mb); va += (r[a] - ma) ** 2; vb += (r[b] - mb) ** 2; } return { n, true: ma, est: mb, bias, mae, r: c / Math.sqrt(va * vb) }; };
 const f2 = x => (x === null ? '-' : x.toFixed(2)).toString().padStart(6);
-console.log(`ver ${VER}, ${N} hands, seed ${SEED}: flop, heads-up, the first bet; ${out.length} nodes`);
+console.log(`ver ${VER}, ${N} hands, seed ${SEED}: flop, heads-up, the first bet; ${rec.length} nodes${FIT ? ' (with the fitted estimator)' : ''}`);
 console.log('                          n   true    est    bias    MAE   corr   (noise floor rows: the truth measured twice)');
 for (const c of ['all', 'small', 'mid', 'big']) {
-  const rows = c === 'all' ? out : out.filter(r => r.c === c);
-  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(22)} ${String(s.n).padStart(4)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} ${f2(s.mae)} ${f2(s.r)}`); }
+  const rows = c === 'all' ? rec : rec.filter(r => r.c === c);
+  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2'], ['FIT range equity E', 'Et', 'Ef'], ['FIT bluff share', 'Bt', 'Bf']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(24)} ${String(s.n).padStart(4)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} ${f2(s.mae)} ${f2(s.r)}`); }
 }
 console.log('RESULT ' + JSON.stringify(out));
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }
