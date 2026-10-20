@@ -58,12 +58,12 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
       if (opp.length === 1) {
         const pot = potTotal(), pot0 = pot - S.players.reduce((a, q) => a + q.bet, 0), f = S.currentBet / pot0, street = 'FTR'[S.street - 1];
         const w = eqVsActual(p.hole, opp[0].hole, S.board), ev = (w * (pot + toCall) - toCall) / BB, act = d.act === 'raise' ? 'raise' : d.act === 'call' ? 'call' : 'fold';
-        const small = f < 0.45, cls = handClass(p.hole, S.board);
+        const small = S.street === 2 ? f < 0.6 : f < 0.45, cls = handClass(p.hole, S.board);   // the bots' own turn bets are 50%+: the owner's 40% turn bet (N2) is counted with them
         const add = (k, extra) => { const x = get(k, () => ({ n: 0, fold: 0, call: 0, raise: 0, evFold: 0, evCall: 0, evAll: 0, bluffRaise: 0, missFold: 0, missCall: 0 })); if (act === 'fold' && ev > 0) x.missFold += ev; if (act === 'call' && ev < 0) x.missCall -= ev; x.n++; x[act]++; x.evAll += ev; if (act === 'fold') x.evFold += ev; if (act === 'call') x.evCall += ev; if (act === 'raise' && w < 0.4) x.bluffRaise++; };
         add(`${street} ${small ? 'small' : 'big'} ${cls}`);                         // by street, bet size and hand class
-        if (S.street === 1 && small && cls === 'high') add(`F small high ${bdfd(p.hole, S.board) ? 'with-BDFD' : 'no-BDFD'}`);   // N3
+        if (S.street === 1 && small && cls === 'high') { add(`F small high ${bdfd(p.hole, S.board) ? 'with-BDFD' : 'no-BDFD'}`); if (!drawFlag(p.hole[0], p.hole[1], S.board)) add(`F small high nodraw ${bdfd(p.hole, S.board) ? 'with-BDFD' : 'no-BDFD'}`); }   // N3 (nodraw: no flush / straight draw, only backdoors)
         add(`${street} all`);                                                         // N4: raise rate by street
-        const q = percentileOf(p, strengthVal(p.hole[0], p.hole[1], S.board)), pr = get('__pairs', () => ({})); (pr[street] || (pr[street] = [])).push([q, w]);   // step 2: the bot's strength order against the equity
+        const q = percentileOf(p, strengthVal(p.hole[0], p.hole[1], S.board)), e = equity(seat, opp, 250), pr = get('__pairs', () => ({})); (pr[street] || (pr[street] = [])).push([q, w, e]);   // step 2: the bot's strength order against the equity
       }
     }
     return d;
@@ -85,10 +85,10 @@ console.log(`ver ${VER}, ${N} hands, seed ${SEED}: heads-up, facing a single bet
 console.log('\nN2  turn, bet under 45% of the pot, by hand class');
 for (const c of ['overpair', 'trips+', 'twopair', 'toppair', 'pair', 'underpair', 'high']) { const x = out[`T small ${c}`]; if (x) console.log(row(`T small ${c}`, x)); }
 console.log('\nN3  flop, bet under 45% of the pot, high-card hands');
-for (const k of ['F small high', 'F small high with-BDFD', 'F small high no-BDFD']) if (out[k]) console.log(row(k, out[k]));
+for (const k of ['F small high', 'F small high with-BDFD', 'F small high no-BDFD', 'F small high nodraw with-BDFD', 'F small high nodraw no-BDFD']) if (out[k]) console.log(row(k, out[k]));
 console.log('\nN4  raises when facing a bet (bluff raise = a raise with under 40% equity against the actual hand)');
 for (const s of 'FTR') { const x = out[`${s} all`]; if (x) console.log(`${s} all`.padEnd(28) + ` n=${String(x.n).padStart(5)}  raise ${pct(x.raise, x.n)}  of the raises, bluffs ${pct(x.bluffRaise, x.raise)}  (${x.bluffRaise}/${x.raise})`); }
 console.log('\nStep 2  the bot\'s strength order against the equity vs the actual hand; the loss from folds that would have earned and calls that lost (per decision)');
-for (const s of 'FTR') { const x = out[`${s} all`], pr = (out.__pairs || {})[s] || []; if (x) console.log(`${s}`.padEnd(4) + ` n=${String(x.n).padStart(5)}  Spearman ${spearman(pr).toFixed(2)}  misfold ${(x.missFold / x.n).toFixed(2)}bb  miscall ${(x.missCall / x.n).toFixed(2)}bb  fold ${pct(x.fold, x.n)} call ${pct(x.call, x.n)} raise ${pct(x.raise, x.n)}`); }
+for (const s of 'FTR') { const x = out[`${s} all`], pr = (out.__pairs || {})[s] || []; if (x) console.log(`${s}`.padEnd(4) + ` n=${String(x.n).padStart(5)}  Spearman(order,equity) ${spearman(pr.map(x => [x[0], x[1]])).toFixed(2)}  Spearman(bot's equity vs range,equity) ${spearman(pr.map(x => [x[2], x[1]])).toFixed(2)}  misfold ${(x.missFold / x.n).toFixed(2)}bb  miscall ${(x.missCall / x.n).toFixed(2)}bb  fold ${pct(x.fold, x.n)} call ${pct(x.call, x.n)} raise ${pct(x.raise, x.n)}`); }
 console.log('RESULT ' + JSON.stringify(out));
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }

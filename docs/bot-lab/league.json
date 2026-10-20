@@ -83,59 +83,53 @@
     }
   ],
   "probe": {
-    "spec": "6",
+    "spec": "7",
     "deals": 4000,
     "seed": 1,
     "results": {
       "riverBluff4": {
-        "mean": 3.1,
-        "ci": 1.6
+        "mean": -0.2,
+        "ci": 0.5
       },
       "overbetBluff": {
-        "mean": 1.6,
-        "ci": 2.8
+        "mean": 1.4,
+        "ci": 3.5
       },
       "thinValue": {
-        "mean": 2.2,
-        "ci": 4.6
+        "mean": 2,
+        "ci": 5.3
       },
       "bigFlopValue": {
-        "mean": 3.6,
-        "ci": 6.2
+        "mean": -0.1,
+        "ci": 6.8
       },
       "maniac": {
-        "mean": 2.1,
-        "ci": 2.1
+        "mean": 1,
+        "ci": 3
       },
       "valueOnly": {
-        "mean": 0.4,
-        "ci": 4.7
+        "mean": 0,
+        "ci": 5.6
       },
       "station": {
-        "mean": -3.3,
-        "ci": 2
+        "mean": -2.6,
+        "ci": 2.5
       },
       "nit": {
-        "mean": 0,
+        "mean": 0.1,
         "ci": 2.2
       },
       "drawTight": {
-        "mean": -1.8,
-        "ci": 3.4
+        "mean": -0.9,
+        "ci": 3.8
       },
       "thinFold": {
         "mean": -0.5,
         "ci": 2.1
       }
     },
-    "date": "2026-10-19",
-    "leaks": [
-      {
-        "id": "riverBluff4",
-        "mean": 3.1,
-        "ci": 1.6
-      }
-    ]
+    "leaks": [],
+    "date": "2026-10-20"
   },
   "history": []
 }

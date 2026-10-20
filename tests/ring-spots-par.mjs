@@ -19,9 +19,9 @@ console.log(`ver ${VER}, ${+N * +P} hands (${P} x ${N}, seeds ${SEED0}..${+SEED0
 console.log('\nN2  turn, bet under 45% of the pot, by hand class');
 for (const c of ['overpair', 'trips+', 'twopair', 'toppair', 'pair', 'underpair', 'high']) if (st[`T small ${c}`]) console.log(row(`T small ${c}`, st[`T small ${c}`]));
 console.log('\nN3  flop, bet under 45% of the pot, high-card hands');
-for (const k of ['F small high', 'F small high with-BDFD', 'F small high no-BDFD']) if (st[k]) console.log(row(k, st[k]));
+for (const k of ['F small high', 'F small high with-BDFD', 'F small high no-BDFD', 'F small high nodraw with-BDFD', 'F small high nodraw no-BDFD']) if (st[k]) console.log(row(k, st[k]));
 console.log('\nN4  raises when facing a bet (bluff raise = a raise with under 40% equity against the actual hand)');
 for (const s of 'FTR') { const x = st[`${s} all`]; if (x) console.log(`${s} all`.padEnd(28) + ` n=${String(x.n).padStart(5)}  raise ${pct(x.raise, x.n)}  of the raises, bluffs ${pct(x.bluffRaise, x.raise)}  (${x.bluffRaise}/${x.raise})`); }
 console.log('\nStep 2  the bot\'s strength order against the equity vs the actual hand; the loss from folds that would have earned and calls that lost (per decision)');
-for (const s of 'FTR') { const x = st[`${s} all`]; if (x) console.log(`${s}`.padEnd(4) + ` n=${String(x.n).padStart(5)}  Spearman ${spearman(pairs[s] || []).toFixed(2)}  misfold ${(x.missFold / x.n).toFixed(2)}bb  miscall ${(x.missCall / x.n).toFixed(2)}bb  fold ${pct(x.fold, x.n)} call ${pct(x.call, x.n)} raise ${pct(x.raise, x.n)}`); }
+for (const s of 'FTR') { const x = st[`${s} all`]; if (x) console.log(`${s}`.padEnd(4) + ` n=${String(x.n).padStart(5)}  Spearman(order,equity) ${spearman((pairs[s] || []).map(x => [x[0], x[1]])).toFixed(2)}  Spearman(bot's equity vs range,equity) ${spearman((pairs[s] || []).map(x => [x[2], x[1]])).toFixed(2)}  misfold ${(x.missFold / x.n).toFixed(2)}bb  miscall ${(x.missCall / x.n).toFixed(2)}bb  fold ${pct(x.fold, x.n)} call ${pct(x.call, x.n)} raise ${pct(x.raise, x.n)}`); }
 console.log('RESULT ' + JSON.stringify(st));
