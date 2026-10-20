@@ -3,7 +3,7 @@
 // The flop of a hand that reaches this pot is replaced by A s A h K d (skipped when a player holds one of these cards). When the BB faces UTG's bet, every one of
 // <K> hands sampled from the BB's call range (its weights rw, without the cards of the board and of UTG) decides (botDecide): the share of folds is the spot's fold frequency.
 // Then the BB folds, which ends the hand. Result by the bet's size: n, mean fold frequency.
-// Usage: node tests/ring-aak.mjs [ver=10] [hands=20000] [seed=1] [K=80]
+// Usage: node tests/ring-aak.mjs [ver=10] [hands=20000] [seed=1] [K=80] [board=AsAhKd]   (board: three cards, rank 23456789TJQKA + suit s,c,d,h)
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
 const require = createRequire('/opt/node-tools/node_modules/');
@@ -18,14 +18,14 @@ await page.addInitScript(() => { window.__noPopup = true; const st = window.setT
 await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 await page.waitForTimeout(1500);
-const [VER, N, SEED, K] = [process.argv[2] || '10', +process.argv[3] || 20000, +process.argv[4] || 1, +process.argv[5] || 80];
-const out = await page.evaluate(async ([VER, N, SEED, K]) => {
+const [VER, N, SEED, K, BD] = [process.argv[2] || '10', +process.argv[3] || 20000, +process.argv[4] || 1, +process.argv[5] || 80, process.argv[6] || 'AsAhKd'];
+const out = await page.evaluate(async ([VER, N, SEED, K, BD]) => {
   const seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
   S.autoHero = true;
   S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
-  const card = (r, s) => r * 4 + s, BOARD = [card(12, 0), card(12, 3), card(11, 2)];   // A s, A h, K d
+  const card = (r, s) => r * 4 + s, BOARD = [0, 1, 2].map(i => card('23456789TJQKA'.indexOf(BD[2 * i]), 'schd'.indexOf(BD[2 * i + 1])));
   const bucket = f => f < 0.25 ? '<25%' : f < 0.45 ? '25-45%' : f < 0.85 ? '45-85%' : '85%+';
   const res = {}; let armed = null, skipped = 0, started = 0;
   const orig = window.botDecide;
@@ -63,9 +63,9 @@ const out = await page.evaluate(async ([VER, N, SEED, K]) => {
   }
   window.botDecide = orig;
   return { res, started, skipped };
-}, [VER, N, SEED, K]);
+}, [VER, N, SEED, K, BD]);
 await browser.close();
-console.log(`ver ${VER}, ${N} hands, seed ${SEED}: UTG opens, BB calls (SRP), flop As Ah Kd, UTG bets; ${out.started} pots set up (${out.skipped} skipped: a player held a board card)`);
+console.log(`ver ${VER}, ${N} hands, seed ${SEED}: UTG opens, BB calls (SRP), flop ${BD}, UTG bets; ${out.started} pots set up (${out.skipped} skipped: a player held a board card)`);
 for (const b of ['<25%', '25-45%', '45-85%', '85%+']) { const x = out.res[b]; if (x) console.log(`UTG's bet ${b.padEnd(7)} n=${String(x.n).padStart(3)}  mean bet ${(100 * x.f / x.n).toFixed(0)}% of the pot  BB folds ${(100 * x.fold / x.n).toFixed(0)}%   (owner's equilibrium reference: 33% bet -> about 65%)`); }
 console.log('RESULT ' + JSON.stringify(out));
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }
