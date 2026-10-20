@@ -21,3 +21,13 @@
 {"t":"2026-10-20T01:03:23.041Z","kind":"match","A":"7+mdf=0.75","B":"7","deals":4000,"seed":1,"mean":-0.5,"ci":2.1}
 {"t":"2026-10-20T01:03:23.041Z","kind":"probe","spec":"7","deals":4000,"seed":1,"results":{"riverBluff4":{"mean":-0.2,"ci":0.5},"overbetBluff":{"mean":1.4,"ci":3.5},"thinValue":{"mean":2,"ci":5.3},"bigFlopValue":{"mean":-0.1,"ci":6.8},"maniac":{"mean":1,"ci":3},"valueOnly":{"mean":0,"ci":5.6},"station":{"mean":-2.6,"ci":2.5},"nit":{"mean":0.1,"ci":2.2},"drawTight":{"mean":-0.9,"ci":3.8},"thinFold":{"mean":-0.5,"ci":2.1}},"leaks":[]}
 {"t":"2026-10-20T12:37:23.744Z","kind":"match","A":"7+sizeRange=1+riverBluff=4","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-0.7,"ci":0.9}
+{"t":"2026-10-20T12:39:00.593Z","kind":"match","A":"7+sizeRange=1+riverBluff=3+bigR=2","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":1.5,"ci":3.9}
+{"t":"2026-10-20T12:40:36.810Z","kind":"match","A":"7+sizeRange=1+thin=1.8","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-1.3,"ci":4.4}
+{"t":"2026-10-20T12:42:11.656Z","kind":"match","A":"7+sizeRange=1+sizeF=1.6+thin=1.4","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-1.9,"ci":6.6}
+{"t":"2026-10-20T12:43:47.530Z","kind":"match","A":"7+sizeRange=1+bluffF=2.5+bluffT=2.5","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":2.4,"ci":2.8}
+{"t":"2026-10-20T13:34:18.339Z","kind":"match","A":"7+sizeRange=1+bluffF=0+bluffT=0+thin=1.5","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-3.8,"ci":3.7}
+{"t":"2026-10-20T13:35:56.510Z","kind":"match","A":"7+sizeRange=1+mdf=1.6+drawEq=1.2","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-0.9,"ci":2.4}
+{"t":"2026-10-20T13:37:32.484Z","kind":"match","A":"7+sizeRange=1+mdf=0.5","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":0.1,"ci":2.8}
+{"t":"2026-10-20T13:39:09.441Z","kind":"match","A":"7+sizeRange=1+drawEq=0.6+impl=0","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-1.8,"ci":4.2}
+{"t":"2026-10-20T13:40:45.845Z","kind":"match","A":"7+sizeRange=1+mdf=0.75","B":"7+sizeRange=1","deals":4000,"seed":1,"mean":-0.8,"ci":2.1}
+{"t":"2026-10-20T13:40:45.847Z","kind":"probe","spec":"7+sizeRange=1","deals":4000,"seed":1,"results":{"riverBluff4":{"mean":-0.7,"ci":0.9},"overbetBluff":{"mean":1.5,"ci":3.9},"thinValue":{"mean":-1.3,"ci":4.4},"bigFlopValue":{"mean":-1.9,"ci":6.6},"maniac":{"mean":2.4,"ci":2.8},"valueOnly":{"mean":-3.8,"ci":3.7},"station":{"mean":-0.9,"ci":2.4},"nit":{"mean":0.1,"ci":2.8},"drawTight":{"mean":-1.8,"ci":4.2},"thinFold":{"mean":-0.8,"ci":2.1}},"leaks":[]}
