@@ -11,7 +11,7 @@ const runs = Array.from({ length: +P }, (_, i) => new Promise((res, rej) => {
   c.on('close', () => { const l = out.split('\n').find(x => x.startsWith('RESULT ')); l ? res(JSON.parse(l.slice(7))) : rej(new Error(out.slice(-400))); });
 }));
 const results = await Promise.all(runs), out = results.flatMap(r => r.rec), pooled = {};
-for (const r of results) for (const c in r.bins) for (const b in r.bins[c]) for (const d of [0, 1]) { const x = ((pooled[c] || (pooled[c] = {}))[b] || (pooled[c][b] = [[0, 0], [0, 0]]))[d], y = r.bins[c][b][d]; x[0] += y[0]; x[1] += y[1]; }
+for (const r of results) for (const c in r.bins) for (const cx in r.bins[c]) for (const b in r.bins[c][cx]) for (const d of [0, 1]) { const x = (((pooled[c] || (pooled[c] = {}))[cx] || (pooled[c][cx] = {}))[b] || (pooled[c][cx][b] = [[0, 0], [0, 0]]))[d], y = r.bins[c][cx][b][d]; x[0] += y[0]; x[1] += y[1]; }
 if (TABLE && !evalMode) { fs.writeFileSync(TABLE, JSON.stringify(pooled)); console.log('wrote the fitted table to ' + TABLE); }
 const stat = (rows, a, b) => { const v = rows.filter(r => isFinite(r[a]) && isFinite(r[b])), n = v.length; if (!n) return null; const d = v.map(r => r[b] - r[a]), bias = d.reduce((x, y) => x + y) / n, mae = d.reduce((x, y) => x + Math.abs(y), 0) / n, ma = v.reduce((x, r) => x + r[a], 0) / n, mb = v.reduce((x, r) => x + r[b], 0) / n; let c = 0, va = 0, vb = 0; for (const r of v) { c += (r[a] - ma) * (r[b] - mb); va += (r[a] - ma) ** 2; vb += (r[b] - mb) ** 2; } const sd = Math.sqrt(d.reduce((x, y) => x + (y - bias) ** 2, 0) / Math.max(1, n - 1)); return { n, true: ma, est: mb, bias, se: sd / Math.sqrt(n), mae, r: c / Math.sqrt(va * vb) }; };
 const f2 = x => (x === null ? '-' : x.toFixed(2)).toString().padStart(6);

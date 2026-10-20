@@ -48,7 +48,7 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
     return [n ? w / n : NaN, bn ? bl / bn : NaN];   // E is the facing player's equity: 1 - the bettor's
   }
   const rec = [], bins = {};   // rec: {c, Et, Ee, Bt, Be, (Ef, Bf)}; bins[cls][bucket][draw] = [hits, count]
-  const mult = (c, q, dr) => { const b = FIT && FIT[c] && FIT[c][Math.min(9, Math.floor(q * 10))]; const x = b && b[dr ? 1 : 0]; return x ? (x[0] + 0.2) / (x[1] + 1) : 0.2; };
+  const mult = (c, cx, q, dr) => { const b = FIT && FIT[c] && FIT[c][cx] && FIT[c][cx][Math.min(9, Math.floor(q * 10))]; const x = b && b[dr ? 1 : 0]; return x ? (x[0] + 0.2) / (x[1] + 1) : 0.2; };   // table format v2: [size class][context][percentile bucket][draw] = [hits, count]; context = wet board (2) + the bettor is the preflop aggressor (1)
   let oracle = null;
   const orig = window.botDecide;
   window.botDecide = function(seat) {
@@ -69,16 +69,17 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
     if (bettorNode && d.act === 'raise') {   // the first bet of the flop: find its true range
       const f = (d.to - p.bet) / pot0, c0 = cls(f), hero = live.find(q => q !== p), dead = new Uint8Array(52); S.board.forEach(c => dead[c] = 1); hero.hole.forEach(c => dead[c] = 1);
       const L = sampler(prior, dead), real = p.hole.slice(), idx = [], cum = []; let t = 0;
+      const tex = texture(S.board.slice(0, 3)), ctx = (tex.s !== 'rain' || tex.c === 'conn' ? 2 : 0) + (S.pfAggr === S.players.indexOf(p) ? 1 : 0);
       if (L.t > 0) {
         for (let k = 0; k < K; k++) {
           const h = draw(L); p.hole = [h.a, h.b]; let hits = 0;
           for (let m = 0; m < M; m++) { const e = orig(seat); if (e.act === 'raise' && cls((e.to - p.bet) / pot0) === c0) hits++; }
-          if (!FIT) { const q = percentileOf(p, strengthVal(h.a, h.b, S.board)), dr = S.board.length < 5 && drawFlag(h.a, h.b, S.board); const bb = ((bins[c0] || (bins[c0] = {}))[Math.min(9, Math.floor(q * 10))] || (bins[c0][Math.min(9, Math.floor(q * 10))] = [[0, 0], [0, 0]]))[dr ? 1 : 0]; bb[0] += hits / M; bb[1] += 1; }
+          if (!FIT) { const q = percentileOf(p, strengthVal(h.a, h.b, S.board)), dr = S.board.length < 5 && drawFlag(h.a, h.b, S.board); const qb = Math.min(9, Math.floor(q * 10)), cc = (bins[c0] || (bins[c0] = {})), cx = (cc[ctx] || (cc[ctx] = {})), bb = (cx[qb] || (cx[qb] = [[0, 0], [0, 0]]))[dr ? 1 : 0]; bb[0] += hits / M; bb[1] += 1; }
           if (hits) { t += hits; idx.push(ALL.indexOf(h)); cum.push(t); }
         }
         p.hole = real;
         let fitW = null;
-        if (FIT) { const tb = rangeTable(p); fitW = new Array(ALL.length).fill(0); for (const it of tb.items) { const c = ALL[it.i]; fitW[it.i] = it.w * mult(c0, it.q, S.board.length < 5 && drawFlag(c.a, c.b, S.board)); } }
+        if (FIT) { const tb = rangeTable(p); fitW = new Array(ALL.length).fill(0); for (const it of tb.items) { const c = ALL[it.i]; fitW[it.i] = it.w * mult(c0, ctx, it.q, S.board.length < 5 && drawFlag(c.a, c.b, S.board)); } }
         if (t > 0) oracle = { bettor: S.players.indexOf(p), hero: S.players.indexOf(hero), idx, cum, t, c: c0, fitW };
       } else p.hole = real;
     }
