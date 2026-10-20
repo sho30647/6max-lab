@@ -21,9 +21,9 @@ const r = await page.evaluate(() => {
     S.players.forEach((p, i) => { p.folded = i > 1; p.bet = 0; p.contrib = i > 1 ? 0 : 200; p.stack = 9000; p.allIn = false; p.hole = [24 + 2 * i, 25 + 2 * i]; p.rw = FULL_RANGE.slice(); p.rc = null; p.ver = undefined; p.tw = tw; p.style = { loose: 1, aggr: 1, three: 1 }; });
     if (facing) { S.players[1].bet = 400; S.players[1].contrib = 600; S.currentBet = 400; S.raiseCount = 1; S.pfAggr = 1; S.prevStreetAggr = 1; }   // seat 1 bets the pot (400 into 400)
     else { S.currentBet = 0; S.raiseCount = 0; S.pfAggr = 0; S.prevStreetAggr = 0; }
-    const keep = [window.equity, window.percentileOf, window.drawFlag, Math.random];
-    window.equity = () => eq; window.percentileOf = () => q; window.drawFlag = () => draw; Math.random = () => 0.99;   // no dice: no raise of a draw, no trap
-    try { return botPostflop(0); } finally { [window.equity, window.percentileOf, window.drawFlag, Math.random] = keep; }
+    const keep = [window.equity, window.percentileOf, window.drawFlag, Math.random, window.eqPercentile];
+    window.equity = () => eq; window.percentileOf = () => q; window.drawFlag = () => draw; Math.random = () => 0.99; window.eqPercentile = () => q;   // no dice: no raise of a draw, no trap; the equity rank (v10) is stubbed like the strength rank
+    try { return botPostflop(0); } finally { [window.equity, window.percentileOf, window.drawFlag, Math.random, window.eqPercentile] = keep; }
   };
   const tw = x => Object.assign({}, BOT_TWEAKS[RING_VER], x);
   const D = { eq: 0.35, q: 0.2, draw: true, facing: true }, M = { eq: 0.2, q: 0.55, draw: false, facing: true }, B = { eq: 0.85, q: 0.9, draw: false, facing: false };
