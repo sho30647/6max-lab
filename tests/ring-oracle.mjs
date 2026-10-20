@@ -59,10 +59,10 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
     const facingNode = S.street === 1 && toCall > 0 && oracle && oracle.hero === seat && S.raiseCount === 1;
     if (facingNode) {   // the facing player decides: measure the estimate against the truth, then play on
       const hero = p, bet = S.players[oracle.bettor], dead = new Uint8Array(52); S.board.forEach(c => dead[c] = 1);
-      const fitL = oracle.fitW ? sampler(oracle.fitW, dead) : null;
+      const fitL = oracle.fitW ? sampler(oracle.fitW, dead) : null, rw2L = bet.rw2 ? sampler(bet.rw2, dead) : null;   // rw2: the estimate the bot itself keeps with the size-reading narrowing
       const heroL = sampler(hero.rw, dead), estL = sampler(bet.rw, dead);
       const trueL = { idx: oracle.idx, cum: oracle.cum, t: oracle.t };
-      if (heroL.t > 0 && estL.t > 0 && trueL.t > 0) { const [Et, Bt] = measure(heroL, trueL, S.board), [Et2, Bt2] = measure(heroL, trueL, S.board), [Ee, Be] = measure(heroL, estL, S.board); const row = { c: oracle.c, Et, Et2, Ee, Bt, Bt2, Be }; if (fitL && fitL.t > 0) { const [Ef, Bf] = measure(heroL, fitL, S.board); row.Ef = Ef; row.Bf = Bf; } rec.push(row); /* Et2, Bt2: the truth measured again (the noise floor) */ }
+      if (heroL.t > 0 && estL.t > 0 && trueL.t > 0) { const [Et, Bt] = measure(heroL, trueL, S.board), [Et2, Bt2] = measure(heroL, trueL, S.board), [Ee, Be] = measure(heroL, estL, S.board); const row = { c: oracle.c, Et, Et2, Ee, Bt, Bt2, Be }; if (fitL && fitL.t > 0) { const [Ef, Bf] = measure(heroL, fitL, S.board); row.Ef = Ef; row.Bf = Bf; } if (rw2L && rw2L.t > 0) { const [E2, B2] = measure(heroL, rw2L, S.board); row.E2 = E2; row.B2 = B2; } rec.push(row); /* Et2, Bt2: the truth measured again (the noise floor) */ }
       oracle = null;
     }
     const d = orig(seat);
@@ -101,7 +101,7 @@ console.log(`ver ${VER}, ${N} hands, seed ${SEED}: flop, heads-up, the first bet
 console.log('                          n   true    est    bias    MAE   corr   (noise floor rows: the truth measured twice)');
 for (const c of ['all', 'small', 'mid', 'big']) {
   const rows = c === 'all' ? rec : rec.filter(r => r.c === c);
-  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2'], ['FIT range equity E', 'Et', 'Ef'], ['FIT bluff share', 'Bt', 'Bf']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(24)} ${String(s.n).padStart(4)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} ${f2(s.mae)} ${f2(s.r)}`); }
+  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2'], ['FIT range equity E', 'Et', 'Ef'], ['FIT bluff share', 'Bt', 'Bf'], ['RW2 range equity E', 'Et', 'E2'], ['RW2 bluff share', 'Bt', 'B2']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(24)} ${String(s.n).padStart(4)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} ${f2(s.mae)} ${f2(s.r)}`); }
 }
 console.log('RESULT ' + JSON.stringify(out));
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }
