@@ -20,7 +20,10 @@ const target = (process.argv.find(a => a.startsWith('--target=')) || '').slice(9
 const [mode, specArg, dealsArg, seedArg] = args;
 const deals = +dealsArg || 1000, seed = +seedArg || 1;
 const log = x => fs.appendFileSync(LOG, JSON.stringify({ t: new Date().toISOString(), ...x }) + '\n');
+const done = () => fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(x => x.kind === 'match') : [];
 function match(A, B, s = seed) {
+  const prev = done().filter(x => x.A === A && x.B === B && x.deals === deals * 4 && x.seed === s).pop();   // a measurement the same settings already logged (an interrupted run resumes here)
+  if (prev) { console.log(`  (reused from results.jsonl: ${A} vs ${B}, seed ${s})`); return { mean: prev.mean, ci: prev.ci }; }
   const out = execFileSync('node', [par, A, B, String(deals), '4', String(s)], { encoding: 'utf8' });
   const m = out.match(/^(-?[\d.]+) ± ([\d.]+)/m); if (!m) throw new Error(out.slice(-400));
   const r = { mean: +m[1], ci: +m[2] }; log({ kind: 'match', A, B, deals: deals * 4, seed: s, ...r }); return r;
