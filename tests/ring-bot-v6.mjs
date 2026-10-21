@@ -1,4 +1,4 @@
-// (file name kept: docs/bot-lab/policy.md calls it) Ring bots play the latest version (RING_VER = 7, BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
+// (file name kept: docs/bot-lab/policy.md calls it) Ring bots play the latest version (RING_VER = 10, BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
 // Spot: river, heads-up, facing a pot-sized bet, with 50% equity against the bettor's range as the bot reads it.
 // v3 calls it (50% > the 33% the price needs); v6 folds it (v3's big river bets are mostly value: it needs 75%).
 // v7 folds it with a hand in the bottom half of its range and calls it with one in the top half (the minimum defence of a pot bet).
@@ -21,14 +21,14 @@ const r = await page.evaluate(() => {
     S.players[1].bet = 2000; S.players[1].contrib = 3000;   // seat 1 bets the pot (2000 into 2000)
     S.currentBet = 2000; S.raiseCount = 1; S.pfAggr = 1; S.prevStreetAggr = 1;
     S.players[0].ver = ver;
-    const eq = window.equity, pc = window.percentileOf; window.equity = () => 0.5; window.percentileOf = () => q;
-    try { return botPostflop(0).act; } finally { window.equity = eq; window.percentileOf = pc; }
+    const eq = window.equity, pc = window.percentileOf, ep = window.eqPercentile; window.equity = () => 0.5; window.percentileOf = () => q; window.eqPercentile = () => q;   // (the equity rank of v10 is stubbed like the strength rank: this test is about the equity bar)
+    try { return botPostflop(0).act; } finally { window.equity = eq; window.percentileOf = pc; window.eqPercentile = ep; }
   };
   const ringLow = spot(undefined, 0.3), ringHigh = spot(undefined, 0.7), v6 = spot(6, 0.7), v3 = spot(3, 0.3);
   MT.on = true; const mtt = spot(undefined, 0.3); MT.on = false;
   return { ringLow, ringHigh, v6, v3, mtt, ringVer: RING_VER };
 });
 await browser.close();
-const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 7 && !errors.length;
+const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 10 && !errors.length;
 console.log(ok ? 'OK' : 'FAIL', JSON.stringify(r), errors.slice(0, 2).join(' | '));
 process.exit(ok ? 0 : 1);

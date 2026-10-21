@@ -17,7 +17,7 @@ description: 6max-labの夜間ボット研究ループ。リングのポスト�
 1. `TZ=Asia/Tokyo date` で時刻を確認する。**その時の :50 までに**ラウンドを終え、コミットとpushを済ませる。5時の回は :35 までにラウンドを終え、残りの時間で朝のレポートを書く。
 2. 作業ブランチ：`claude/bot-lab-nightly`。origin にあれば checkout して pull、なければ `staging` から作る。ただし `staging` に `docs/bot-lab/` がまだ無いあいだは、`claude/bot-lab` から作る。前夜のPRがマージ済みなら、`staging` から作り直す（CLAUDE.md のマージ済みブランチの扱いに従う）。
 3. `policy.md` を全部読む。`journal.md` は最後の3件、`league.json` は全部読む。
-4. **オーナーのメモ**：`git fetch origin` のあと、`git show origin/claude/bot-lab:docs/bot-lab/owner-notes.md` で最新のメモを読む（メモは常にこのブランチに足される。作業ブランチのコピーは古いことがある）。`journal.md` にまだIDが出てこないメモが「未処理」。扱い方はメモ用ファイルの冒頭に書いてある（仮説として扱い、測れる形にして測り、結果を `journal.md` と朝のレポートに書く）。
+4. **オーナーのメモ**：`docs/bot-lab/owner-notes.md`（作業ブランチのもの）を読む。メモは、オーナーが会話で送ったものを、会話側が作業ブランチ `claude/bot-lab-nightly` に追記する。`journal.md` にまだIDが出てこないメモが「未処理」。扱い方はメモ用ファイルの冒頭に書いてある（仮説として扱い、測れる形にして測り、結果を `journal.md` と朝のレポートに書く）。
 
 ## 1. 1ラウンドの流れ
 1. **偵察**：`league.probe` が今のチャンピオンのものでなければ、`node tests/ring-league.mjs probe <チャンピオン> 1000 1 --save`（約17分）。

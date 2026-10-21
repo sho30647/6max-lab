@@ -19,6 +19,6 @@ console.log(`ver ${VER}, ${+N * +P} hands (${P} x ${N}, seeds ${SEED0}..${+SEED0
 console.log('                              n   true    est    bias (+-se)    MAE   corr   (noise floor rows: the truth measured twice)');
 for (const c of ['all', 'small', 'mid', 'big']) {
   const rows = c === 'all' ? out : out.filter(r => r.c === c);
-  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2'], ['FIT range equity E', 'Et', 'Ef'], ['FIT bluff share', 'Bt', 'Bf']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(28)} ${String(s.n).padStart(5)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} (${s.se.toFixed(3)}) ${f2(s.mae)} ${f2(s.r)}`); }
+  for (const [name, a, b] of [['range equity E', 'Et', 'Ee'], ['bluff share', 'Bt', 'Be'], ['  noise floor E', 'Et', 'Et2'], ['  noise floor bluff', 'Bt', 'Bt2'], ['FIT range equity E', 'Et', 'Ef'], ['FIT bluff share', 'Bt', 'Bf'], ['RW2 range equity E', 'Et', 'E2'], ['RW2 bluff share', 'Bt', 'B2']]) { const s = stat(rows, a, b); if (s) console.log(`${(c + ' ' + name).padEnd(28)} ${String(s.n).padStart(5)} ${f2(s.true)} ${f2(s.est)} ${f2(s.bias)} (${s.se.toFixed(3)}) ${f2(s.mae)} ${f2(s.r)}`); }
 }
 console.log('RESULT ' + JSON.stringify({ n: out.length }));
