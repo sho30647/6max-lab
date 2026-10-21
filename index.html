@@ -2104,7 +2104,7 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
-   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
+   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
    eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true}};
 const RING_VER=10;
@@ -2190,7 +2190,7 @@ function botPostflopV3(seat){
   if(!reraise&&q>=1-Rv&&e>0.6&&R()<0.75) return raiseTo(street===1?wPick([[0.75,0.5],[1,0.5]]):wPick([[1,0.6],[1.5,0.4]]));
   if(reraise&&q>0.95&&e>0.7) return {act:'raise',to:p.stack+p.bet};
   if(!reraise&&n===1){
-    if(street===1&&dr&&R()<0.28*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
+    if(street===1&&dr&&R()<0.28*(X.flopDrawRaise??1)*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
     if(street===2&&dr&&R()<0.12*(X.turnDrawRaise??1)*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }

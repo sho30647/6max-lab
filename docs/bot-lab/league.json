@@ -116,6 +116,24 @@
       "delta": "+realize=1.12",
       "idea": "realizeOopの逆",
       "obs": []
+    },
+    {
+      "id": "flopDrawRaise",
+      "delta": "+flopDrawRaise=2.5",
+      "idea": "フロップでドローがレイズする頻度を2.5倍。ボットがフロップのレイズに降りすぎていれば勝つ",
+      "obs": []
+    },
+    {
+      "id": "noDrawRaise",
+      "delta": "+flopDrawRaise=0",
+      "idea": "フロップでドローがレイズしない。ボットのドローのレイズが損なら勝つ",
+      "obs": []
+    },
+    {
+      "id": "extremeCbet",
+      "delta": "+cbetHi=2.2+cbetLo=0.2",
+      "idea": "advCbetの強い版（K・Aハイで2.2倍、9以下で0.2倍）",
+      "obs": []
     }
   ],
   "probe": {
