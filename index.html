@@ -17,7 +17,7 @@
 :root{
   --bg:#E9EDEF; --surface:#FFFFFF; --surface2:#F4F6F7; --ink:#18232C; --muted:#5B6975; --line:#D3DADF;
   --felt:#2D5B61; --felt2:#23494E; --rail:#3A2F27; --brass:#A9833A; --win:#2B7A57; --loss:#B6443A; --sd:#3A6FB0;
-  --card:#FCFCFA; --turn:#1F6FEB; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
+  --rz:#D2601C; --card:#FCFCFA; --turn:#1F6FEB; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
   --num:'Barlow Condensed','Zen Kaku Gothic New',system-ui,sans-serif;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -25,13 +25,13 @@
   :root:not([data-theme="light"]){
     --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
     --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-    --card:#F2F2EE; --turn:#5AA2FF;
+    --rz:#E8793A; --card:#F2F2EE; --turn:#5AA2FF;
   }
 }
 :root[data-theme="dark"]{
   --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
   --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-  --card:#F2F2EE; --turn:#5AA2FF;
+  --rz:#E8793A; --card:#F2F2EE; --turn:#5AA2FF;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:border-box}
@@ -247,7 +247,7 @@ svg.chart{width:100%;height:auto;display:block}
 .fbsub{font-size:12px;color:var(--muted);margin-top:6px}
 .freqbar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin-top:8px;font-family:var(--num);font-size:13px;font-weight:600;color:#fff}
 .freqbar span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
-.fr{background:var(--win)}.fc{background:var(--sd)}.ff{background:#7C8790}.fj{background:var(--jam)}
+.fr{background:var(--rz)}.fc{background:var(--sd)}.ff{background:#7C8790}.fj{background:var(--jam)}
 :root{--jam:#C0569B}
 .btn.jam{color:var(--jam)}
 .setbox{max-width:820px;margin:10px auto 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0}
@@ -979,7 +979,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <div class="emix">
           <div class="esel" id="pf-eSel">マスが選ばれていません</div>
           <div class="einputs">
-            <label><i style="background:var(--win)"></i><span id="pf-eRLbl">レイズ</span><input type="number" id="pf-eR" min="0" max="100" step="1" value="0">%</label>
+            <label><i style="background:var(--rz)"></i><span id="pf-eRLbl">レイズ</span><input type="number" id="pf-eR" min="0" max="100" step="1" value="0">%</label>
             <label class="jamUI"><i style="background:var(--jam)"></i>オールイン<input type="number" id="pf-eJ" min="0" max="100" step="1" value="0">%</label>
             <label><i style="background:var(--sd)"></i>コール<input type="number" id="pf-eC" min="0" max="100" step="1" value="0">%</label>
             <span class="efold">フォールド <b id="pf-eF">100</b>%</span>
@@ -4860,8 +4860,8 @@ let cPos=null, cView=null, cSel=null;
 function mixBg(r,c,j,fc){
   j=j||0; const F=fc||'var(--surface2)'; if(r+c+j<=0) return fc||'';
   const R=r*100, J=(r+j)*100, C=(r+j+c)*100;
-  if(r>=0.999) return 'var(--win)'; if(c>=0.999) return 'var(--sd)'; if(j>=0.999) return 'var(--jam)';
-  return `linear-gradient(90deg,var(--win) ${R}%,var(--jam) ${R}% ${J}%,var(--sd) ${J}% ${C}%,${F} ${C}%)`;
+  if(r>=0.999) return 'var(--rz)'; if(c>=0.999) return 'var(--sd)'; if(j>=0.999) return 'var(--jam)';
+  return `linear-gradient(90deg,var(--rz) ${R}%,var(--jam) ${R}% ${J}%,var(--sd) ${J}% ${C}%,${F} ${C}%)`;
 }
 function renderCompare(m,recs,fp){
   const box=document.getElementById('pf-cmpBlock'); if(!box) return;
@@ -4901,7 +4901,7 @@ function renderCompare(m,recs,fp){
     <div class="gtoggle" id="pf-cViewT">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${cView===v}">${l}</button>`).join('')}</div>
     <div class="${cView==='all'?'cmp3':''}">${cView==='all'?grid('ok')+grid('me')+grid('gap'):grid(cView)}</div>
     <div class="cellinfo" id="pf-cInfo">&nbsp;</div>
-    <div class="legend"><span><i style="background:var(--win)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
+    <div class="legend"><span><i style="background:var(--rz)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
     <div class="insight" style="margin-top:10px">${list(looseL,'広すぎるハンド',f1)}${list(tightL,'狭すぎるハンド',f1)}${list(typL,'アクションの種類がずれるハンド',f2)}${!looseL.length&&!tightL.length&&!typL.length?(cov?'<p>回答済みのハンドでは、正解レンジと15pt以上ずれているものはありません。</p>':'<p>このポジションはまだ回答がありません。</p>'):''}</div>`;
   box.innerHTML=h;
   box.querySelectorAll('#pf-cPosT button').forEach(b=>b.onclick=()=>{ cPos=b.dataset.p; cSel=null; renderCompare(m,recs,null); });
@@ -4924,7 +4924,7 @@ function renderStatGrid(m,fp,byCls){
   const lg={acc:'<span><i style="background:hsl(0,55%,48%)"></i>0%</span><span><i style="background:hsl(70,55%,48%)"></i>50%</span><span><i style="background:hsl(140,55%,48%)"></i>100%</span><span>薄い＝回答が少ない／白＝未回答</span>',
     dev:'<span><i style="background:rgb(217,130,43)"></i>ルース（レンジより多く参加）</span><span><i style="background:rgb(58,111,176)"></i>タイト（レンジより降りすぎ）</span>',
     cnt:'<span>濃いほど出題回数が多い</span>',
-    rng:fp?'<span><i style="background:var(--win)"></i>レイズ</span><span><i style="background:var(--sd)"></i>コール</span><span>濃さ＝頻度</span>':'<span>ポジションを1つ選ぶとレンジ表が表示されます</span>'}[gView];
+    rng:fp?'<span><i style="background:var(--rz)"></i>レイズ</span><span><i style="background:var(--sd)"></i>コール</span><span>濃さ＝頻度</span>':'<span>ポジションを1つ選ぶとレンジ表が表示されます</span>'}[gView];
   document.getElementById('pf-gLegend').innerHTML=lg;
   g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ gSel=b.dataset.k; g.querySelectorAll('button').forEach(x=>x.classList.toggle('sel',x===b)); cellInfo(m,fp,byCls,gSel); });
   if(gSel) cellInfo(m,fp,byCls,gSel);
@@ -4963,7 +4963,7 @@ function fillPosSelect(selId,m,key){
   const saved=lsGet(K(key+'_'+m))||(m==='open'?lsGet(K('pflab_rpos')):null);
   if(MODE_POS[m].includes(prev)) sel.value=prev; else if(saved&&MODE_POS[m].includes(saved)) sel.value=saved;
 }
-function rangeLegend(m){ return `<span><i style="background:var(--win)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
+function rangeLegend(m){ return `<span><i style="background:var(--rz)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:var(--surface2);border:1px solid var(--line)"></i>フォールド</span>`; }
 function rangeSumText(m,p){
   const R=Ranges.get(m,p); if(!R||!Object.keys(R.h).length) return '未登録（すべてフォールド扱い）。この状態では練習の回答は記録だけされ、正誤判定は出ません。';
   const w=Ranges.width(m,p), v3=m==='vs3bet', base=rangeBase(m,p);
