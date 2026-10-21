@@ -1,3 +1,4 @@
+// Action colours (range chart legend, table bubbles, seat labels, deviation view): every pair must be clearly different (CIE Lab distance).
 // Range chart: the raise colour must be clearly different from the call colour (it used to be green vs blue, hard to tell apart).
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
@@ -15,15 +16,23 @@ for (const scheme of ['light', 'dark']) {
   await p.goto('file://' + html);
   await p.waitForFunction(() => typeof Nav !== 'undefined' && Nav.pfGo); await p.waitForTimeout(1200);
   await p.evaluate(() => { localStorage.clear(); Nav.setScreen('pf'); Nav.pfGo('tab', 'range'); }); await p.waitForTimeout(300);
-  const col = await p.evaluate(() => {
+  const probes = await p.evaluate(() => {
+    const bg = (cls, tag = 'span', parent = document.body) => { const w = document.createElement('div'); w.className = parent; const e = document.createElement(tag); e.className = cls; document.body.appendChild(w); w.appendChild(e); const c = getComputedStyle(e); const r = { bg: c.backgroundColor, color: c.color }; w.remove(); return r; };
+    const bub = k => { const w = document.createElement('div'); w.className = 'abub'; w.innerHTML = '<span class="an ' + k + '">x</span>'; document.body.appendChild(w); const r = getComputedStyle(w.firstChild).backgroundColor; w.remove(); return r; };
+    const act = k => { const w = document.createElement('div'); w.className = 'seat'; w.innerHTML = '<div class="act ' + k + '">x</div>'; document.body.appendChild(w); const r = getComputedStyle(w.firstChild).color; w.remove(); return r; };
     const sw = [...document.querySelectorAll('#pf-rLegend i')].map(e => getComputedStyle(e).backgroundColor);
-    return { raise: sw[0], call: sw[1], jam: getComputedStyle(document.documentElement).getPropertyValue('--jam') };
+    return { legend: sw, bub: { fold: bub('k-fold'), call: bub('k-call'), raise: bub('k-raise'), ai: bub('k-ai') }, act: { raise: act('k-raise'), ai: act('k-ai'), fold: act('k-fold') } };
   });
-  if (!col.raise || !col.call) { bad.push(scheme + ': legend swatches not found'); await p.close(); continue; }
-  const hex = h => { const n = parseInt(h.trim().slice(1), 16); return `rgb(${n >> 16}, ${n >> 8 & 255}, ${n & 255})`; }; col.jam = hex(col.jam);
-  const dh = (a, c) => { const d = Math.abs(hue(a) - hue(c)); return Math.min(d, 360 - d); };
-  if (dh(col.raise, col.call) < 90) bad.push(`${scheme}: raise/call hue too close ${col.raise} ${col.call}`);
-  if (dh(col.raise, col.jam) < 20) bad.push(`${scheme}: raise/jam hue too close ${col.raise} ${col.jam}`);
+  const lab = c => { const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+    const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; const X = f((.4124 * r + .3576 * g + .1805 * b) / .95047), Y = f(.2126 * r + .7152 * g + .0722 * b), Z = f((.0193 * r + .1192 * g + .9505 * b) / 1.08883); return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)]; };
+  const dE = (a, c) => Math.hypot(...lab(a).map((v, i) => v - lab(c)[i]));
+  const need = (name, obj, min) => { const k = Object.keys(obj); for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const d = dE(obj[k[i]], obj[k[j]]); if (d < min) bad.push(`${scheme}: ${name} ${k[i]}/${k[j]} too close (dE ${d.toFixed(0)}) ${obj[k[i]]} ${obj[k[j]]}`); } };
+  if (probes.legend.length < 2) { bad.push(scheme + ': legend swatches not found'); await p.close(); continue; }
+  need('range legend', Object.fromEntries(probes.legend.map((c, i) => ['s' + i, c])), 35);
+  need('table bubbles', probes.bub, 35);
+  need('seat labels', probes.act, 25);
+  // the raise colour must not be the all-in colour anywhere
+  if (probes.bub.raise === probes.bub.ai || probes.act.raise === probes.act.ai) bad.push(scheme + ': raise and all-in share a colour');
   await p.screenshot({ path: process.env.SHOT ? `${process.env.SHOT}-${scheme}.png` : '/dev/null' }).catch(() => {});
   await p.close();
 }

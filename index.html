@@ -17,7 +17,7 @@
 :root{
   --bg:#E9EDEF; --surface:#FFFFFF; --surface2:#F4F6F7; --ink:#18232C; --muted:#5B6975; --line:#D3DADF;
   --felt:#2D5B61; --felt2:#23494E; --rail:#3A2F27; --brass:#A9833A; --win:#2B7A57; --loss:#B6443A; --sd:#3A6FB0;
-  --rz:#D2601C; --card:#FCFCFA; --turn:#1F6FEB; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
+  --rz:#D2601C; --jam:#9B1FE8; --card:#FCFCFA; --turn:#1F6FEB; --s0:#1A1A1A; --s1:#C8342B; --s2:#2459B8; --s3:#1E7A45;
   --num:'Barlow Condensed','Zen Kaku Gothic New',system-ui,sans-serif;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -25,13 +25,13 @@
   :root:not([data-theme="light"]){
     --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
     --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-    --rz:#E8793A; --card:#F2F2EE; --turn:#5AA2FF;
+    --rz:#E8793A; --jam:#A93DF5; --card:#F2F2EE; --turn:#5AA2FF;
   }
 }
 :root[data-theme="dark"]{
   --bg:#10181E; --surface:#18222A; --surface2:#1F2B34; --ink:#E4EAEE; --muted:#90A0AC; --line:#2B3843;
   --felt:#24494E; --felt2:#1B393D; --rail:#2A211B; --brass:#D0AC5F; --win:#4DB184; --loss:#E26A5E; --sd:#6B9BDB;
-  --rz:#E8793A; --card:#F2F2EE; --turn:#5AA2FF;
+  --rz:#E8793A; --jam:#A93DF5; --card:#F2F2EE; --turn:#5AA2FF;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:border-box}
@@ -91,14 +91,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 /* beginner mode */
 .seat .act.beg{font-size:13px;font-weight:700;color:var(--ink)}
 .seat .act.k-fold{color:var(--muted)}
-.seat .act.k-bet,.seat .act.k-raise,.seat .act.k-ai{color:var(--loss)}
+.seat .act.k-bet,.seat .act.k-raise{color:var(--rz)}.seat .act.k-ai{color:var(--jam)}
 .abub{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;z-index:2;pointer-events:none}
 .abub .an{font-size:14px;font-weight:800;padding:3px 11px;border-radius:12px;background:#F5F1E6;color:#222;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.4)}
 .abub .an.k-fold{background:#8C8C8C;color:#fff}
 .abub .an.k-check{background:#E6F0FA;color:#1F4E79}
 .abub .an.k-call,.abub .an.k-sb,.abub .an.k-bb{background:#2F6FB3;color:#fff}
-.abub .an.k-bet,.abub .an.k-raise{background:#C0392B;color:#fff}
-.abub .an.k-ai{background:#7A4BB5;color:#fff}
+.abub .an.k-bet,.abub .an.k-raise{background:#D2601C;color:#fff}
+.abub .an.k-ai{background:#9B1FE8;color:#fff}
 .abub.last .an{outline:3px solid var(--brass);outline-offset:1px}
 .abub .amt{display:flex;align-items:flex-end;gap:5px;background:rgba(0,0,0,.38);color:#F7E7B8;font-family:var(--num);font-weight:600;font-size:15px;padding:3px 8px 2px;border-radius:12px;white-space:nowrap}
 .res{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;padding:4px 12px;border-radius:12px;color:#fff;line-height:1.2;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.45);z-index:2}
@@ -248,7 +248,6 @@ svg.chart{width:100%;height:auto;display:block}
 .freqbar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin-top:8px;font-family:var(--num);font-size:13px;font-weight:600;color:#fff}
 .freqbar span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
 .fr{background:var(--rz)}.fc{background:var(--sd)}.ff{background:#7C8790}.fj{background:var(--jam)}
-:root{--jam:#C0569B}
 .btn.jam{color:var(--jam)}
 .setbox{max-width:820px;margin:10px auto 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0}
 .setbox summary{padding:10px 12px;cursor:pointer;font-size:14px;font-weight:700}
@@ -4621,11 +4620,11 @@ function renderEstResult(o,T,rec,close){
   const avg=hist.length?Math.round(hist.reduce((s,x)=>s+x.s,0)/hist.length*100):null;
   const cellsHTML=FU?FU.cells:EST.view==='ok'?CLASSES.map(k=>estCell(k,T.f(k))).join(''):EST.view==='me'?CLASSES.map(k=>estCell(k,EST.cells[k]||0)).join(''):
     CLASSES.map(k=>{ const t=T.f(k), e=EST.cells[k]||0, d=t-e, a=Math.min(1,Math.abs(d)); let bg='',col='';
-      if(d>=0.25){ bg=`rgba(58,111,176,${0.35+0.65*a})`; col='#fff'; } else if(d<=-0.25){ bg=`rgba(217,130,43,${0.35+0.65*a})`; col='#fff'; } else if(t>0.001||e>0.001){ bg='var(--surface2)'; }
+      if(d>=0.25){ bg=`rgba(30,122,69,${0.35+0.65*a})`; col='#fff'; } else if(d<=-0.25){ bg=`rgba(214,51,108,${0.35+0.65*a})`; col='#fff'; } else if(t>0.001||e>0.001){ bg='var(--surface2)'; }
       return `<button data-k="${k}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}${t<0.001&&e<0.001?';opacity:.45':''}">${k}</button>`; }).join('');
   o.innerHTML=`<div class="rovhead"><b>${T.label}<span style="white-space:nowrap">：一致度 ${Math.round(r.score*100)}%</span></b><span class="estv">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${EST.view===v}">${l}</button>`).join('')}</span><button class="rovx" aria-label="閉じる">×</button></div>
     <div class="grid13">${cellsHTML}</div>
-    <div class="rovinfo">${FU?`<div class="legend" style="justify-content:center;margin:0 0 2px">${FU.legend}</div>相手の全アクション（${FU.caption}）<br>${FU.sum}`:`正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(58,111,176)">青＝見落とし</span> <span style="color:rgb(217,130,43)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}`}</div>`;
+    <div class="rovinfo">${FU?`<div class="legend" style="justify-content:center;margin:0 0 2px">${FU.legend}</div>相手の全アクション（${FU.caption}）<br>${FU.sum}`:`正解レンジ ${(r.tt*100).toFixed(1)}%／あなた ${(r.ee*100).toFixed(1)}%${avg!=null?`／直近${hist.length}回の平均 ${avg}%`:''}<br>${EST.view==='gap'?'<span style="color:rgb(30,122,69)">青＝見落とし</span> <span style="color:rgb(214,51,108)">橙＝入れ過ぎ</span>　':''}見落とし：${top(miss)}　入れ過ぎ：${top(extra)}`}</div>`;
   o.querySelector('.rovx').onclick=close;
   o.querySelectorAll('.estv button').forEach(b=>b.onclick=()=>{ EST.view=b.dataset.v; renderEstResult(o,T,rec,close); });
   o.querySelectorAll('.grid13 button').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(FU){ o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：${FU.one(k)}`; return; } o.querySelector('.rovinfo').innerHTML=`<b>${k}</b>：正解 ${Math.round(T.f(k)*100)}%／あなた ${Math.round((EST.cells[k]||0)*100)}%`; });
@@ -4883,7 +4882,7 @@ function renderCompare(m,recs,fp){
   const grid=(type)=>`<div><p class="lbl">${{ok:'正解レンジ（GTO）',me:'あなたのレンジ（回答から）',gap:'乖離'}[type]}</p><div class="grid13 cgrid" data-type="${type}">${CLASSES.map(k=>{ const c=cell[k]; let bg='',cls='',txt=k,col='';
       if(type==='ok'){ bg=mixBg(c.e.r,c.e.c,c.e.j); if(bg) col='#fff'; if(bg&&c.e.f>0.001) cls='mixf'; }
       else if(type==='me'){ if(!c.o){ cls='nod unk'; } else { bg=mixBg(c.yr,c.yc,c.yj,'#7C8790'); if(bg) col='#fff'; if(c.o.n<3) cls='thin'; } }
-      else { if(!c.o) cls='nod unk'; else if(c.kind==='loose'){ bg=`rgba(217,130,43,${0.35+0.65*Math.min(1,c.d)})`; col='#fff'; } else if(c.kind==='tight'){ bg=`rgba(58,111,176,${0.35+0.65*Math.min(1,-c.d)})`; col='#fff'; } else if(c.kind==='type'){ bg='rgba(139,92,176,.85)'; col='#fff'; } else { cls='match'; }
+      else { if(!c.o) cls='nod unk'; else if(c.kind==='loose'){ bg=`rgba(214,51,108,${0.35+0.65*Math.min(1,c.d)})`; col='#fff'; } else if(c.kind==='tight'){ bg=`rgba(30,122,69,${0.35+0.65*Math.min(1,-c.d)})`; col='#fff'; } else if(c.kind==='type'){ bg='rgba(107,68,35,.9)'; col='#fff'; } else { cls='match'; }
         if(c.o&&c.o.n<3) cls+=' thin'; }
       return `<button data-k="${k}" class="${cls}${cSel===k?' sel':''}" style="${bg?'background:'+bg+';':''}${col?'color:'+col:''}">${txt}</button>`; }).join('')}</div></div>`;
   const list=(arr,label,fmt)=>arr.length?`<p><b>${label}</b>：${arr.sort((a,b)=>Math.abs(b.d)*combos(b.k)-Math.abs(a.d)*combos(a.k)).slice(0,12).map(fmt).join('、')}${arr.length>12?` ほか${arr.length-12}種`:''}</p>`:'';
@@ -4901,7 +4900,7 @@ function renderCompare(m,recs,fp){
     <div class="gtoggle" id="pf-cViewT">${views.map(([v,l])=>`<button data-v="${v}" aria-pressed="${cView===v}">${l}</button>`).join('')}</div>
     <div class="${cView==='all'?'cmp3':''}">${cView==='all'?grid('ok')+grid('me')+grid('gap'):grid(cView)}</div>
     <div class="cellinfo" id="pf-cInfo">&nbsp;</div>
-    <div class="legend"><span><i style="background:var(--rz)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(217,130,43)"></i>広すぎ</span><span><i style="background:rgb(58,111,176)"></i>狭すぎ</span><span><i style="background:rgb(139,92,176)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
+    <div class="legend"><span><i style="background:var(--rz)"></i>${rName(m)}</span>${hasJam(m)?'<span><i style="background:var(--jam)"></i>オールイン</span>':''}<span><i style="background:var(--sd)"></i>コール</span><span><i style="background:#7C8790"></i>フォールド（あなたのレンジ）</span><span>斜線＝未回答</span><span><i style="background:rgb(214,51,108)"></i>広すぎ</span><span><i style="background:rgb(30,122,69)"></i>狭すぎ</span><span><i style="background:rgb(107,68,35)"></i>種類違い（参加率は近いがR/Cの配分がずれる）</span><span>乖離の判定：参加率が15pt以上ずれたら広すぎ／狭すぎ</span></div>
     <div class="insight" style="margin-top:10px">${list(looseL,'広すぎるハンド',f1)}${list(tightL,'狭すぎるハンド',f1)}${list(typL,'アクションの種類がずれるハンド',f2)}${!looseL.length&&!tightL.length&&!typL.length?(cov?'<p>回答済みのハンドでは、正解レンジと15pt以上ずれているものはありません。</p>':'<p>このポジションはまだ回答がありません。</p>'):''}</div>`;
   box.innerHTML=h;
   box.querySelectorAll('#pf-cPosT button').forEach(b=>b.onclick=()=>{ cPos=b.dataset.p; cSel=null; renderCompare(m,recs,null); });
@@ -4914,15 +4913,15 @@ function renderCompare(m,recs,fp){
 function renderStatGrid(m,fp,byCls){
   const g=document.getElementById('pf-sGrid'); let maxN=1; Object.values(byCls).forEach(o=>maxN=Math.max(maxN,o.n));
   const cells=CLASSES.map((k,idx)=>{ const o=byCls[k]; let bg='', cls='';
-    if(gView==='rng'){ if(!fp){ bg=''; } else { const e=Ranges.exp(m,fp,k); if(e.has&&(e.r+e.c+e.j)>0){ bg=e.j>e.r&&e.j>e.c?`rgba(192,86,155,${0.25+0.75*e.j})`:e.c>e.r?`rgba(58,111,176,${0.25+0.75*e.c})`:`rgba(43,122,87,${0.25+0.75*e.r})`; } } }
+    if(gView==='rng'){ if(!fp){ bg=''; } else { const e=Ranges.exp(m,fp,k); if(e.has&&(e.r+e.c+e.j)>0){ bg=e.j>e.r&&e.j>e.c?`rgba(192,86,155,${0.25+0.75*e.j})`:e.c>e.r?`rgba(30,122,69,${0.25+0.75*e.c})`:`rgba(43,122,87,${0.25+0.75*e.r})`; } } }
     else if(!o){ cls='nod'; }
     else if(gView==='acc'){ if(o.j){ const a=o.ok/o.j; bg=`hsla(${Math.round(a*140)},55%,48%,${0.35+0.5*Math.min(1,o.j/5)})`; } else cls='nod'; }
-    else if(gView==='dev'){ if(o.j){ const d=o.vpj/o.j-o.ev/o.j; if(Math.abs(d)>0.001) bg=d>0?`rgba(217,130,43,${0.2+0.8*Math.abs(d)})`:`rgba(58,111,176,${0.2+0.8*Math.abs(d)})`; } else cls='nod'; }
+    else if(gView==='dev'){ if(o.j){ const d=o.vpj/o.j-o.ev/o.j; if(Math.abs(d)>0.001) bg=d>0?`rgba(214,51,108,${0.2+0.8*Math.abs(d)})`:`rgba(30,122,69,${0.2+0.8*Math.abs(d)})`; } else cls='nod'; }
     else if(gView==='cnt'){ bg=`rgba(169,131,58,${0.15+0.85*o.n/maxN})`; }
     return `<button data-k="${k}" class="${cls}${gSel===k?' sel':''}" style="${bg?'background:'+bg:''}">${k}</button>`; }).join('');
   g.innerHTML=cells;
   const lg={acc:'<span><i style="background:hsl(0,55%,48%)"></i>0%</span><span><i style="background:hsl(70,55%,48%)"></i>50%</span><span><i style="background:hsl(140,55%,48%)"></i>100%</span><span>薄い＝回答が少ない／白＝未回答</span>',
-    dev:'<span><i style="background:rgb(217,130,43)"></i>ルース（レンジより多く参加）</span><span><i style="background:rgb(58,111,176)"></i>タイト（レンジより降りすぎ）</span>',
+    dev:'<span><i style="background:rgb(214,51,108)"></i>ルース（レンジより多く参加）</span><span><i style="background:rgb(30,122,69)"></i>タイト（レンジより降りすぎ）</span>',
     cnt:'<span>濃いほど出題回数が多い</span>',
     rng:fp?'<span><i style="background:var(--rz)"></i>レイズ</span><span><i style="background:var(--sd)"></i>コール</span><span>濃さ＝頻度</span>':'<span>ポジションを1つ選ぶとレンジ表が表示されます</span>'}[gView];
   document.getElementById('pf-gLegend').innerHTML=lg;
