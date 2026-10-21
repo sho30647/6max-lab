@@ -2104,7 +2104,7 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
-   eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
+   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
    eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true}};
 const RING_VER=10;
@@ -2123,6 +2123,8 @@ function eqPercentile(seat,opps,e,rwk,n){
   me.hole=hole;
   return below/n;
 }
+function boardAdv(b){ const m=Math.max(b[0]>>2,b[1]>>2,b[2]>>2); return m>=11?'hi':m<=7?'lo':'mid'; }   // the flop's top card: K/A high = the aggressor's board, 9 or lower = the caller's board
+function blankTurn(b){ const r=b[3]>>2, rs=b.slice(0,3).map(c=>c>>2); if(rs.includes(r)) return false; const sc=b.filter(c=>(c&3)===(b[3]&3)).length; return sc<=2&&r<Math.max(...rs)-1; }   // a turn card that pairs nothing, adds no flush draw and is below the flop's top card
 function botPostflopV3(seat){
   const p=S.players[seat], st=p.style, R=Math.random;
   const X=MT.on||p.ver===3?{}:(p.tw||BOT_TWEAKS[p.ver]||BOT_TWEAKS[RING_VER]);
@@ -2149,6 +2151,8 @@ function botPostflopV3(seat){
       else F=n===1?0.45:0.25;
     } else if(ip&&S.raiseCount===0){ F=street===1?0.42:street===2?0.38:0.32; if(n>1)F*=0.5; }
     else F=0.06;
+    if(street===1){ const adv=boardAdv(S.board); if(role&&n===1) F*=adv==='hi'?(X.cbetHi??1):adv==='lo'?(X.cbetLo??1):1; else if(!role&&!ip&&adv==='lo') F*=(X.donk??1); }   // exploiter knobs: the flop bet frequency by the board's range advantage (high = the preflop aggressor's, low = the caller's)
+    if(street===2&&role&&n===1&&X.blankBarrel&&blankTurn(S.board)) F*=X.blankBarrel;
     F=clamp(F*st.aggr,0,0.85);
     // the sizes of this spot: BIG for the polar part, SMALL for merged value, MID for semi-bluffs
     const big=street===3&&X.bigR?X.bigR:street===1?wPick([[0.75,0.6],[1,0.4]]):street===2?wPick([[0.75,0.3],[1,0.45],[1.5,0.25]]):wPick([[1,0.4],[1.5,0.3],[2,0.3]]);
