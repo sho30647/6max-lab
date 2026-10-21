@@ -20,8 +20,8 @@ await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 await page.waitForTimeout(1500);
 const args = process.argv.slice(2);
-const [VER, N, SEED] = [args[0] || '10', +args[1] || 3000, +args[2] || 1];
-const out = await page.evaluate(async ([VER, N, SEED]) => {
+const [VER, N, SEED, TW] = [args[0] || '10', +args[1] || 3000, +args[2] || 1, args[3] || ''];   // TW: extra tweaks, e.g. turnDefend=1,bluffF=2
+const out = await page.evaluate(async ([VER, N, SEED, TW]) => {
   const seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
@@ -57,10 +57,10 @@ const out = await page.evaluate(async ([VER, N, SEED]) => {
     }
     return d;
   };
-  for (let h = 0; h < N; h++) { S.players.forEach(p => { p.chk = null; }); S.players.forEach((p, i) => { p.ver = +VER; p.tw = null; }); S.resetStacks = true; S.button = h % 6; Store.hands.length = 0; seed(SEED * 7919 + h * 13); await playHand(); }
+  for (let h = 0; h < N; h++) { S.players.forEach(p => { p.chk = null; }); S.players.forEach((p, i) => { p.ver = +VER; p.tw = TW ? Object.assign({}, BOT_TWEAKS[VER], ...TW.split(',').map(t => { const [k, x] = t.split('='); return { [k]: x === 'true' ? true : +x }; })) : null; }); S.resetStacks = true; S.button = h % 6; Store.hands.length = 0; seed(SEED * 7919 + h * 13); await playHand(); }
   window.botDecide = orig;
   return R;
-}, [VER, N, SEED]);
+}, [VER, N, SEED, TW]);
 const pc = (a, n) => (n ? (100 * a / n).toFixed(0) : '-') + '%';
 console.log(`ver ${VER}, ${N} hands, seed ${SEED}`);
 const r = out.raise; console.log(`raises facing a bet: n=${r.n}, >=8x the bet: ${pc(r.big, r.n)}, all-in: ${pc(r.jam, r.n)}, all-in over a bet <50% pot and >5x: ${r.jamOverSmall}`);

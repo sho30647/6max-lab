@@ -2104,7 +2104,7 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
    eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
-   eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
+   turnDefend = the turn's share of the minimum defence (1-alpha) defended by range (like riverDefend), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true}};
 const RING_VER=10;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
@@ -2188,7 +2188,7 @@ function botPostflopV3(seat){
     if(street===2&&dr&&R()<0.12*(X.turnDrawRaise??1)*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }
-  if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
+  if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)||X.turnDefend>0&&qE>=1-X.turnDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // turnDefend: share of the minimum defence (1-alpha) the turn defends by range, as riverDefend does on the river
   if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)-(X.riverLoosen||0)||X.riverDefend>0&&qE>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
   const eC=dr&&street===1?e*(X.drawEq??1):e;
   const byOdds=eC+implied>=potOdds;
