@@ -69,3 +69,6 @@ console.log('flop c-bet (HU, preflop aggressor) by hand:'); for (const k of Obje
 console.log('fold to a bet (HU, single raise): checked-all-streets vs other'); for (const k of Object.keys(out.fx).sort()) console.log('  ', k.padEnd(18), 'n=' + String(out.fx[k].n).padStart(5), 'fold ' + pc(out.fx[k].a, out.fx[k].n));
 await browser.close();
 if (errors.length) { console.log('page errors:', errors.slice(0, 3)); process.exit(1); }
+
+// check: a version that c-bets almost no air makes its flop check range all air (v10: 9%). v11 and later must be above 20%.
+const air = out.cb['AIR (no pair no draw)']; if (!args[3] && +VER >= 11 && air && air.a / air.n < 0.2) { console.log('FAIL: air c-bet ' + pc(air.a, air.n) + ' < 20%'); process.exit(1); }
