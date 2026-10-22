@@ -2104,7 +2104,7 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
    eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
-   turnDefend = the turn's share of the minimum defence (1-alpha) defended by range (like riverDefend), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
+   airQ = the flop's air bluffs are drawn from the bottom airQ of the range (0.35), turnDefend = the turn's share of the minimum defence (1-alpha) defended by range (like riverDefend), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true}};
 const RING_VER=10;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
@@ -2165,10 +2165,11 @@ function botPostflopV3(seat){
     if(street<3&&dr){   // draws: strong ones play like the nuts (big), the rest semi-bluff with a medium size
       if(R()<Math.min(1,0.6*(bBig+bSmall)/0.2)) return bet(e>=0.45?big:mid);
     }
-    if(q<0.35&&e<0.4){   // air: bluffs, with the big size as often as the nuts need them
+    const aq=street===1?(X.airQ??0.35):0.35;   // airQ: the flop's bluff candidates are the bottom airQ of the range (0.35), the bluff share of the range stays the same
+    if(q<aq&&e<0.4){   // air: bluffs, with the big size as often as the nuts need them
       const budget=(street===1?0.4*(X.bluffF??1):street===2?0.4*(X.bluffT??1):1)*(bBig+bSmall);
       if(X.riverBluff&&street===3) return R()<Math.min(1,X.riverBluff*budget/0.35)?bet(big,true):{act:'check'};
-      if(R()<Math.min(1,budget/0.35)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small,true);
+      if(R()<Math.min(1,budget/aq)) return bet(R()<bBig/((bBig+bSmall)||1)?big:small,true);
     }
     return {act:'check'};
   }
