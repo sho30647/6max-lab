@@ -29,6 +29,6 @@ const r = await page.evaluate(() => {
   return { ringLow, ringHigh, v6, v3, mtt, ringVer: RING_VER };
 });
 await browser.close();
-const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 10 && !errors.length;
+const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 11 && !errors.length;
 console.log(ok ? 'OK' : 'FAIL', JSON.stringify(r), errors.slice(0, 2).join(' | '));
 process.exit(ok ? 0 : 1);
