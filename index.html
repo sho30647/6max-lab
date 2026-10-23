@@ -2100,6 +2100,8 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
        Self-play against v9: -0.1 +- 4.9 and -1.6 +- 4.5 bb/100 (no difference); the league finds no leak; the folding frequencies do not change.
    v11: v10 + six times the flop's air bluffs (bluffF=6): v10 c-bet 9% of its hands with no pair and no draw (the pair 48%), so its flop check range was
        all air and the checked lines were easy to fold out. Now 33% (the pair 54%). Self-play against v10: -0.3 +- 5.0 bb/100 (2000 deals, seeds 21-24; bluffF=4: +1.0 +- 3.2), no difference.
+   v12: v11 + three times the turn's air bluffs (bluffT=3): v11 gave up 88% of its flop bluffs on the turn (it bet the turn again with 12% of the hands that were still air, 51% of its
+       other hands), and the exploiter 11+bluffT=3 beat v11 (+6.2 +- 4.9 bb/100, seeds 41-44; +2.6 +- 4.1, seeds 51-54). v11 with turnDefend=1 did not close that leak (the exploiter: +6.8 +- 11.5, +9.8 +- 10.1).
    (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
    Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT = x the air bluffs on the flop / turn,
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
@@ -2107,8 +2109,8 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
    eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
    turnDefend = the turn's share of the minimum defence (1-alpha) defended by range (like riverDefend), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
-const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,bluffF:6}};
-const RING_VER=11;
+const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,bluffF:6},12:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,bluffF:6,bluffT:3}};
+const RING_VER=12;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
    sampled: n hands of the range, each one's equity against the opponents' ranges. eqRank uses it in place of the percentile of the current strength (q). */
 function eqPercentile(seat,opps,e,rwk,n){
