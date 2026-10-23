@@ -2114,7 +2114,7 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
    cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), advCap = the largest shift of advFold (0.25), advFold = how much the fold cut moves with the range advantage (fold cut + advFold x (0.5 - the equity of its range)), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
-   barrelRead = read a second and later bet of a player by a range that keeps the hands that bluff on (rw3, see narrowRange), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
+   slow = the share of the strong flop value hands (the top fifth of the range) that check (x0.5 on a wet board), so the check range holds strong hands, barrelRead = read a second and later bet of a player by a range that keeps the hands that bluff on (rw3, see narrowRange), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
 const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2},12:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2,bluffF:6,barrelRead:true}};
 const RING_VER=12;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
@@ -2174,6 +2174,7 @@ function botPostflopV3(seat){
     const thinV=(valueFrac-nutFrac)*(X.thin??1);
     if((q>=1-(nutFrac+thinV)&&e>eqMin)||e>0.8){
       if(q>0.93&&street<3&&R()<0.18) return {act:'check'};   // trap
+      if(street===1&&X.slow&&q>=0.8&&R()<X.slow*(wet?0.5:1)) return {act:'check'};   // slow: keeps this share of the strong hands (x0.5 on a wet board) in the flop check range
       const nutted=(q>=1-nutFrac&&e>0.7)||e>0.88;
       return bet(nutted?big:small);
     }

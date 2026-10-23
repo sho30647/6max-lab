@@ -27,7 +27,7 @@ const out = await page.evaluate(async ([VER, N, SEED, TW]) => {
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
   S.autoHero = true;
   S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
-  const R = { raise: { n: 0, big: 0, jam: 0, jamOverSmall: 0 }, cb: {}, fx: {}, bar: {} };
+  const R = { chk: {}, raise: { n: 0, big: 0, jam: 0, jamOverSmall: 0 }, cb: {}, fx: {}, bar: {} };
   const bump = (o, k, f) => { const x = o[k] || (o[k] = { n: 0, a: 0, b: 0 }); x.n++; f(x); };
   const orig = window.botDecide;
   window.botDecide = function(seat) {
@@ -46,6 +46,7 @@ const out = await page.evaluate(async ([VER, N, SEED, TW]) => {
         const cat = evalHand(p.hole.concat(S.board)) >> 20, dr = drawFlag(p.hole[0], p.hole[1], S.board);
         const k = cat === 0 ? (dr ? 'highcard+draw' : 'AIR (no pair no draw)') : cat === 1 ? 'pair' : 'two pair+';
         bump(R.cb, k, x => { if (d.act === 'raise') x.a++; });
+        { const qq = percentileOf(p, strengthVal(p.hole[0], p.hole[1], S.board), 'rw'); bump(R.chk, qq >= 0.8 ? 'strong (top fifth of the range)' : 'rest', x => { if (d.act !== 'raise') x.a++; }); }
         p.flopK = d.act === 'raise' ? (cat === 0 && !dr ? 'air' : 'other') : 'none';
       }
       if (toCall === 0 && st >= 2 && hu && S.prevStreetAggr === seat && p.flopK && p.flopK !== 'none') {   // barrels: the bot bet the flop and has the initiative; does it bet the next street?
@@ -71,6 +72,7 @@ console.log(`ver ${VER}, ${N} hands, seed ${SEED}`);
 const r = out.raise; console.log(`raises facing a bet: n=${r.n}, >=8x the bet: ${pc(r.big, r.n)}, all-in: ${pc(r.jam, r.n)}, all-in over a bet <50% pot and >5x: ${r.jamOverSmall}`);
 for (const k of Object.keys(r).filter(k => k.startsWith('st'))) console.log('  ', k, 'n=' + r[k].n, 'avg raise = ' + (r[k].a / r[k].n).toFixed(1) + 'x the bet');
 console.log('flop c-bet (HU, preflop aggressor) by hand:'); for (const k of Object.keys(out.cb)) console.log('  ', k.padEnd(24), 'n=' + out.cb[k].n, 'bet ' + pc(out.cb[k].a, out.cb[k].n));
+console.log('flop check rate (HU, preflop aggressor) by strength in the range:'); for (const k of Object.keys(out.chk)) console.log('  ', k.padEnd(34), 'n=' + out.chk[k].n, 'check ' + pc(out.chk[k].a, out.chk[k].n));
 console.log('barrels (HU, bot bet the flop with the initiative): bet again'); for (const k of Object.keys(out.bar).sort()) console.log('  ', k.padEnd(48), 'n=' + String(out.bar[k].n).padStart(4), 'bet ' + pc(out.bar[k].a, out.bar[k].n));
 console.log('fold to a bet (HU, single raise): checked-all-streets vs other'); for (const k of Object.keys(out.fx).sort()) console.log('  ', k.padEnd(18), 'n=' + String(out.fx[k].n).padStart(5), 'fold ' + pc(out.fx[k].a, out.fx[k].n));
 await browser.close();
