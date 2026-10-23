@@ -1,4 +1,4 @@
-// (file name kept: docs/bot-lab/policy.md calls it) Ring bots play the latest version (RING_VER = 12, BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
+// (file name kept: docs/bot-lab/policy.md calls it) Ring bots play the latest version (RING_VER = 11, BOT_TWEAKS in index.html); a player with .ver===3 and the tournament keep plain v3.
 // Spot: river, heads-up, facing a pot-sized bet, with 50% equity against the bettor's range as the bot reads it.
 // v3 calls it (50% > the 33% the price needs); v6 folds it (v3's big river bets are mostly value: it needs 75%).
 // v7 folds it with a hand in the bottom half of its range and calls it with one in the top half (the minimum defence of a pot bet).
@@ -29,6 +29,6 @@ const r = await page.evaluate(() => {
   return { ringLow, ringHigh, v6, v3, mtt, ringVer: RING_VER };
 });
 await browser.close();
-const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 12 && !errors.length;
+const ok = r.ringLow === 'fold' && r.ringHigh === 'call' && r.v6 === 'fold' && r.v3 === 'call' && r.mtt === 'call' && r.ringVer === 11 && !errors.length;
 console.log(ok ? 'OK' : 'FAIL', JSON.stringify(r), errors.slice(0, 2).join(' | '));
 process.exit(ok ? 0 : 1);
