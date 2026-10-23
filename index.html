@@ -1603,7 +1603,7 @@ function setupHand(){
   const carry=!RP.on&&!S.resetStacks; S.resetStacks=false; S.rebuys=[];
   S.players.forEach(p=>{ if(!carry||p.stack<=0){ if(carry) S.rebuys.push(p.isHero?'あなた':p.name); p.stack=START; } p.start=p.stack; });
   document.getElementById('advice').classList.add('hidden');
-  S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;p.rw2=FULL_RANGE.slice();p.rc2=null;p.rw3=FULL_RANGE.slice();p.rc3=null;p.rw4=FULL_RANGE.slice();p.rc4=null;});
+  S.players.forEach(p=>{p.hole=[S.deck.pop(),S.deck.pop()];p.folded=false;p.bet=0;p.contrib=0;p.allIn=false;p.acted=false;p.la=null;p.postAggr=0;p.shown=false;p.reveal=false;p.raisedPre=false;p.called=false;p.called3=false;p.rw=FULL_RANGE.slice();p.rc=null;p.rw2=FULL_RANGE.slice();p.rc2=null;p.rw3=FULL_RANGE.slice();p.rc3=null;});
   S.firstRaiser=-1; S.threeBettor=-1;
   const bl=blindSeats(), sb=bl.sb, bb=bl.bb;
   S.players.forEach(q=>{ q.ante=0; });   // (a stale ante from a hand in which this seat was the big blind made an unmatched side-pot level of it)
@@ -1804,8 +1804,8 @@ function applyAction(seat,dec){
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
   if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0,...(seat===0&&RP.mode==='teach'?{cm:RP.takeCm()}:{})});
-  if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; p.rw2=dec.rw.slice(); p.rc2=null; p.rw3=dec.rw.slice(); p.rc3=null; p.rw4=dec.rw.slice(); p.rc4=null; } }   // tournament shoves carry their own range
-  if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0,kind==='bet'&&st>=1?{s:st,f:p.bet/potBefore,hu:S.players.filter(q=>!q.folded).length===2,ctx:((()=>{const tx=texture(S.board.slice(0,3)); return tx.s!=='rain'||tx.c==='conn';})()?2:0)+(S.pfAggr===seat?1:0)}:null); }
+  if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; p.rw2=dec.rw.slice(); p.rc2=null; p.rw3=dec.rw.slice(); p.rc3=null; } }   // tournament shoves carry their own range
+  if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0,kind==='bet'&&st===1?{f:p.bet/potBefore,hu:S.players.filter(q=>!q.folded).length===2,ctx:((()=>{const tx=texture(S.board.slice(0,3)); return tx.s!=='rain'||tx.c==='conn';})()?2:0)+(S.pfAggr===seat?1:0)}:null); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
 }
 /* beginner mode: flag an unopened-pot open/fold that is clearly outside the equilibrium open chart (the hand keeps going) */
@@ -1934,7 +1934,7 @@ function assignPreRange(seat,act,sit){
   }
   let tot=0; for(let i=0;i<w.length;i++) tot+=w[i];
   if(tot<3) w=rangeFromMap(parseRange('QQ+,AKs,AKo'));
-  p.rw=w; p.rc=null; p.rw2=w.slice(); p.rc2=null; p.rw3=w.slice(); p.rc3=null; p.rw4=w.slice(); p.rc4=null;
+  p.rw=w; p.rc=null; p.rw2=w.slice(); p.rc2=null; p.rw3=w.slice(); p.rc3=null;
 }
 
 /* ---- postflop helpers ---- */
@@ -1953,7 +1953,7 @@ function strengthVal(a,b,board){
   return v;
 }
 function rangeTable(p,key){   // key 'rw2': the size-reading estimate of the player's range (the bots with the sizeRange tweak read it), else the plain one
-  const kk=(key==='rw2'||key==='rw3'||key==='rw4')&&p[key]?key:'rw', rwa=p[kk], ck=kk==='rw'?'rc':'rc'+kk.slice(2);   // rw3: rw2 + the turn's first bet read by its size too (sizeTurn)
+  const k2=key!=='rw'&&p[key], rwa=k2?p[key]:p.rw, ck=k2?'rc'+key.slice(2):'rc';
   const bl=S.board.length;
   if(p[ck]&&p[ck].bl===bl) return p[ck];
   const dead=new Uint8Array(52); S.board.forEach(c=>dead[c]=1);
@@ -1969,26 +1969,22 @@ function percentileOf(p,s,key){
   return (below+eq/2)/t.tot;
 }
 const SIZE_FIT={"small":[[[0.015,0.067],[0.02,0.033],[0.019,0.029],[0.008,0.05],[0.001,0.025],[0.0,0.022],[0.001,0.008],[0.284,0.131],[0.49,0.029],[0.121,0.2]],[[0.037,0.017],[0.033,0.011],[0.02,0.067],[0.007,0.01],[0.001,0.004],[0.242,0.21],[0.571,0.181],[0.72,0.067],[0.262,0.2],[0.001,0.2]],[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]],[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]]],"mid":[[[0.025,0.1],[0.04,0.1],[0.025,0.04],[0.007,0.15],[0.0,0.121],[0.001,0.142],[0.0,0.206],[0.072,0.2],[0.206,0.117],[0.435,0.2]],[[0.053,0.22],[0.042,0.233],[0.035,0.2],[0.005,0.288],[0.0,0.195],[0.079,0.227],[0.189,0.229],[0.266,0.326],[0.485,0.175],[0.541,0.2]],[[0.063,0.163],[0.065,0.168],[0.057,0.107],[0.019,0.119],[0.0,0.148],[0.0,0.141],[0.001,0.134],[0.436,0.399],[0.702,0.701],[0.518,0.494]],[[0.085,0.186],[0.069,0.269],[0.047,0.166],[0.014,0.197],[0.002,0.214],[0.008,0.209],[0.041,0.232],[0.638,0.625],[0.956,0.871],[0.542,0.497]]],"big":[[[0.011,0.2],[0.019,0.033],[0.017,0.2],[0.004,0.04],[0.001,0.05],[0.001,0.067],[0.001,0.02],[0.001,0.078],[0.034,0.2],[0.318,0.2]],[[0.03,0.175],[0.023,0.44],[0.016,0.04],[0.006,0.55],[0.0,0.168],[0.001,0.057],[0.0,0.04],[0.011,0.2],[0.315,0.2],[0.361,0.2]],[[0.017,0.041],[0.021,0.063],[0.023,0.116],[0.005,0.06],[0.001,0.036],[0.001,0.062],[0.001,0.069],[0.0,0.071],[0.004,0.061],[0.244,0.293]],[[0.026,0.27],[0.017,0.175],[0.015,0.091],[0.003,0.127],[0.0,0.112],[0.0,0.138],[0.0,0.121],[0.002,0.089],[0.042,0.212],[0.344,0.289]]]};   // P(a first flop bet of this size class | context, percentile bucket, draw), learned by tests/ring-oracle.mjs (docs/bot-lab/fit-v7-flop-first-bet-v2.json): [class][context = wet board 2 + the bettor is the preflop aggressor 1][bucket][draw]
-const SIZE_FIT_T={"small":[[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]],[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]],[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]],[[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2],[0.2,0.2]]],"mid":[[[0.069,0.336],[0.09,0.344],[0.044,0.315],[0.041,0.159],[0.021,0.173],[0.03,0.081],[0.056,0.223],[0.493,0.362],[0.676,0.633],[0.288,0.39]],[[0.043,0.303],[0.066,0.231],[0.058,0.247],[0.103,0.283],[0.209,0.112],[0.23,0.384],[0.237,0.362],[0.516,0.325],[0.55,0.24],[0.305,0.133]],[[0.06,0.22],[0.023,0.225],[0.04,0.274],[0.012,0.19],[0.005,0.085],[0.009,0.088],[0.001,0.07],[0.236,0.289],[0.522,0.641],[0.378,0.422]],[[0.068,0.262],[0.055,0.304],[0.03,0.273],[0.024,0.129],[0.06,0.131],[0.19,0.215],[0.346,0.388],[0.622,0.647],[0.714,0.561],[0.283,0.324]]],"big":[[[0.017,0.2],[0.037,0.2],[0.047,0.1],[0.006,0.05],[0.005,0.009],[0.007,0.054],[0.008,0.02],[0.005,0.06],[0.027,0.1],[0.43,0.54]],[[0.042,0.087],[0.035,0.2],[0.006,0.1],[0.03,0.247],[0.031,0.025],[0.046,0.133],[0.148,0.171],[0.239,0.425],[0.446,0.4],[0.635,0.55]],[[0.043,0.029],[0.039,0.079],[0.021,0.072],[0.015,0.056],[0.001,0.071],[0.002,0.071],[0.001,0.102],[0.006,0.095],[0.084,0.148],[0.532,0.598]],[[0.037,0.11],[0.049,0.172],[0.021,0.208],[0.001,0.126],[0.004,0.182],[0.01,0.167],[0.022,0.171],[0.112,0.225],[0.257,0.204],[0.623,0.513]]]};   // the same for a first turn bet (docs/bot-lab/fit-v11-turn-first-bet-v1.json, tests/ring-oracle.mjs with STREET=2): held out, the bias of the facing player's range equity 0.11 -> 0.03, of the bluff share 0.10 -> 0.02
-const SIZE_FIT_R={"small":[[[0.192,0.2],[0.36,0.2],[0.331,0.2],[0.268,0.2],[0.004,0.2],[0.102,0.2],[0.045,0.2],[0.075,0.2],[0.41,0.2],[0.295,0.2]],[[0.01,0.2],[0.01,0.2],[0.014,0.2],[0.029,0.2],[0.014,0.2],[0.108,0.2],[0.017,0.2],[0.18,0.2],[0.105,0.2],[0.009,0.2]],[[0.002,0.2],[0.002,0.2],[0.002,0.2],[0.002,0.2],[0.002,0.2],[0.002,0.2],[0.049,0.2],[0.068,0.2],[0.119,0.2],[0.009,0.2]],[[0.004,0.2],[0.003,0.2],[0.003,0.2],[0.004,0.2],[0.003,0.2],[0.008,0.2],[0.153,0.2],[0.152,0.2],[0.015,0.2],[0.004,0.2]]],"mid":[[[0.003,0.2],[0.003,0.2],[0.003,0.2],[0.002,0.2],[0.003,0.2],[0.003,0.2],[0.003,0.2],[0.179,0.2],[0.407,0.2],[0.029,0.2]],[[0.122,0.2],[0.021,0.2],[0.005,0.2],[0.092,0.2],[0.036,0.2],[0.254,0.2],[0.443,0.2],[0.355,0.2],[0.459,0.2],[0.142,0.2]],[[0.062,0.2],[0.085,0.2],[0.05,0.2],[0.024,0.2],[0.001,0.2],[0.001,0.2],[0.046,0.2],[0.284,0.2],[0.325,0.2],[0.082,0.2]],[[0.129,0.2],[0.141,0.2],[0.066,0.2],[0.027,0.2],[0.046,0.2],[0.188,0.2],[0.259,0.2],[0.403,0.2],[0.285,0.2],[0.111,0.2]]],"big":[[[0.664,0.2],[0.722,0.2],[0.658,0.2],[0.333,0.2],[0.002,0.2],[0.019,0.2],[0.018,0.2],[0.09,0.2],[0.539,0.2],[0.943,0.2]],[[0.882,0.2],[0.835,0.2],[0.6,0.2],[0.157,0.2],[0.045,0.2],[0.056,0.2],[0.137,0.2],[0.468,0.2],[0.875,0.2],[0.993,0.2]],[[0.622,0.2],[0.63,0.2],[0.615,0.2],[0.273,0.2],[0.0,0.2],[0.013,0.2],[0.028,0.2],[0.082,0.2],[0.489,0.2],[0.943,0.2]],[[0.907,0.2],[0.843,0.2],[0.682,0.2],[0.248,0.2],[0.021,0.2],[0.058,0.2],[0.144,0.2],[0.463,0.2],[0.826,0.2],[0.987,0.2]]]};   // the same for a first river bet (docs/bot-lab/fit-v11-river-first-bet-v1.json, STREET=3): held out, the bias of the facing player's range equity -0.09 -> +0.04, of the bluff share -0.17 -> +0.02
-function sizeMult(info,key){   // the size-reading multiplier of a first flop bet (heads-up only; rw3 also of a first turn bet, with its own table), or null
+function sizeMult(info){   // the size-reading multiplier of a first flop bet (heads-up only), or null
   if(!info||!info.hu) return null;
-  if(info.s===2&&key!=='rw3'&&key!=='rw4'||info.s===3&&key!=='rw4') return null;   // rw3: + the turn, rw4: + the turn and the river
-  const T=(info.s===3?SIZE_FIT_R:info.s===2?SIZE_FIT_T:SIZE_FIT)[info.f<0.45?'small':info.f<0.85?'mid':'big'][info.ctx]; if(!T) return null;
+  const T=SIZE_FIT[info.f<0.45?'small':info.f<0.85?'mid':'big'][info.ctx]; if(!T) return null;
   return (q,dr)=>T[Math.min(9,Math.floor(q*10))][dr?1:0];
 }
 function narrowRange(p,kind,alpha,info){
   narrowArr(p,'rw',kind,alpha,null);
   if(p.rw2) narrowArr(p,'rw2',kind,alpha,info);
-  if(p.rw3) narrowArr(p,'rw3',kind,alpha,info);
-  if(p.rw4) narrowArr(p,'rw4',kind,alpha,info);
+  if(p.rw3) narrowArr(p,'rw3',kind,alpha,info,kind==='bet'&&p.postAggr>=2);   // rw3: as rw2, but a player who bet before this street keeps more of the hands that bluff on (barrelRead)
 }
-function narrowArr(p,key,kind,alpha,info){
-  const t=rangeTable(p,key), ck=key==='rw'?'rc':'rc'+key.slice(2), f=p.isHero?S.heroProfile.filter:1, sz=kind==='bet'?sizeMult(info,key):null;
+function narrowArr(p,key,kind,alpha,info,barrel){
+  const t=rangeTable(p,key), ck=key==='rw'?'rc':'rc'+key.slice(2), f=p.isHero?S.heroProfile.filter:1, sz=kind==='bet'?sizeMult(info):null;
   const mOf=it=>{
     const c=ALL[it.i], q=it.q, dr=S.board.length<5&&drawFlag(c.a,c.b,S.board);
     let m=1;
-    if(kind==='bet') m= sz?sz(q,dr) : q>=0.62?1 : dr?0.75 : q<0.3?0.3:0.18;
+    if(kind==='bet') m= sz?sz(q,dr) : barrel ? (q>=0.62?1 : dr?0.8 : 0.5) : q>=0.62?1 : dr?0.75 : q<0.3?0.3:0.18;   // barrel: the hands that bluffed the last street go on with about half of them, not with 0.3 / 0.18 again
     else if(kind==='raise') m= q>=0.8?1 : dr?0.5 : q<0.25?0.15:0.08;
     else if(kind==='call') m= q<alpha*0.85?(dr?0.8:0.12) : q>0.94?0.6:1;
     else if(kind==='check') m= q>0.9?0.45:1;
@@ -2106,15 +2102,23 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    v11: v10 + advFold=2: the fold frequency of a flop/turn bet (heads-up) moves with the range advantage (the equity of its own range against the bettor's: the fold cut + 2 x (0.5 - that equity), at most +0.25),
        and the fold set is filled from the bottom of the range by game-wide strength (equity rank) even when a bottom hand's equity beats the pot price (the owner's step 1 -> 2).
        Spot N3 (KJ with backdoors only, Ac2d8d, 33% bet): folds 0% -> 32%; the overpair (N2) still calls. Self-play against v10: +1.5 +- 2.8, +2.5 +- 4.3 bb/100 (no loss).
+   v12: v11 + six times the flop's air bluffs (bluffF=6) + barrelRead + slow=0.3.
+       bluffF=6: v10 c-bet 9% of its hands with no pair and no draw (the pair 48%), so its flop check range was all air and the checked lines were easy to fold out. Now 33% (the pair 54%).
+       Self-play against v10: -0.3 +- 5.0 bb/100 (2000 deals, seeds 21-24), no difference.
+       barrelRead: v10/v11 read a player's 2nd and later bet with the same narrowing as the first (the weak hands kept at 0.3 / 0.18 each time), so a flop-turn-river line looked like
+       the nuts and the bot folded river hands that won 7-8 bb on average when called (tests/ring-leak.mjs against the exploiter 10+bluffT=3: the folds cost 1002 bb in 4000 hands). Now the hands
+       that bluffed the last street keep about half of them (rw3). Folds cost 674 bb; the exploiter no longer wins (+6.2 +- 4.9 -> -0.1 +- 8.3 bb/100).
+       slow=0.3: v11 kept 6% of its strong flop hands (the top fifth of its range) in the check range, so a check meant a weak hand. Now 28% (less on a wet board).
+       Self-play against v12 without it: +0.1 +- 5.9 bb/100 (seeds 81-84), against v10 0.0 +- 11.0; the two exploiters (turn bluffs x3, bluffs x2.5) still do not win.
    (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
    Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT = x the air bluffs on the flop / turn,
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
-   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), advCap = the largest shift of advFold (0.25), advFold = how much the fold cut moves with the range advantage (fold cut + advFold x (0.5 - the equity of its range)), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRiver = also read a first river bet by its size (rw4, SIZE_FIT_R; with the turn), sizeTurn = also read a first turn bet by its size (rw3, SIZE_FIT_T), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
-   eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
-const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2}};
-const RING_VER=11;
+   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), advCap = the largest shift of advFold (0.25), advFold = how much the fold cut moves with the range advantage (fold cut + advFold x (0.5 - the equity of its range)), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
+   slow = the share of the strong flop value hands (the top fifth of the range) that check (x0.5 on a wet board), so the check range holds strong hands, barrelRead = read a second and later bet of a player by a range that keeps the hands that bluff on (rw3, see narrowRange), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
+const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2},12:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2,bluffF:6,barrelRead:true,slow:0.3}};
+const RING_VER=12;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
    sampled: n hands of the range, each one's equity against the opponents' ranges. eqRank uses it in place of the percentile of the current strength (q). */
 let lastRangeEq=0.5;
@@ -2137,7 +2141,7 @@ function botPostflopV3(seat){
   const p=S.players[seat], st=p.style, R=Math.random;
   const X=MT.on||p.ver===3?{}:(p.tw||BOT_TWEAKS[p.ver]||BOT_TWEAKS[RING_VER]);
   const opps=S.players.filter((q,i)=>i!==seat&&!q.folded), n=opps.length;
-  const RWK=X.sizeRiver?'rw4':X.sizeTurn?'rw3':X.sizeRange?'rw2':'rw';   // sizeRange: reads a first flop bet by its size (the opponents' range and its own: the estimate rw2, learned with tests/ring-oracle.mjs)
+  const RWK=X.barrelRead?'rw3':X.sizeRange?'rw2':'rw';   // sizeRange: reads a first flop bet by its size (the opponents' range and its own: the estimate rw2, learned with tests/ring-oracle.mjs)
   const e=equity(seat,opps,n>=3?170:250,RWK);
   const s=strengthVal(p.hole[0],p.hole[1],S.board), q=percentileOf(p,s,RWK);
   const dr=drawFlag(p.hole[0],p.hole[1],S.board);
@@ -2172,6 +2176,7 @@ function botPostflopV3(seat){
     const thinV=(valueFrac-nutFrac)*(X.thin??1);
     if((q>=1-(nutFrac+thinV)&&e>eqMin)||e>0.8){
       if(q>0.93&&street<3&&R()<0.18) return {act:'check'};   // trap
+      if(street===1&&X.slow&&q>=0.8&&R()<X.slow*(wet?0.5:1)) return {act:'check'};   // slow: keeps this share of the strong hands (x0.5 on a wet board) in the flop check range
       const nutted=(q>=1-nutFrac&&e>0.7)||e>0.88;
       return bet(nutted?big:small);
     }
@@ -3588,7 +3593,7 @@ Object.assign(MT,{
     this.hs={avg:MTT.stats(this.T).avg};
     Object.keys(S).forEach(k=>{ if(!['heroResolve','session','heroProfile','autoHero','running','abort'].includes(k)) delete S[k]; });
     Object.assign(S,hd.S); S.autoHero=false; S.heroResolve=null; S.running=false; S.abort=false;
-    S.players.forEach(p=>{ if(p.rw&&!(p.rw instanceof Float32Array)) p.rw=Float32Array.from(p.rw); p.rc=null; p.rw2=p.rw?p.rw.slice():null; p.rc2=null; p.rw3=p.rw?p.rw.slice():null; p.rc3=null; p.rw4=p.rw?p.rw.slice():null; p.rc4=null; });
+    S.players.forEach(p=>{ if(p.rw&&!(p.rw instanceof Float32Array)) p.rw=Float32Array.from(p.rw); p.rc=null; p.rw2=p.rw?p.rw.slice():null; p.rc2=null; p.rw3=p.rw?p.rw.slice():null; p.rc3=null; });
   },
   /* a hand that was dealt but not finished (the page was closed): the hero folds it and pays the blind and ante he would have posted */
   settlePend(){
