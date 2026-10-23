@@ -1,6 +1,6 @@
 {
-  "champion": "10",
-  "championNote": "v10（v9＋eqRank：降りるハンドを、ドロー込みの勝率の順位で選ぶ）。v9との直接対決は差なし（-0.1 ± 4.9、-1.6 ± 4.5）。偵察（シード1）：穴なし。",
+  "champion": "11",
+  "championNote": "v11（v10＋advFold：ボードのレンジ優位で、降りる頻度を動かす）。v10との直接対決は負けなし（+1.5 ± 2.8、+2.5 ± 4.3）。偵察（全21体、シード1）：穴は maniac（ブラフ2.5倍）の +2.3 ± 1.4 のみ。別シード（101）では +1.4 ± 3.6（v10に対しては +2.2 ± 4.1）で差なし。",
   "exploiters": [
     {
       "id": "riverBluff4",
@@ -80,43 +80,97 @@
       "obs": [
         3
       ]
+    },
+    {
+      "id": "advCbet",
+      "delta": "+cbetHi=1.6+cbetLo=0.5",
+      "idea": "レンジ有利なボード（K・Aハイ）でCベットを増やし、不利なボード（9以下）で減らす。ボットのCベットが、ボードのレンジ優位に追従していなければ勝つ",
+      "obs": []
+    },
+    {
+      "id": "invCbet",
+      "delta": "+cbetHi=0.5+cbetLo=1.6",
+      "idea": "advCbetの逆。ボットがレンジ不利なボードで打ちすぎ／降りすぎなら勝つ",
+      "obs": []
+    },
+    {
+      "id": "bbDonk",
+      "delta": "+donk=6",
+      "idea": "9以下のボードで、アウトオブポジションの側が先に打つ（ドンク）。ボットの対ドンクの降り方が弱ければ勝つ",
+      "obs": []
+    },
+    {
+      "id": "blankBarrel",
+      "delta": "+blankBarrel=1.8",
+      "idea": "ターンが外れのカード（何も完成しない）のとき、ベットを続ける。ボットが外れのカードでも降りすぎていれば勝つ",
+      "obs": []
+    },
+    {
+      "id": "realizeOop",
+      "delta": "+realize=0.88",
+      "idea": "ポジション不利のとき、勝率の一部しか実現できない前提でコールを絞る（有利なときは広げる）。ボットが勝率をそのまま使って、ポジション不利で払いすぎていれば勝つ",
+      "obs": []
+    },
+    {
+      "id": "realizeInv",
+      "delta": "+realize=1.12",
+      "idea": "realizeOopの逆",
+      "obs": []
+    },
+    {
+      "id": "flopDrawRaise",
+      "delta": "+flopDrawRaise=2.5",
+      "idea": "フロップでドローがレイズする頻度を2.5倍。ボットがフロップのレイズに降りすぎていれば勝つ",
+      "obs": []
+    },
+    {
+      "id": "noDrawRaise",
+      "delta": "+flopDrawRaise=0",
+      "idea": "フロップでドローがレイズしない。ボットのドローのレイズが損なら勝つ",
+      "obs": []
+    },
+    {
+      "id": "extremeCbet",
+      "delta": "+cbetHi=2.2+cbetLo=0.2",
+      "idea": "advCbetの強い版（K・Aハイで2.2倍、9以下で0.2倍）",
+      "obs": []
     }
   ],
   "probe": {
-    "spec": "10",
+    "spec": "11",
     "deals": 4000,
     "seed": 1,
     "results": {
       "riverBluff4": {
-        "mean": -0.9,
+        "mean": -0.7,
         "ci": 0.7
       },
       "overbetBluff": {
-        "mean": 0.2,
-        "ci": 3.5
+        "mean": 1.2,
+        "ci": 3.2
       },
       "thinValue": {
-        "mean": -0.7,
-        "ci": 3
+        "mean": -0.8,
+        "ci": 2.8
       },
       "bigFlopValue": {
-        "mean": 0.8,
-        "ci": 6.8
+        "mean": -1.1,
+        "ci": 5.5
       },
       "maniac": {
-        "mean": 1.1,
-        "ci": 2.6
+        "mean": 2.3,
+        "ci": 1.4
       },
       "valueOnly": {
-        "mean": -0.1,
-        "ci": 4.1
+        "mean": -0.8,
+        "ci": 3.6
       },
       "station": {
-        "mean": 0.2,
-        "ci": 3.3
+        "mean": 0.5,
+        "ci": 0.9
       },
       "nit": {
-        "mean": 1,
+        "mean": 0.8,
         "ci": 1.5
       },
       "drawTight": {
@@ -124,13 +178,54 @@
         "ci": 4.2
       },
       "thinFold": {
-        "mean": 0.1,
-        "ci": 1.3
+        "mean": 0.6,
+        "ci": 1.4
+      },
+      "advCbet": {
+        "mean": 0.5,
+        "ci": 1.2
+      },
+      "invCbet": {
+        "mean": -1.9,
+        "ci": 1.7
+      },
+      "bbDonk": {
+        "mean": -1,
+        "ci": 0.9
+      },
+      "blankBarrel": {
+        "mean": -1.8,
+        "ci": 2.5
+      },
+      "realizeOop": {
+        "mean": 0.2,
+        "ci": 1.7
+      },
+      "realizeInv": {
+        "mean": 0.4,
+        "ci": 3.2
+      },
+      "flopDrawRaise": {
+        "mean": -0.4,
+        "ci": 2.5
+      },
+      "noDrawRaise": {
+        "mean": 0.4,
+        "ci": 2.3
+      },
+      "extremeCbet": {
+        "mean": 1.6,
+        "ci": 2.5
       }
     },
-    "leaks": [],
-    "date": "2026-10-21",
-    "note": "9+eqRank=1 の偵察（v10と同じ設定）"
+    "leaks": [
+      {
+        "id": "maniac",
+        "mean": 2.3,
+        "ci": 1.4
+      }
+    ],
+    "date": "2026-10-22"
   },
   "history": [
     {
@@ -159,6 +254,17 @@
       "h2h": "-0.1 ± 4.9（シード1〜4）、-1.6 ± 4.5（シード101〜104）。強さは差なし",
       "leaksBefore": [],
       "leaksAfter": []
+    },
+    {
+      "date": "2026-10-23",
+      "from": "10",
+      "to": "11",
+      "why": "オーナーのメモ N3（バックドアだけのK高のコール）の再現：v10 は 0% 降り（勝率22%、ポットオッズ20%）。ステップ1（ボードのレンジ優位で降りる頻度が動く）とステップ2（降りる集合を、ゲーム全体の強さの下位から埋める）をつなぐ advFold=2。N3 の降り 0% → 32%、オーバーペア（N2）は引き続きコール。",
+      "h2h": "+1.5 ± 2.8（シード1）、+2.5 ± 4.3（シード101）",
+      "leaksBefore": [],
+      "leaksAfter": [
+        "maniac +2.3 ± 1.4（シード1）→ 別シードで +1.4 ± 3.6（v10に対しては +2.2 ± 4.1）：差なし"
+      ]
     }
   ]
 }

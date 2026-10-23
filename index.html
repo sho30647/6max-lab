@@ -756,7 +756,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <option value="">全ポジション</option><option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
       </select>
       <select id="fBot" aria-label="対戦ボット">
-        <option value="">全ボット</option><option value="10">ボットv10（降りるハンドを、ドロー込みの勝率の順位で選ぶ版）</option><option value="9">ボットv9（ターンのドローのレイズを増やした版）</option><option value="8">ボットv8（相手のベットをサイズで読む版）</option><option value="7">ボットv7（自己対戦で均衡に寄せた版）</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
+        <option value="">全ボット</option><option value="11">ボットv11（ボードのレンジ優位で、降りる頻度を動かす版）</option><option value="10">ボットv10（降りるハンドを、ドロー込みの勝率の順位で選ぶ版）</option><option value="9">ボットv9（ターンのドローのレイズを増やした版）</option><option value="8">ボットv8（相手のベットをサイズで読む版）</option><option value="7">ボットv7（自己対戦で均衡に寄せた版）</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
       </select>
       <select id="fRange" aria-label="対象期間">
         <option value="0">全ハンド</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
@@ -2098,30 +2098,36 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    v10: v9 + eqRank: when it calls or folds, a hand is ranked in its own range by its equity against the opponents' ranges (draws count; eqPercentile), not by its
        current strength (the owner's step 2, docs/bot-lab/policy.md 8.2). Rank vs the equity against the actual hand (Spearman): flop 0.37 -> 0.46, turn 0.23 -> 0.33.
        Self-play against v9: -0.1 +- 4.9 and -1.6 +- 4.5 bb/100 (no difference); the league finds no leak; the folding frequencies do not change.
+   v11: v10 + advFold=2: the fold frequency of a flop/turn bet (heads-up) moves with the range advantage (the equity of its own range against the bettor's: the fold cut + 2 x (0.5 - that equity), at most +0.25),
+       and the fold set is filled from the bottom of the range by game-wide strength (equity rank) even when a bottom hand's equity beats the pot price (the owner's step 1 -> 2).
+       Spot N3 (KJ with backdoors only, Ac2d8d, 33% bet): folds 0% -> 32%; the overpair (N2) still calls. Self-play against v10: +1.5 +- 2.8, +2.5 +- 4.3 bb/100 (no loss).
    (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
    Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT = x the air bluffs on the flop / turn,
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
    (the equity counts two cards to come, one call buys one), impl = the implied-odds bonus of a draw (0.06), mdf = x the defence by
    range (1 = defend the share the bet's price needs), sizeF = x every flop bet size, riverLoosen = the river call's equity bar lowered by this,
-   eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
+   cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), advCap = the largest shift of advFold (0.25), advFold = how much the fold cut moves with the range advantage (fold cut + advFold x (0.5 - the equity of its range)), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
    eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold. */
-const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true}};
-const RING_VER=10;
+const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2}};
+const RING_VER=11;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
    sampled: n hands of the range, each one's equity against the opponents' ranges. eqRank uses it in place of the percentile of the current strength (q). */
+let lastRangeEq=0.5;
 function eqPercentile(seat,opps,e,rwk,n){
   const me=S.players[seat], hole=me.hole, rwa=me[rwk]||me.rw, dead=new Uint8Array(52); S.board.forEach(c=>dead[c]=1);
   const idx=[],cum=[]; let t=0; for(let i=0;i<ALL.length;i++){ const w=rwa[i]; if(w<=0.002) continue; const c=ALL[i]; if(dead[c.a]||dead[c.b]) continue; t+=w; idx.push(i); cum.push(t); }
   if(!idx.length) return 0.5;
-  let below=0;
+  let below=0, sumE=0;
   for(let k=0;k<n;k++){
     const x=Math.random()*t; let lo=0,hi=cum.length-1; while(lo<hi){const m=(lo+hi)>>1; if(cum[m]<x) lo=m+1; else hi=m;}
     const c=ALL[idx[lo]]; me.hole=[c.a,c.b];
-    const ec=equity(seat,opps,60,rwk); below+=ec<e?1:ec===e?0.5:0;
+    const ec=equity(seat,opps,60,rwk); below+=ec<e?1:ec===e?0.5:0; sumE+=ec;
   }
-  me.hole=hole;
+  me.hole=hole; lastRangeEq=sumE/n;   // the mean equity of the sampled hands = the range's equity against the opponents' ranges (the range advantage)
   return below/n;
 }
+function boardAdv(b){ const m=Math.max(b[0]>>2,b[1]>>2,b[2]>>2); return m>=11?'hi':m<=7?'lo':'mid'; }   // the flop's top card: K/A high = the aggressor's board, 9 or lower = the caller's board
+function blankTurn(b){ const r=b[3]>>2, rs=b.slice(0,3).map(c=>c>>2); if(rs.includes(r)) return false; const sc=b.filter(c=>(c&3)===(b[3]&3)).length; return sc<=2&&r<Math.max(...rs)-1; }   // a turn card that pairs nothing, adds no flush draw and is below the flop's top card
 function botPostflopV3(seat){
   const p=S.players[seat], st=p.style, R=Math.random;
   const X=MT.on||p.ver===3?{}:(p.tw||BOT_TWEAKS[p.ver]||BOT_TWEAKS[RING_VER]);
@@ -2148,6 +2154,8 @@ function botPostflopV3(seat){
       else F=n===1?0.45:0.25;
     } else if(ip&&S.raiseCount===0){ F=street===1?0.42:street===2?0.38:0.32; if(n>1)F*=0.5; }
     else F=0.06;
+    if(street===1){ const adv=boardAdv(S.board); if(role&&n===1) F*=adv==='hi'?(X.cbetHi??1):adv==='lo'?(X.cbetLo??1):1; else if(!role&&!ip&&adv==='lo') F*=(X.donk??1); }   // exploiter knobs: the flop bet frequency by the board's range advantage (high = the preflop aggressor's, low = the caller's)
+    if(street===2&&role&&n===1&&X.blankBarrel&&blankTurn(S.board)) F*=X.blankBarrel;
     F=clamp(F*st.aggr,0,0.85);
     // the sizes of this spot: BIG for the polar part, SMALL for merged value, MID for semi-bluffs
     const big=street===3&&X.bigR?X.bigR:street===1?wPick([[0.75,0.6],[1,0.4]]):street===2?wPick([[0.75,0.3],[1,0.45],[1.5,0.25]]):wPick([[1,0.4],[1.5,0.3],[2,0.3]]);
@@ -2172,7 +2180,9 @@ function botPostflopV3(seat){
     }
     return {act:'check'};
   }
-  const qE=X.eqRank?eqPercentile(seat,opps,e,RWK,30):q;   // eqRank: the hand's rank in its range by equity (game-wide strength), not by the current strength
+  const eR=X.realize?e*(ip?1+(1-X.realize)*0.5:X.realize):e;   // realize: the share of its equity the hand realizes out of position (in position: a bit more than all of it), for the exploiter that calls by realized equity
+  const qEq=(X.eqRank||X.advFold)?eqPercentile(seat,opps,e,RWK,30):q, qE=X.eqRank?qEq:q;
+  const advAdj=X.advFold&&n===1&&street<3?clamp(X.advFold*(0.5-lastRangeEq),-0.2,X.advCap??0.25):0;   // advFold: folds more (less) when its range has a lower (higher) equity than the opponent's: the node's range advantage moves the fold frequency   // eqRank: the hand's rank in its range by equity (game-wide strength), not by the current strength
   const potOdds=toCall/(pot+toCall), alpha=toCall/pot;
   const foldCut=Math.pow(alpha,1/Math.max(1,n));
   const implied=dr&&street<3&&p.stack>toCall*3?(X.impl??0.06):0;
@@ -2184,15 +2194,16 @@ function botPostflopV3(seat){
   if(!reraise&&q>=1-Rv&&e>0.6&&R()<0.75) return raiseTo(street===1?wPick([[0.75,0.5],[1,0.5]]):wPick([[1,0.6],[1.5,0.4]]));
   if(reraise&&q>0.95&&e>0.7) return {act:'raise',to:p.stack+p.bet};
   if(!reraise&&n===1){
-    if(street===1&&dr&&R()<0.28*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
+    if(street===1&&dr&&R()<0.28*(X.flopDrawRaise??1)*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
     if(street===2&&dr&&R()<0.12*(X.turnDrawRaise??1)*st.aggr) return raiseTo(wPick([[0.75,0.6],[1,0.4]]));
     if(street===3&&q<0.12&&R()<0.05*st.aggr) return raiseTo(wPick([[1,0.5],[1.5,0.3],[2,0.2]]));
   }
-  if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return e+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
-  if(X.riverCall&&street===3&&!reraise) return e>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)-(X.riverLoosen||0)||X.riverDefend>0&&qE>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
-  const eC=dr&&street===1?e*(X.drawEq??1):e;
+  if(X.turnCall&&street===2&&!reraise&&alpha>=0.31) return eR+implied>=(alpha<0.46?0.35:0.6)?{act:'call'}:{act:'fold'};
+  if(X.riverCall&&street===3&&!reraise) return eR>=(alpha<0.31?0.6:alpha<0.46?0.35:alpha<0.565?0.75:0.85)-(X.riverLoosen||0)||X.riverDefend>0&&qE>=1-X.riverDefend*(1-alpha)?{act:'call'}:{act:'fold'};   // riverDefend: share of the minimum defence (1-alpha) that calls with the top of the range anyway   // alpha: the bet's share of the pot it makes (1/3 pot = 0.25, pot = 0.5, 2x pot = 0.67)
+  const eC=dr&&street===1?eR*(X.drawEq??1):eR;
   const byOdds=eC+implied>=potOdds;
-  const byMDF=!reraise&&qE>=(X.mdf===undefined?foldCut:1-X.mdf*(1-foldCut))&&eC>=potOdds*(X.eqGate??0.55);
+  const byMDF=!reraise&&qE>=clamp((X.mdf===undefined?foldCut:1-X.mdf*(1-foldCut))+advAdj,0,0.95)&&eC>=potOdds*(X.eqGate??0.55);
+  if(X.advFold&&advAdj!==0&&!reraise&&street<3&&qEq<clamp(foldCut+advAdj,0,0.95)) return {act:'fold'};   // advFold: the fold frequency of the node (the bet's price moved by the range advantage) is filled from the bottom of the range by game-wide strength: a hand below the cut folds even if its equity beats the price
   if(byOdds||byMDF) return {act:'call'};
   return {act:'fold'};
 }
@@ -2862,7 +2873,7 @@ const COL_DOC={
   pact:['ポストフロップの行動回数','フロップ以降に行動した回数（pb÷pactがアグレッション頻度）'],
   log:['アクションログ','P=プリフロップ F=フロップ T=ターン R=リバー。*=自分。f=フォールド x=チェック c=コール b=ベット r=レイズ、数字はその時点の合計額(bb)、(AI)=オールイン'],
   sh:['相手の公開ハンド','ショーダウンで見えた相手のハンド（ポジション:ハンド）'],
-  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）、7=自己対戦で均衡に寄せた版（リング）、8=相手の最初のフロップベットをサイズで読む版（リング）、9=ターンのドローのレイズを2倍にした版（リング）、10=降りるハンドを、ドロー込みの勝率の順位で選ぶ版（リング）。空欄は1'],
+  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）、7=自己対戦で均衡に寄せた版（リング）、8=相手の最初のフロップベットをサイズで読む版（リング）、9=ターンのドローのレイズを2倍にした版（リング）、11=ボードのレンジ優位で降りる頻度を動かした版（リング）、10=降りるハンドを、ドロー込みの勝率の順位で選ぶ版（リング）。空欄は1'],
   vh:['相手全員のハンド','ハンド終了後に公開した相手5人のハンド。末尾:SD=ショーダウンまで残った、:W=降りずに勝った、無印=途中で降りた']
 };
 function rowValues(h,cols){
