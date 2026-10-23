@@ -13,3 +13,14 @@
 | frontend-design, webapp-testing | https://github.com/anthropics/skills（各スキル内のLICENSE参照） |
 
 他の外部スキルは、ブランチ `claude/skills-integration-keytb3` に残してある（このアプリに必要になったら追加する）。
+
+## 専用エージェント（`.claude/agents/`）
+スキルが「手順書」なのに対し、エージェントは、その手順書を持って別に動く担当者。会話を見ていないので、依頼文に経緯を書いて渡す。
+
+| エージェント | 役割 | 土台のスキル |
+|---|---|---|
+| `design` | 見た目の変更。完了の条件に、変更前後のスクリーンショットを含む | `design` ＋ `docs/design-notes.md` |
+| `bot-strength` | ボットの判断を数字で改善する（長いシミュレーションを会話から切り離す） | `bot-strength` |
+| `reviewer` | 別の目での確認。**読むだけ**（編集ツールを持たない）。合否で返す | なし（`CLAUDE.md` の約束事） |
+
+`manager` と `bot-lab` はエージェントにしない（`manager` は会話の相手である私の役割、`bot-lab` は夜間に自律で動く別セッション）。
