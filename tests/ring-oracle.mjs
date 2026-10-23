@@ -25,8 +25,9 @@ await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 await page.waitForTimeout(1500);
 import fs from 'fs';
+const ST = +process.env.STREET || 1;   // STREET=2: the first bet of the turn (the prior is the observer's range at that point, so the update by this bet alone is measured); 1 = the flop
 const [VER, N, SEED] = [process.argv[2] || '7', +process.argv[3] || 1000, +process.argv[4] || 1], FIT = process.argv[5] ? JSON.parse(fs.readFileSync(process.argv[5], 'utf8')) : null;
-const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
+const out = await page.evaluate(async ([VER, N, SEED, FIT, ST]) => {
   const seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
@@ -37,8 +38,8 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
   function sampler(w, dead) { const idx = [], cum = []; let t = 0; for (let i = 0; i < ALL.length; i++) { const x = w[i]; if (x <= 0.002) continue; const c = ALL[i]; if (dead[c.a] || dead[c.b]) continue; t += x; idx.push(i); cum.push(t); } return { idx, cum, t }; }
   function draw(L) { const x = Math.random() * L.t; let lo = 0, hi = L.cum.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (L.cum[m] < x) lo = m + 1; else hi = m; } return ALL[L.idx[lo]]; }
   function runoutWin(h, b, board) {   // 1 = h wins, over one random turn and river
-    const used = new Set([h.a, h.b, b.a, b.b, ...board]); let t, r; do { t = (Math.random() * 52) | 0; } while (used.has(t)); used.add(t); do { r = (Math.random() * 52) | 0; } while (used.has(r));
-    const bd = board.concat([t, r]), x = evalHand([h.a, h.b].concat(bd)), y = evalHand([b.a, b.b].concat(bd)); return x > y ? 1 : x === y ? 0.5 : 0;
+    const used = new Set([h.a, h.b, b.a, b.b, ...board]); const bd = board.slice(); while (bd.length < 5) { let t; do { t = (Math.random() * 52) | 0; } while (used.has(t)); used.add(t); bd.push(t); }
+    const x = evalHand([h.a, h.b].concat(bd)), y = evalHand([b.a, b.b].concat(bd)); return x > y ? 1 : x === y ? 0.5 : 0;
   }
   function measure(heroL, betL, board) {   // betL: sampler over the betting range; returns [E, bluff share]
     let w = 0, n = 0;
@@ -53,10 +54,10 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
   const orig = window.botDecide;
   window.botDecide = function(seat) {
     const p = S.players[seat], live = S.players.filter(q => !q.folded);
-    const bettorNode = S.street === 1 && live.length === 2 && S.currentBet === 0 && S.raiseCount === 0 && !oracle;
+    const bettorNode = S.street === ST && live.length === 2 && S.currentBet === 0 && S.raiseCount === 0 && !oracle;
     const prior = bettorNode ? p.rw.slice() : null, pot0 = bettorNode ? potTotal() : 0;
     const toCall = S.currentBet - p.bet;
-    const facingNode = S.street === 1 && toCall > 0 && oracle && oracle.hero === seat && S.raiseCount === 1;
+    const facingNode = S.street === ST && toCall > 0 && oracle && oracle.hero === seat && S.raiseCount === 1;
     if (facingNode) {   // the facing player decides: measure the estimate against the truth, then play on
       const hero = p, bet = S.players[oracle.bettor], dead = new Uint8Array(52); S.board.forEach(c => dead[c] = 1);
       const fitL = oracle.fitW ? sampler(oracle.fitW, dead) : null, rw2L = bet.rw2 ? sampler(bet.rw2, dead) : null;   // rw2: the estimate the bot itself keeps with the size-reading narrowing
@@ -92,12 +93,12 @@ const out = await page.evaluate(async ([VER, N, SEED, FIT]) => {
   }
   window.botDecide = orig;
   return { rec, bins };
-}, [VER, N, SEED, FIT]);
+}, [VER, N, SEED, FIT, ST]);
 await browser.close();
 const rec = out.rec;
 const stat = (rows, a, b) => { const v = rows.filter(r => isFinite(r[a]) && isFinite(r[b])), n = v.length; if (!n) return null; const d = v.map(r => r[b] - r[a]), bias = d.reduce((x, y) => x + y) / n, mae = d.reduce((x, y) => x + Math.abs(y), 0) / n, ma = v.reduce((x, r) => x + r[a], 0) / n, mb = v.reduce((x, r) => x + r[b], 0) / n; let c = 0, va = 0, vb = 0; for (const r of v) { c += (r[a] - ma) * (r[b] - mb); va += (r[a] - ma) ** 2; vb += (r[b] - mb) ** 2; } return { n, true: ma, est: mb, bias, mae, r: c / Math.sqrt(va * vb) }; };
 const f2 = x => (x === null ? '-' : x.toFixed(2)).toString().padStart(6);
-console.log(`ver ${VER}, ${N} hands, seed ${SEED}: flop, heads-up, the first bet; ${rec.length} nodes${FIT ? ' (with the fitted estimator)' : ''}`);
+console.log(`ver ${VER}, ${N} hands, seed ${SEED}: street ${ST}, heads-up, the first bet; ${rec.length} nodes${FIT ? ' (with the fitted estimator)' : ''}`);
 console.log('                          n   true    est    bias    MAE   corr   (noise floor rows: the truth measured twice)');
 for (const c of ['all', 'small', 'mid', 'big']) {
   const rows = c === 'all' ? rec : rec.filter(r => r.c === c);
