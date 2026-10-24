@@ -137,40 +137,40 @@
     }
   ],
   "probe": {
-    "spec": "12",
+    "spec": "13",
     "deals": 4000,
     "seed": 1,
     "results": {
       "riverBluff4": {
-        "mean": -0.7,
-        "ci": 0.6
+        "mean": -2.6,
+        "ci": 3.2
       },
       "overbetBluff": {
-        "mean": 0.3,
-        "ci": 2.9
+        "mean": -1.4,
+        "ci": 3.7
       },
       "thinValue": {
-        "mean": -1.9,
-        "ci": 3.3
+        "mean": 0.5,
+        "ci": 2.9
       },
       "bigFlopValue": {
-        "mean": -5.1,
-        "ci": 7.4
+        "mean": -3.9,
+        "ci": 6.7
       },
       "maniac": {
-        "mean": -0.3,
-        "ci": 3.3
+        "mean": -2,
+        "ci": 2.3
       },
       "valueOnly": {
-        "mean": -3.5,
-        "ci": 4.5
+        "mean": -3.7,
+        "ci": 3.8
       },
       "station": {
-        "mean": -0.8,
-        "ci": 1.4
+        "mean": -0.3,
+        "ci": 1.1
       },
       "nit": {
-        "mean": 0.1,
+        "mean": 0,
         "ci": 0.8
       },
       "drawTight": {
@@ -178,44 +178,44 @@
         "ci": 3.9
       },
       "thinFold": {
-        "mean": 0.3,
-        "ci": 0.6
+        "mean": 0.2,
+        "ci": 0.5
       },
       "advCbet": {
-        "mean": 0.5,
-        "ci": 3.2
+        "mean": -0.2,
+        "ci": 1.9
       },
       "invCbet": {
-        "mean": -0.5,
-        "ci": 2.8
+        "mean": -0.1,
+        "ci": 2.6
       },
       "bbDonk": {
-        "mean": -0.6,
-        "ci": 2.1
+        "mean": 0.5,
+        "ci": 2.2
       },
       "blankBarrel": {
-        "mean": -0.4,
-        "ci": 1.7
+        "mean": -0.8,
+        "ci": 1.6
       },
       "realizeOop": {
         "mean": 0.7,
         "ci": 2.5
       },
       "realizeInv": {
-        "mean": -1.9,
-        "ci": 3.3
+        "mean": -1.1,
+        "ci": 2.8
       },
       "flopDrawRaise": {
-        "mean": -0.6,
+        "mean": -1,
         "ci": 2.2
       },
       "noDrawRaise": {
-        "mean": 1.8,
+        "mean": 1.5,
         "ci": 2.4
       },
       "extremeCbet": {
-        "mean": 2.1,
-        "ci": 3.8
+        "mean": 0.7,
+        "ci": 2.7
       }
     },
     "leaks": [],
