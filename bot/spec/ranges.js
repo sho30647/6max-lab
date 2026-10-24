@@ -34,7 +34,7 @@
       for (const s of this.seats()) { if (s === seat) continue; const W = this.W[s]; let t = 0; for (let i = 0; i < NC; i++) t += W[i]; if (t > 0) for (let i = 0; i < NC; i++) out[i] += W[i] / t; }
       return out;
     }
-    /* street: 1 flop .. 3 river. opts: {perCard, rng} (the flop's sampled mode, docs/decisions.md) */
+    /* street: 1 flop .. 3 river. opts: {perCard, rng} (the flop's sampled mode, docs/decisions.md), extra: combos to rank besides the ranges' */
     startStreet(street, board, opts) {
       opts = opts || {};
       const eq = this.prm.equilibrium, dead = new Uint8Array(52); board.forEach(c => dead[c] = 1);
@@ -43,6 +43,7 @@
       this.street = street; this.board = board.slice();
       const only = new Uint8Array(NC);
       for (const s of this.seats()) { const W = this.W[s]; for (let i = 0; i < NC; i++) if (W[i] > 0) only[i] = 1; }
+      for (const i of opts.extra || []) if (!dead[CA[i]] && !dead[CB[i]]) only[i] = 1;   // the spec bots' own hands, ranked even when their range does not hold them
       const t0 = Date.now();
       const table = new E.StreetTable(board, only, street === 1 ? opts.perCard : null, opts.rng);
       const river = street === 3;

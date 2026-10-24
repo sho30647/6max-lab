@@ -4,14 +4,14 @@
      SpecBot.onAction(seat, info)    after every action of every player (preflop: the chart spot it was taken in; postflop: Step1 narrows the ranges)
      SpecBot.decide(seat)            for a postflop decision of a player with ver === 'spec'; returns {act, to} like the old bot
      SpecBot.endHand()               after the settlement (result and check of the review log; the traces are saved)
-   Stage 2 (docs/bot_rebuild_plan.md §6): the ranges are kept (Step1) and traced; every decision is still the old bot's (v13).
+   The decision itself is in strategy.js (Step2-Step7); the pots phase 1 leaves out go to the old bot (v13), and so does a decision that throws.
    Works in the browser (window.SpecBot) and in node (require). */
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const R = n => node ? require('./' + n + '.js') : root[{ params: 'SpecParams', trace: 'SpecTrace', equity: 'SpecEquity', preflop: 'SpecPreflop', ranges: 'SpecRanges' }[n]];
-  const api = factory(R('params'), R('trace'), R('equity'), R('preflop'), R('ranges'));
+  const R = n => node ? require('./' + n + '.js') : root[{ params: 'SpecParams', trace: 'SpecTrace', equity: 'SpecEquity', preflop: 'SpecPreflop', ranges: 'SpecRanges', cards: 'SpecCards', strategy: 'SpecStrategy', explain: 'SpecExplain' }[n]];
+  const api = factory(R('params'), R('trace'), R('equity'), R('preflop'), R('ranges'), R('cards'), R('strategy'), R('explain'));
   if (node) module.exports = api; else root.SpecBot = api;
-})(typeof self !== 'undefined' ? self : this, function (P, T, E, PF, RG) {
+})(typeof self !== 'undefined' ? self : this, function (P, T, E, PF, RG, C, ST, EX) {
   'use strict';
   let G = null;                 // the game (attach)
   let hand = null, handNo = 0, actions = [], nAct = 0;
@@ -64,9 +64,12 @@
   /* the flop's equity mode, decided once from a timed sample of the work (docs/decisions.md) */
   function pickMode(board, only, prm) {
     if (equityMode) return equityMode;
-    const d = prm.design.equity, t0 = now();
-    const t = new E.StreetTable(board, only, 1, rng);   // about 1 river per turn card: ~47 of the 1,081 runouts
-    const ms = Math.max(0.01, now() - t0), full = ms * (1081 / Math.max(1, t.runouts.length)) * 1.8;   // x1.8: the sweeps on top of the ranking (measured)
+    const d = prm.design.equity;
+    new E.StreetTable(board, only, 1, rng);             // a first run warms the code up (its time would count the compiler)
+    const t0 = now(), t = new E.StreetTable(board, only, 1, rng);   // about 1 river per turn card: ~47 of the 1,081 runouts
+    // x1.6: from the timed sample's ranking to the whole flop's work (the street's set-up and the decision's sweeps): the largest exact flop decision
+    // was 1.6x this estimate on a desktop CPU and about 3x on a CPU slowed 4x (tests/spec-decisions.mjs, docs/decisions.md); 1.6 keeps a desktop on the exact mode
+    const ms = Math.max(0.01, now() - t0), full = ms * (1081 / Math.max(1, t.runouts.length)) * 1.6;
     equityMode = full <= d.exactMaxMs ? 'exact' : full * 0.31 <= d.splitMaxMs ? 'split3' : 'split2';   // the split work is ~31% of the exact (measured)
     counts.modeProbe = { ms: Math.round(ms * 10) / 10, fullEst: Math.round(full), mode: equityMode };
     return equityMode;
@@ -87,11 +90,11 @@
       const v = view(prm), H = v.ranges;
       if (H.street === S.street) continue;
       if (H.street < 1) S.players.forEach((q, i) => { if (!q.folded) H.setPre(i, PF.rangeOf(preActs[i] || [])); });
-      let opts = {};
+      let opts = { extra: S.players.filter(q => isSpec(q) && !q.folded).map(q => C.comboOf(q.hole[0], q.hole[1])) };
       if (S.street === 1) {
         const only = new Uint8Array(1326); for (const s of H.seats()) { const W = H.W[s]; for (let i = 0; i < 1326; i++) if (W[i] > 0) only[i] = 1; }
         const mode = pickMode(S.board, only, prm);
-        if (mode !== 'exact') opts = { perCard: mode === 'split3' ? prm.design.equity.splitPerCard : prm.design.equity.splitPerCardMin, rng };
+        if (mode !== 'exact') Object.assign(opts, { perCard: mode === 'split3' ? prm.design.equity.splitPerCard : prm.design.equity.splitPerCardMin, rng });
       }
       H.startStreet(S.street, S.board, opts);
       H.mode = S.street === 1 ? equityMode : 'exact';
@@ -159,8 +162,26 @@
     const H = v.ranges, since = lastDecision[seat] || 0;
     const opp = H.seats().filter(s => s !== seat);
     return { me: { now: H.bucketShares(seat) }, opp: opp.map(s => ({ seat: s, now: H.bucketShares(s) })),
-      applied: v.updates.filter(u => u.n > since).map(u => ({ seat: u.seat, act: u.act, kind: u.kind || null, size: u.size == null ? null : Math.round(u.size * 100) / 100, mult: u.mult || null, before: u.before || null, after: u.after || null })),
+      applied: v.updates.filter(u => u.n > since).map(u => ({ seat: u.seat, pos: G.posOf(u.seat), act: u.act, kind: u.kind || null, size: u.size == null ? null : Math.round(u.size * 100) / 100, mult: u.mult || null, before: u.before || null, after: u.after || null })),
       equityMode: H.mode, ms: H.ms };
+  }
+
+  /* the decision context for strategy.js */
+  function context(seat, prm, s0, tr) {
+    const S = G.S, p = S.players[seat], v = views.get(prm), H = v.ranges;
+    const live = H.seats(), opps = live.filter(x => x !== seat);
+    const Wop = H.others(seat), Wme = H.W[seat];
+    let preOpp = null, preMe = null;
+    if (opps.length === 1) { preOpp = PF.rangeOf(preActs[opps[0]] || []); preMe = PF.rangeOf(preActs[seat] || []); }
+    return { prm, seat, street: S.street, board: S.board.slice(), hole: p.hole.slice(), own: C.comboOf(p.hole[0], p.hole[1]), P: s0.pot, toCall: s0.toCall,
+      stack: p.stack, myBet: p.bet, currentBet: S.currentBet, effStack: s0.effStack, ip: s0.ip, nodeKind: s0.nodeKind, initiative: s0.initiative, sprClass: s0.sprClass,
+      nOpp: opps.length, H, Wme, Wop, WopRaw: opps.length === 1 ? H.W[opps[0]] : null, rng, tr, bb: G.BB(), isPfAggr: S.pfAggr === seat, preOpp, preMe };
+  }
+  /* the chips of a bet of B for the game: at least a big blind; all-in when what would be left is less than the pot after the bet (§9, docs/decisions.md) */
+  function betTo(p, B, P) {
+    const bb = G.BB(); let amt = Math.max(bb, Math.round(B));
+    if (amt >= p.stack || p.stack - amt < P + 2 * amt) amt = p.stack;
+    return amt + p.bet;
   }
 
   function decide(seat) {
@@ -169,13 +190,36 @@
     const tr = hand.add(T.create({ hand: hand.id, seat, pos: G.posOf(seat), name: p.name, hole: p.hole, board: S.board, street: S.street, actionNo: nAct }));
     counts.decisions++;
     tr.step0 = step0(seat);
-    const why = legacyReason(tr.step0.potType, tr.step0.line);
-    if (!why) { ensureStreet(); tr.step1 = step1(seat, prm); tr.other.equityMode = tr.step1 && tr.step1.equityMode; }
-    // stage 2: the decision itself is still the old bot's
-    const fb = why || 'stage2';
-    tr.other.fallback = fb; counts.legacy[fb] = (counts.legacy[fb] || 0) + 1;
-    const dec = G.legacy(seat);
-    tr.decision = { act: dec.act, to: dec.to || 0 };
+    const oppSeats = S.players.map((q, i) => i).filter(i => i !== seat && !S.players[i].folded);
+    tr.oppPos = oppSeats.length === 1 ? G.posOf(oppSeats[0]) : null;
+    const why = api.passThrough ? 'passThrough' : legacyReason(tr.step0.potType, tr.step0.line);   // passThrough: every decision to the old bot (tests/spec-stage0.mjs)
+    let dec = null;
+    if (!why) {
+      try {
+        ensureStreet();
+        tr.step1 = step1(seat, prm); tr.other.equityMode = tr.step1 && tr.step1.equityMode;
+        const ctx = context(seat, prm, tr.step0, tr);
+        if (!(ctx.Wme && ctx.Wop.some(w => w > 0))) throw new Error('empty range');
+        ST.prepare(ctx);
+        const s2 = ST.step2(ctx), s3 = ST.step3(ctx);
+        if (tr.step0.toCall > 0) {
+          tr.step4 = { facing: true };
+          const r = ST.facing(ctx);
+          dec = r.act === 'raise' ? { act: 'raise', to: r.to } : { act: r.act };
+        } else {
+          const s4 = ST.step4(ctx, s3, s2);
+          const r = ST.betNode(ctx, s4);
+          dec = r.act === 'bet' ? { act: 'raise', to: betTo(p, r.B, ctx.P) } : { act: 'check' };
+        }
+        counts.spec = (counts.spec || 0) + 1;
+      } catch (e) {
+        tr.other.fallback = 'error'; tr.other.note.push(String(e && e.stack || e).slice(0, 400)); counts.legacy.error = (counts.legacy.error || 0) + 1;
+        if (typeof console !== 'undefined') console.warn('SpecBot decide', e);
+        dec = null;
+      }
+    } else { tr.other.fallback = why; counts.legacy[why] = (counts.legacy[why] || 0) + 1; }
+    if (!dec) dec = G.legacy(seat);
+    tr.decision = { act: dec.act, to: dec.to || 0, bet: dec.act === 'raise' && tr.step0.toCall === 0 };
     lastDecision[seat] = nAct;
     tr.other.ms = Math.round(now() - t0);
     return dec;
@@ -185,11 +229,18 @@
     if (!hand) return null;
     const S = G.S, shown = {};
     if (S.showdown) S.players.forEach((q, i) => { if (!q.folded) shown[i] = q.hole.slice(); });
+    // the action the game applied for each decision (after its rounding: minimum raise, all-in), for the explanation's conclusion
+    for (const tr of hand.records) { const a = actions.find(x => x.seat === tr.seat && x.n > tr.actionNo && x.street === tr.street); if (a) tr.applied = { act: a.act, to: a.to, allIn: !!a.allIn }; }
     hand.finish({ board: S.board, shown, actions });
     if (hand.records.length && G.storage) T.save(G.storage(), G.traceKey ? G.traceKey() : 'spec_traces', hand, P.DEFAULTS.design.traceKeepHands);
     const h = hand; hand = null; return h;
   }
 
-  return { attach, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
+  /* §12: the explanation of a decision (trace) or of every decision of a hand ({records}) */
+  function explain(tr, prm) { return EX.explain(tr, prm || P.DEFAULTS); }
+  function explainHand(h, prm) { return (h || {}).records ? h.records.map(tr => explain(tr, prm)) : []; }
+
+  const api = { attach, explain, explainHand, passThrough: false, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
     setEquityMode(m) { equityMode = m; } };
+  return api;
 });

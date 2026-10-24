@@ -1,7 +1,8 @@
 // Spec bot, stage 0 (docs/bot_rebuild_plan.md §6): the new bot is plugged into the game without changing it.
-// 1. ring hands with every bot on ver 'spec' end with exactly the same stacks as with every bot on v13 (stage 0 hands every decision to the old bot)
+// 1. ring hands with every bot on ver 'spec' and SpecBot.passThrough (every decision handed to the old bot) end with exactly the same stacks as with
+//    every bot on v13: plugging the new bot in (its hooks, its ranges and its own dice) changes nothing in the game
 // 2. every postflop decision of a 'spec' bot leaves a trace with Step0 filled in, its decision equal to the action the game applied
-// 3. the hand-over reasons are counted (limp pots, 3-bet pots with a cold caller, and 'stage0' for the rest)
+// 3. the hand-over reasons are counted
 // 4. the hands' traces are saved in the browser (localStorage; the cap of 50 hands is tested in node: spec-trace.mjs)
 // 5. no page errors
 // Usage: node tests/spec-stage0.mjs [hands=150]
@@ -25,6 +26,7 @@ const out = await page.evaluate(async (N) => {
   crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
   S.autoHero = true; S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
+  SpecBot.passThrough = true;
   // the action the game applied for each decision, to compare with the trace
   const applied = []; const orig = window.applyAction;
   async function run(ver, keep) {

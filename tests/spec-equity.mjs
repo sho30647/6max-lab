@@ -4,6 +4,7 @@
 // 3. StreetTable.sweep = brute force (every opponent combo x every runout) on random river / turn / flop spots with random ranges
 // 4. handExact (one hand) = the sweep
 // 5. Monte Carlo handVsRanges is within 1.5pt of the exact equity
+// 6. known values: AsKs vs QhQd before the flop ~46%, AdAc vs KhKs ~82%, a flop spot by brute force
 // Usage: node tests/spec-equity.mjs
 import { createRequire } from 'module';
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
@@ -95,6 +96,28 @@ for (const [nb, spots, probes] of [[5, 6, 25], [4, 3, 8], [3, 1, 2]]) {
     const mc = E.handVsRanges([C.CA[i], C.CB[i]], board, [W], 20000, rnd);
     check(Math.abs(mc - sw.eq[i]) < 0.015, `MC ${mc} vs exact ${sw.eq[i]}`);
   }
+}
+// 6. known values (Monte Carlo, 200,000 deals: about +-0.2pt): AsKs vs QhQd before the flop ~46%, AdAc vs KhKs ~82%; and an exact flop spot
+{
+  const one = s => { const W = new Float32Array(C.NC); const [a, b] = C.parseCards(s); W[C.comboOf(a, b)] = 1; return W; };
+  // (a good generator: the test's small LCG above draws correlated cards and biases a 5-card board by about 1pt)
+  let ms = 77; const mul = () => { ms |= 0; ms = ms + 0x6D2B79F5 | 0; let t = Math.imul(ms ^ ms >>> 15, 1 | ms); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  // the exact value: every one of the 1,712,304 boards
+  const h0 = C.parseCards('AsKs'), q0 = C.parseCards('QhQd'), u0 = new Set(h0.concat(q0)), r0 = []; for (let c = 0; c < 52; c++) if (!u0.has(c)) r0.push(c);
+  let w0 = 0, t0 = 0; const n0 = r0.length;
+  for (let a = 0; a < n0; a++) for (let b = a + 1; b < n0; b++) for (let c = b + 1; c < n0; c++) for (let d = c + 1; d < n0; d++) for (let e = d + 1; e < n0; e++) {
+    const BI = C.boardInfo([r0[a], r0[b], r0[c], r0[d], r0[e]]), m = C.eval7(h0[0], h0[1], BI), q = C.eval7(q0[0], q0[1], BI); w0 += m > q ? 1 : m === q ? 0.5 : 0; t0++; }
+  check(Math.abs(w0 / t0 - 0.4621) < 0.0005, 'AsKs vs QhQd exact ' + (w0 / t0).toFixed(4));
+  const ak = E.handVsRanges(h0, [], [one('QhQd')], 200000, mul);
+  check(Math.abs(ak - w0 / t0) < 0.005, 'AsKs vs QhQd preflop (Monte Carlo) ' + ak.toFixed(4));
+  const aa = E.handVsRanges(C.parseCards('AdAc'), [], [one('KhKs')], 200000, mul);
+  check(Math.abs(aa - 0.82) < 0.01, 'AdAc vs KhKs preflop ' + aa.toFixed(4));
+  // flop: AhKh vs 7c7d on Qh7h2s (set vs nut flush draw + overcards): the exact count by brute force over the 990 turn+river pairs
+  const h = E.handExact(C.parseCards('AhKh'), C.parseCards('Qh7h2s'), one('7c7d'));
+  let w = 0, t = 0; const used = new Set(C.parseCards('AhKhQh7h2s7c7d')); const rest = []; for (let c = 0; c < 52; c++) if (!used.has(c)) rest.push(c);
+  for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) { const bd = C.parseCards('Qh7h2s').concat([rest[i], rest[j]]); const m = C.evalHand(C.parseCards('AhKh').concat(bd)), o = C.evalHand(C.parseCards('7c7d').concat(bd)); w += m > o ? 1 : m === o ? 0.5 : 0; t++; }
+  check(Math.abs(h.eq - w / t) < 1e-9 && h.eq > 0.22 && h.eq < 0.30, `AhKh vs 7c7d on Qh7h2s: ${h.eq.toFixed(4)} (brute force ${(w / t).toFixed(4)})`);
+  console.log(`known values: AsKs vs QhQd exact ${(w0 / t0 * 100).toFixed(2)}%, Monte Carlo ${(ak * 100).toFixed(1)}%, AdAc vs KhKs ${(aa * 100).toFixed(1)}%, AhKh vs 7c7d on Qh7h2s ${(h.eq * 100).toFixed(1)}%`);
 }
 console.log(fails ? `${fails} failed` : 'spec-equity: all passed');
 process.exit(fails ? 1 : 0);
