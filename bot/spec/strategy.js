@@ -77,9 +77,9 @@
     const top = (W, e, Wother, preOther) => {
       const m = new Map(); let t = 0;
       for (let i = 0; i < NC; i++) if (W[i] > 0 && e[i] >= eq.nutEq) { m.set(CLASS[i], (m.get(CLASS[i]) || 0) + W[i]); t += W[i]; }
-      return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cls, w]) => ({ cls, share: r3(w / t), oppPre: preOther ? r3(PF.classShare(preOther, cls)) : null, oppNow: r3(PF.classShare(Wother, cls)) }));
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cls, w]) => ({ cls, share: r3(w / t), oppPre: preOther ? r3(PF.classShare(preOther, cls)) : null, oppNow: Wother ? r3(PF.classShare(Wother, cls)) : null }));
     };
-    const nutsTop = { mine: top(Wm, em, ctx.WopRaw || Wo, ctx.preOpp), opp: top(Wo, eo, Wm, ctx.preMe) };   // the shares are of the other side's own weights (not the summed, scaled range)
+    const nutsTop = { mine: top(Wm, em, ctx.WopRaw, ctx.preOpp), opp: top(Wo, eo, ctx.nOpp === 1 ? Wm : null, ctx.preMe) };   // the shares are of the other side's own weights (not the summed, scaled range)
     // §5's check: on an A / K high flop the preflop raiser should not be behind; flag it if it is (the ranges may be read wrong)
     let checkFlag = null;
     if (ctx.street === 1 && ctx.isPfAggr && ctx.tr.step2 && (ctx.tr.step2.high === 'A' || ctx.tr.step2.high === 'KQ') && ra < -0.05) checkFlag = 'raiser behind on a high flop';
@@ -247,8 +247,9 @@
     // §8 step 5: the frequency within the target +-10pt, by the common shift delta (bisection), tau fixed
     let delta = eq.delta0 * P, F = play(delta), shifted = false;
     const tgt = s4.freq, tol = ctx.prm.design.freqTol;
+    const dMax = eq.deltaMax * P;   // the shift is bounded (docs/decisions.md): it may move the border hands, not turn a clearly worse bet into a bet
     if (s4.freq > 0 && Math.abs(F - tgt) > tol) {
-      let lo = -P, hi = P; shifted = true;
+      let lo = -dMax, hi = dMax; shifted = true;
       for (let it = 0; it < 22; it++) { const mid = (lo + hi) / 2; const f = play(mid); if (f < tgt) lo = mid; else hi = mid; if (Math.abs(f - tgt) <= tol * 0.5) break; }
       delta = (lo + hi) / 2; F = play(delta);
     }
@@ -273,7 +274,7 @@
     // Step6 record
     ctx.tr.step6 = {
       cands: [{ act: 'check', size: 0, EV: r3(me.ev.evCheck / ctx.bb) }].concat(me.ev.bets.map(x => ({ act: 'bet', size: r3(x.s), B: Math.round(x.B), FE: r3(x.FE), raise: r3(x.rho), Ec: r3(x.Ec), EV: r3((x.EV) / ctx.bb), EVshift: r3((x.EV + delta) / ctx.bb), reason: x.reason }))),
-      deltaPot: me.d === Infinity ? null : r3(me.d), tau: ctx.prm.equilibrium.tau, probs: me.p.map(r3), rnd: r3(u), chosen: pick === 0 ? { act: 'check' } : { act: 'bet', size: r3(reacts[pick - 1].s) },
+      deltaPot: me.d === Infinity ? null : r3(me.d), betWorse: pick > 0 && me.ev.bets[pick - 1].EV < me.ev.evCheck, tau: ctx.prm.equilibrium.tau, probs: me.p.map(r3), rnd: r3(u), chosen: pick === 0 ? { act: 'check' } : { act: 'bet', size: r3(reacts[pick - 1].s) },
       rangeFreq: r3(F), target: r3(tgt), shift: shifted ? r3(delta / P) : 0, merged, perSize };
     if (pick === 0) { ctx.tr.step7 = { kind: 'check' }; return { act: 'check' }; }
     // Step7 A (§9): the plan if raised

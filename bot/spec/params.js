@@ -39,7 +39,7 @@
       bucket: { b1: 0.80, b2: 0.60, b3: 0.40, drawMaxE: 0.50 }, devD: 0.20, devHi: 0.80, vulLo: 0.50,
       // §8 Step6
       realize: { ip: 1.0, oop: 0.85, river: 1.0 },
-      tau: 0.02, delta0: 0, marginReact: 0.05,
+      tau: 0.02, delta0: 0, deltaMax: 0.15, marginReact: 0.05,   // deltaMax: the frequency shift is at most 15% of the pot (docs/decisions.md)
       raiseRate: { flop: 0.10, turn: 0.08, river: 0.06 },
       eqDenial: { foldEq: 0.20 }, minSizeShare: 0.10,
       // §9 Step7

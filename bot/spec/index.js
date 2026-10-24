@@ -233,14 +233,25 @@
     for (const tr of hand.records) { const a = actions.find(x => x.seat === tr.seat && x.n > tr.actionNo && x.street === tr.street); if (a) tr.applied = { act: a.act, to: a.to, allIn: !!a.allIn }; }
     hand.finish({ board: S.board, shown, actions });
     if (hand.records.length && G.storage) T.save(G.storage(), G.traceKey ? G.traceKey() : 'spec_traces', hand, P.DEFAULTS.design.traceKeepHands);
-    const h = hand; hand = null; return h;
+    const h = hand; hand = null; api.lastHand = h; return h;
   }
 
   /* §12: the explanation of a decision (trace) or of every decision of a hand ({records}) */
   function explain(tr, prm) { return EX.explain(tr, prm || P.DEFAULTS); }
   function explainHand(h, prm) { return (h || {}).records ? h.records.map(tr => explain(tr, prm)) : []; }
+  /* the explanations of the saved hands as plain text (the last n hands; the browser keeps 50): until the review screen exists, this is how to read them,
+     e.g. in the browser console: copy(SpecBot.explainSaved(1)) */
+  /* a saved hand by its id (the hand record of the game keeps it as rec.sh), or null */
+  function savedHand(id) {
+    const all = G && G.storage ? T.load(G.storage(), G.traceKey ? G.traceKey() : 'spec_traces') : [];
+    return all.find(h => h.id === id) || (api.lastHand && api.lastHand.id === id ? api.lastHand : null);
+  }
+  function explainSaved(n) {
+    const all = G && G.storage ? T.load(G.storage(), G.traceKey ? G.traceKey() : 'spec_traces') : [];
+    return all.slice(-(n || 1)).map(h => h.records.map(tr => explain(tr).text).join('\n\n')).join('\n\n' + '='.repeat(40) + '\n\n');
+  }
 
-  const api = { attach, explain, explainHand, passThrough: false, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
+  const api = { attach, explain, explainHand, explainSaved, savedHand, lastHand: null, passThrough: false, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
     setEquityMode(m) { equityMode = m; } };
   return api;
 });

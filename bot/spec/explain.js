@@ -32,7 +32,7 @@
     facingBet: ['相手がベットしてきた', 'コール・フォールド・レイズを選ぶ局面'],
     facingRaise: ['相手がレイズしてきた', 'レイズに対してコール・フォールド・リレイズを選ぶ局面']
   };
-  const LEGACY = { 'legacy:limp': 'リンプが入ったポット', 'legacy:cold3': 'コールドコーラー（またはスクイーズ）が入った3ベット以上のポット', error: '計算中にエラーが起きた', stage0: '新ボットの実装前', stage2: '新ボットの実装前', passThrough: 'テスト用に旧ボットへ素通しする設定のため' };
+  const LEGACY = { 'legacy:limp': 'リンプが入ったポットなので', 'legacy:cold3': 'コールドコーラー（またはスクイーズ）が入った3ベット以上のポットなので', error: '計算中にエラーが起きたので', stage0: '新ボットの実装前なので', stage2: '新ボットの実装前なので', passThrough: 'テスト用に旧ボットへ素通しする設定なので' };
   const pick = (table, x) => { for (const [lo, w] of table) if (x >= lo) return w; return table[table.length - 1][1]; };
 
   function explain(tr, prm) {
@@ -52,7 +52,7 @@
     else concl = missing('結論', String(ap.act));
     L.push('結論：' + concl, '');
     if (tr.other && tr.other.fallback) {
-      L.push('① 状況', `  事実：${POT[s0.potType] || s0.potType}。ボットは${tr.pos}。`, `  判断：${LEGACY[tr.other.fallback] ? LEGACY[tr.other.fallback] + 'ため、この判断は旧ボットに任せた（新ボットのフェーズ1の対象外）。' : missing('旧ボット', tr.other.fallback)}`);
+      L.push('① 状況', `  事実：${POT[s0.potType] || s0.potType}。ボットは${tr.pos}。`, `  判断：${LEGACY[tr.other.fallback] ? LEGACY[tr.other.fallback] + '、この判断は旧ボットに任せた。' : missing('旧ボット', tr.other.fallback)}`);
       return { text: L.join('\n'), lines: L, undefined: und };
     }
     // ① Step0
@@ -94,7 +94,7 @@
       if (s3.nutsTop && s3.nutsTop.mine.length) {
         const m = s3.nutsTop.mine.map(x => x.cls).join('・');
         const keep = s3.nutsTop.mine.filter(x => x.oppNow != null).map(x => `${x.cls}は${pct(x.oppNow)}`).join('、');
-        nt = `ボットの最強クラスの手の中心は${m}。${oppName}の今のレンジには、${keep}しか残っていない（同じクラスの全コンボを100%としたとき）。`;
+        nt = `ボットの最強クラスの手の中心は${m}。` + (keep ? `${oppName}の今のレンジには、${keep}が残っている（同じクラスの全コンボを100%としたとき）。` : '');
       }
       L.push('④ 有利不利',
         `  事実：ボットのレンジの${oppName}のレンジに対する平均勝率は${pct(0.5 + s3.ra)}（レンジ優位 ${pt(s3.ra)}）。${oop}相手に80%以上勝てる手の割合は、ボット${pct(s3.nutsMine)}、${oppName}${pct(s3.nutsOpp)}（ナッツ優位 ${pt(s3.na)}）。${nt}`,
@@ -150,12 +150,13 @@
       const REASON = { value: 'コールしてくる手にも勝っているので、ベットがバリューとして機能する', denial: '降りる手が持っている勝率を消せるので、エクイティ否定の小さいベットが成り立つ', semibluff: '降りてもらう分と、コールされた後に強くなる見込みを合わせると、チェックより得', bluff: '降りてもらうだけで得になるので、ブラフとして打てる' };
       const facts = bets.map(c => `ポットの${pct(c.size)}ベットでは、${oppName}のレンジの${pct(c.FE)}が降り、${pct(c.raise)}がレイズし、コールしてくる手に対する勝率は${pct(c.Ec)}`).join('。');
       const evs = [`チェック${s6.cands[0].EV}bb`].concat(bets.map(c => `${pct(c.size)}ベット${c.EV}bb`)).join('、');
-      L.push('⑦ アクションの比較', `  事実：${facts}。期待値は${evs}${s6.deltaPot != null ? `（1番目と2番目の差はポットの約${pct(s6.deltaPot)}）` : ''}。${s6.shift ? `レンジ全体のベット頻度（${pct(s6.rangeFreq)}）を目標に合わせるため、ベットの期待値に一律でポットの${pct(s6.shift)}を足して比べた。` : ''}${s6.merged ? `ポットの${pct(s6.merged.from)}のサイズを使う手がベット全体の10%未満なので、${pct(s6.merged.to)}にまとめた。` : ''}`);
+      L.push('⑦ アクションの比較', `  事実：${facts}。期待値は${evs}。${s6.shift ? `レンジ全体のベット頻度を目標（${pct(s6.target)}）に近づけるため、ベットの期待値に一律でポットの${pct(s6.shift)}を足して比べた（調整後の頻度${pct(s6.rangeFreq)}）。` : ''}${s6.deltaPot != null ? `${s6.shift ? '調整後の' : ''}1番目と2番目の差はポットの約${pct(s6.deltaPot)}。` : ''}${s6.merged ? `ポットの${pct(s6.merged.from)}のサイズを使う手がベット全体の10%未満なので、${pct(s6.merged.to)}にまとめた。` : ''}`);
       const ch = s6.chosen; const best = ch.act === 'bet' ? bets.find(c => c.size === ch.size) : null;
       let j = [];
       if (best) { j.push(best.reason === 'value' ? pick(W.Ec, best.Ec) : (REASON[best.reason] || missing('Step6', 'reason:' + best.reason))); if (best.reason !== 'value') j.push(pick(W.Ec, best.Ec)); }
       else { const why = bets.every(c => !c.reason) ? 'どのサイズでも、ベットする理由（バリュー・エクイティ否定・セミブラフ・ブラフ）が成り立たないのでチェック' : 'チェックの期待値のほうが高い（または確率でチェックを選んだ）'; j.push(why); }
       const mixed = s6.probs && s6.probs.filter(x => x > 0).length > 1;
+      if (s6.betWorse) j.push('期待値だけならチェックが上だが、レンジ全体の頻度合わせ（上の一律の上乗せ）でベットを選んだ');
       j.push(mixed ? `${W.delta.mixed}（チェック${pct(s6.probs[0])}・ベット${pct(1 - s6.probs[0])}）。乱数${s6.rnd}で${ch.act === 'bet' ? 'ベット' : 'チェック'}を選んだ` : W.delta.pure);
       L.push(`  判断：${j.join('。')}。`);
       if (!s7) L.push('⑧ レイズされた場合', '  ' + missing('Step7', 'none'));
