@@ -1045,6 +1045,8 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
 <script src="bot/spec/cards.js"></script>
 <script src="bot/spec/equity.js"></script>
 <script src="bot/spec/params.js"></script>
+<script src="bot/spec/preflop.js"></script>
+<script src="bot/spec/ranges.js"></script>
 <script src="bot/spec/trace.js"></script>
 <script src="bot/spec/index.js"></script>
 <!-- Firebase (compat SDK: keeps the same db.collection()/db.doc() calls used below) -->
@@ -1813,7 +1815,7 @@ function applyAction(seat,dec){
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; p.rw2=dec.rw.slice(); p.rc2=null; p.rw3=dec.rw.slice(); p.rc3=null; } }   // tournament shoves carry their own range
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0,kind==='bet'&&st===1?{f:p.bet/potBefore,hu:S.players.filter(q=>!q.folded).length===2,ctx:((()=>{const tx=texture(S.board.slice(0,3)); return tx.s!=='rain'||tx.c==='conn';})()?2:0)+(S.pfAggr===seat?1:0)}:null); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
-  specHook('onAction',seat,{street:st,act:dec.act==='raise'?(wasBet?'bet':'raise'):dec.act,to:p.bet,potBefore,toCall,allIn:p.allIn});
+  specHook('onAction',seat,{street:st,act:dec.act==='raise'?(wasBet?'bet':'raise'):dec.act,to:p.bet,potBefore,toCall,allIn:p.allIn,pre:sit?{spot:sit.sp,kind:sit.kind}:null});   // pre: the chart spot of a preflop action (the new bot's ranges, bot/spec/preflop.js)
 }
 /* beginner mode: flag an unopened-pot open/fold that is clearly outside the equilibrium open chart (the hand keeps going) */
 function openAdvice(act){

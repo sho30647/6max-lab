@@ -1,31 +1,37 @@
 /* Spec bot (docs/postflop_spec.md): the entry point. index.html calls
      SpecBot.attach(game)            once: the game's state and helpers (the bot reads the game only through this object)
      SpecBot.newHand()               at the start of every hand
-     SpecBot.onAction(seat, info)    after every action of every player (Step1 narrows the ranges from these)
+     SpecBot.onAction(seat, info)    after every action of every player (preflop: the chart spot it was taken in; postflop: Step1 narrows the ranges)
      SpecBot.decide(seat)            for a postflop decision of a player with ver === 'spec'; returns {act, to} like the old bot
      SpecBot.endHand()               after the settlement (result and check of the review log; the traces are saved)
-   Stage 0 (docs/bot_rebuild_plan.md §6): every decision is still the old bot's (v13); the trace records the state (Step0) and the hand-over.
+   Stage 2 (docs/bot_rebuild_plan.md §6): the ranges are kept (Step1) and traced; every decision is still the old bot's (v13).
    Works in the browser (window.SpecBot) and in node (require). */
 (function (root, factory) {
   const node = typeof module === 'object' && module.exports;
-  const api = factory(node ? require('./params.js') : root.SpecParams, node ? require('./trace.js') : root.SpecTrace);
+  const R = n => node ? require('./' + n + '.js') : root[{ params: 'SpecParams', trace: 'SpecTrace', equity: 'SpecEquity', preflop: 'SpecPreflop', ranges: 'SpecRanges' }[n]];
+  const api = factory(R('params'), R('trace'), R('equity'), R('preflop'), R('ranges'));
   if (node) module.exports = api; else root.SpecBot = api;
-})(typeof self !== 'undefined' ? self : this, function (P, T) {
+})(typeof self !== 'undefined' ? self : this, function (P, T, E, PF, RG) {
   'use strict';
   let G = null;                 // the game (attach)
   let hand = null, handNo = 0, actions = [], nAct = 0;
+  let preActs = {};             // seat -> [{spot, act}]: the chart spots of its preflop actions
+  let views = new Map();        // params -> {ranges: HandRanges, updates: [...]}: the hand's ranges, one set per parameter set in play
+  let lastDecision = {};        // seat -> nAct at its last decision (the trace's Step1 lists the updates since then)
   const counts = { decisions: 0, legacy: {} };   // how often a decision went to the old bot, by reason (§2 Step0: the pots outside phase 1 are counted)
+  let equityMode = null;        // 'exact' | 'split3' | 'split2', decided once per session (docs/decisions.md)
+  // the bot's own dice for its samples: the game's Math.random stream (the cards, the other bots' dice) stays as it would be without the bot
+  let rs = 0x2545F491;
+  const rng = () => { rs |= 0; rs = rs + 0x6D2B79F5 | 0; let t = Math.imul(rs ^ rs >>> 15, 1 | rs); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 
   function attach(game) { G = game; }
   function paramsOf(p) { return p.specParams || P.DEFAULTS; }
+  const isSpec = p => p && p.ver === 'spec';
 
-  function newHand() { handNo++; hand = new T.Hand(Date.now() + '-' + handNo); actions = []; nAct = 0; }
+  function newHand() { rs = 0x2545F491 ^ (handNo * 0x9E3779B1); handNo++; hand = new T.Hand(Date.now() + '-' + handNo); actions = []; nAct = 0; preActs = {}; views = new Map(); lastDecision = {}; }
 
-  function onAction(seat, info) {   // info: {street, act: 'fold'|'check'|'call'|'bet'|'raise', to, potBefore, toCall, allIn}
-    nAct++; actions.push(Object.assign({ seat, n: nAct }, info));
-  }
-
-  /* the preflop line from the game's log: who opened, who 3-bet / 4-bet, and who called cold (a call of a raise by a player who had not raised) */
+  /* the preflop line: who opened, who 3-bet / 4-bet, the limpers, and the callers who make a 3-bet pot leave phase 1
+     (coldCallers: a call of the open by a player other than the 3-bettor-to-be (in a 3-bet pot: a squeeze), or a call of a 3-bet or more by a player who had not raised) */
   function preflopLine() {
     const S = G.S, line = { opener: -1, threeBettor: -1, fourBettor: -1, coldCallers: [], limpers: [] };
     let raises = 1;   // the big blind counts as the first "raise" (S.raiseCount starts at 1)
@@ -42,6 +48,87 @@
     line.raises = raises; line.pfRaises = S.pfRaises;
     return line;
   }
+  function potTypeOf(r) { return r <= 1 ? 'LIMP' : r === 2 ? 'SRP' : r === 3 ? '3BP' : '4BP'; }
+  /* why a pot goes to the old bot (phase 1 leaves these out, §2), or null */
+  function legacyReason(potType, line) {
+    if (potType === 'LIMP' || line.limpers.length) return 'legacy:limp';   // a limped pot, or a raised pot a limper called
+    if (potType !== 'SRP' && line.coldCallers.length) return 'legacy:cold3';
+    return null;
+  }
+  function inScope() {   // a spec bot is in the hand, and the pot is one phase 1 plays
+    const S = G.S;
+    if (!S.players.some(p => isSpec(p) && !p.folded)) return false;
+    return !legacyReason(potTypeOf(S.pfRaises), preflopLine());
+  }
+
+  /* the flop's equity mode, decided once from a timed sample of the work (docs/decisions.md) */
+  function pickMode(board, only, prm) {
+    if (equityMode) return equityMode;
+    const d = prm.design.equity, t0 = now();
+    const t = new E.StreetTable(board, only, 1, rng);   // about 1 river per turn card: ~47 of the 1,081 runouts
+    const ms = Math.max(0.01, now() - t0), full = ms * (1081 / Math.max(1, t.runouts.length)) * 1.8;   // x1.8: the sweeps on top of the ranking (measured)
+    equityMode = full <= d.exactMaxMs ? 'exact' : full * 0.31 <= d.splitMaxMs ? 'split3' : 'split2';   // the split work is ~31% of the exact (measured)
+    counts.modeProbe = { ms: Math.round(ms * 10) / 10, fullEst: Math.round(full), mode: equityMode };
+    return equityMode;
+  }
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  /* the ranges of the current street, set up at the street's first event */
+  function view(prm) {
+    let v = views.get(prm);
+    if (!v) { v = { ranges: new RG.HandRanges(prm), updates: [] }; views.set(prm, v); }
+    return v;
+  }
+  function ensureStreet() {
+    const S = G.S;
+    if (S.street < 1 || !inScope()) return null;
+    const prmSet = new Set(S.players.filter(p => isSpec(p) && !p.folded).map(paramsOf));
+    for (const prm of prmSet) {
+      const v = view(prm), H = v.ranges;
+      if (H.street === S.street) continue;
+      if (H.street < 1) S.players.forEach((q, i) => { if (!q.folded) H.setPre(i, PF.rangeOf(preActs[i] || [])); });
+      let opts = {};
+      if (S.street === 1) {
+        const only = new Uint8Array(1326); for (const s of H.seats()) { const W = H.W[s]; for (let i = 0; i < 1326; i++) if (W[i] > 0) only[i] = 1; }
+        const mode = pickMode(S.board, only, prm);
+        if (mode !== 'exact') opts = { perCard: mode === 'split3' ? prm.design.equity.splitPerCard : prm.design.equity.splitPerCardMin, rng };
+      }
+      H.startStreet(S.street, S.board, opts);
+      H.mode = S.street === 1 ? equityMode : 'exact';
+    }
+    return true;
+  }
+
+  /* §3: the row of the update table for an action */
+  function updateKind(seat, info) {
+    const S = G.S;
+    if (info.act === 'call') return 'callBet';
+    if (info.act === 'raise') return 'raiseBet';
+    if (info.act === 'bet') return null;   // by size, below
+    if (info.act === 'check') {
+      const agg = S.street === 1 ? S.pfAggr : S.prevStreetAggr;
+      if (agg === seat) return 'checkAggr';
+      return G.isIP(seat) ? 'checkBackIP' : 'checkOOPCaller';
+    }
+    return null;
+  }
+
+  function onAction(seat, info) {   // info: {street, act: 'fold'|'check'|'call'|'bet'|'raise', to, potBefore, toCall, allIn, pre: {spot, kind} (preflop)}
+    nAct++;
+    const a = Object.assign({ seat, n: nAct }, info); delete a.pre; actions.push(a);
+    if (info.street === 0) { if (info.pre && info.act !== 'fold') (preActs[seat] = preActs[seat] || []).push({ spot: info.pre.spot, act: info.act }); return; }
+    if (!ensureStreet()) return;
+    for (const [prm, v] of views) {
+      const H = v.ranges;
+      if (info.act === 'fold') { H.drop(seat); v.updates.push({ n: nAct, seat, act: 'fold' }); continue; }
+      const eq = prm.equilibrium;
+      let kind = updateKind(seat, info), size = null;
+      if (info.act === 'bet') { size = info.potBefore > 0 ? info.to / info.potBefore : 1; kind = size >= eq.updateMult.bigBet ? 'betBig' : 'betSmall'; }
+      const mult = prm.hooks.updateMult({ seat, kind, street: info.street, size }, eq.updateMult[kind]);
+      const r = H.apply(seat, mult);
+      if (r) v.updates.push(Object.assign({ n: nAct, seat, act: info.act, kind, size }, r));
+    }
+  }
 
   /* Step0 (§2): the state of this decision */
   function step0(seat) {
@@ -51,8 +138,7 @@
     const pot = G.potTotal(), toCall = S.currentBet - p.bet;
     const effStack = Math.min(p.stack, Math.max(0, ...opps.map(i => S.players[i].stack + S.players[i].bet - p.bet)));
     const line = preflopLine();
-    const r = S.pfRaises;
-    const potType = r <= 1 ? 'LIMP' : r === 2 ? 'SRP' : r === 3 ? '3BP' : '4BP';
+    const potType = potTypeOf(S.pfRaises);
     const spr = pot > 0 ? effStack / pot : Infinity;
     const ip = G.isIP(seat);
     // initiative: the player who bet or raised last on the previous street (none if it went check-check); on the flop, the preflop aggressor
@@ -60,32 +146,38 @@
     const initiative = agg === seat ? 'me' : agg >= 0 && !S.players[agg].folded ? 'opp' : 'none';
     let nodeKind;
     if (toCall > 0) nodeKind = S.raiseCount >= 2 ? 'facingRaise' : 'facingBet';
-    else if (initiative === 'me') nodeKind = 'cbet';              // c-bet / barrel
+    else if (initiative === 'me') nodeKind = 'cbet';                 // c-bet / barrel
     else if (initiative === 'opp') nodeKind = ip ? 'stab' : 'donk';   // in position: the aggressor checked to it this street
-    else nodeKind = ip ? 'delayed' : 'probe';                     // the last street went check-check
+    else nodeKind = ip ? 'delayed' : 'probe';                        // the last street went check-check
     return { street: S.street, potType, spr: Math.round(spr * 100) / 100, sprClass: spr < prm.sprLow ? 'low' : spr <= prm.sprHigh ? 'mid' : 'high',
       ip, initiative, nodeKind, nPlayers: live.length, pot, toCall, effStack, bb: G.BB(), line };
   }
 
-  /* why this decision goes to the old bot (phase 1 leaves these pots out, §2), or null */
-  function legacyReason(s0) {
-    if (s0.potType === 'LIMP' || s0.line.limpers.length) return 'legacy:limp';   // a limped pot, or a raised pot a limper called
-    if (s0.potType !== 'SRP' && s0.line.coldCallers.length) return 'legacy:cold3';
-    return null;
+  /* Step1 for the trace: the bucket shares of this player and of the others now, and the updates since its last decision */
+  function step1(seat, prm) {
+    const v = views.get(prm); if (!v) return null;
+    const H = v.ranges, since = lastDecision[seat] || 0;
+    const opp = H.seats().filter(s => s !== seat);
+    return { me: { now: H.bucketShares(seat) }, opp: opp.map(s => ({ seat: s, now: H.bucketShares(s) })),
+      applied: v.updates.filter(u => u.n > since).map(u => ({ seat: u.seat, act: u.act, kind: u.kind || null, size: u.size == null ? null : Math.round(u.size * 100) / 100, mult: u.mult || null, before: u.before || null, after: u.after || null })),
+      equityMode: H.mode, ms: H.ms };
   }
 
   function decide(seat) {
-    const S = G.S, p = S.players[seat], t0 = Date.now();
+    const S = G.S, p = S.players[seat], t0 = now(), prm = paramsOf(p);
     if (!hand) newHand();
     const tr = hand.add(T.create({ hand: hand.id, seat, pos: G.posOf(seat), name: p.name, hole: p.hole, board: S.board, street: S.street, actionNo: nAct }));
     counts.decisions++;
     tr.step0 = step0(seat);
-    // stage 0: the new logic is not there yet, every decision is the old bot's
-    const why = legacyReason(tr.step0) || 'stage0';
-    tr.other.fallback = why; counts.legacy[why] = (counts.legacy[why] || 0) + 1;
+    const why = legacyReason(tr.step0.potType, tr.step0.line);
+    if (!why) { ensureStreet(); tr.step1 = step1(seat, prm); tr.other.equityMode = tr.step1 && tr.step1.equityMode; }
+    // stage 2: the decision itself is still the old bot's
+    const fb = why || 'stage2';
+    tr.other.fallback = fb; counts.legacy[fb] = (counts.legacy[fb] || 0) + 1;
     const dec = G.legacy(seat);
     tr.decision = { act: dec.act, to: dec.to || 0 };
-    tr.other.ms = Date.now() - t0;
+    lastDecision[seat] = nAct;
+    tr.other.ms = Math.round(now() - t0);
     return dec;
   }
 
@@ -98,5 +190,6 @@
     const h = hand; hand = null; return h;
   }
 
-  return { attach, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; } };
+  return { attach, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
+    setEquityMode(m) { equityMode = m; } };
 });
