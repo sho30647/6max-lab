@@ -104,7 +104,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       S.cursor = (S.button + 1) % 6;
       await playHand(true);
       const lh = SpecBot.lastHand;   // the new bot's decisions of this play (when a spec bot is in it)
-      return { net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street })) : [] };
+      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street })) : [] };
     }
     const rows = [];
     for (let k = 0; k < N; k++) {
@@ -125,9 +125,13 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       const seats = [seatOf(L.open), seatOf(L.vs)];   // the button (so the seats) is the same in both plays
       __seed(SEED * 7919 + k * 13); const r2 = await play(L, card, [B, A]);
       const a1 = r1.net[seats[0]], a2 = r2.net[seats[1]];   // A's result: as the opener in play 1, as the other player in play 2
+      const b1 = r1.net[seats[1]], b2 = r2.net[seats[0]];   // B's result: as the other player in play 1, as the opener in play 2
+      // (the two players are not zero-sum: the folded small / big blind is dead money that goes to the winner, so A - B, not 2 x A)
       const sum = r1.net.reduce((a, x) => a + x, 0) + r2.net.reduce((a, x) => a + x, 0);   // chips are conserved: 0
       const recs = r1.recs.concat(r2.recs);
-      rows.push({ line: L.name, d: (a1 + a2) / 2, a1, a2, sum, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
+      const same = MODE === 'a' ? null : (r1.log.replace(/\bseat\d\b/g, '') === r2.log.replace(/\bseat\d\b/g, ''));
+      if (same === false && !globalThis.__shown) { globalThis.__shown = 1; console.log('DIFF', L.name, '\n 1:', r1.log, '\n 2:', r2.log); }
+      rows.push({ same, line: L.name, d: (a1 + a2) / 2 - (b1 + b2) / 2, a1, a2, sum, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
       if (__hands.length > 50) __hands.length = 0;
     }
     return rows;
@@ -167,6 +171,8 @@ for (const mode of modes) {
   const wrongPt = rows.filter(r => r.pt && r.pt !== (r.line.startsWith('SRP') ? 'SRP' : '3BP')).length;
   console.log(`  checks: chips not conserved in ${badSum} samples; samples with no decision of the new bot ${noSpec}; new-bot decisions ${nd}, handed to the old bot ${fbs}; pot type in the trace wrong in ${wrongPt}`);
   if (badSum || wrongPt || fbs) process.exitCode = 1;
+  if (mode === 'oo' && (Math.abs(tot.mean) > 1e-9 || rows.some(r => r.same === false))) { console.log('SELFTEST FAIL: v13 against v13 must play identically in both seatings and differ by exactly 0'); process.exitCode = 1; }
+  if (mode === 'ss' && Math.abs(tot.mean) > 2.5 * tot.se) { console.log('SELFTEST FAIL: spec against spec must differ by 0 within the noise'); process.exitCode = 1; }
   if (errs.length) console.log('page errors:', errs.slice(0, 3));
   console.log('RESULT ' + JSON.stringify({ mode, tot, n: rows.length }));
 }
