@@ -1042,6 +1042,11 @@ UTGvsBB 22: AA:r0.85j0.05c0.1, AKs:r0.6c0.4, ..."></textarea>
 <div class="modalOverlay hidden" id="mttResult"></div>
 
 <script src="mtt/core.js"></script>
+<script src="bot/spec/cards.js"></script>
+<script src="bot/spec/equity.js"></script>
+<script src="bot/spec/params.js"></script>
+<script src="bot/spec/trace.js"></script>
+<script src="bot/spec/index.js"></script>
 <!-- Firebase (compat SDK: keeps the same db.collection()/db.doc() calls used below) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -1611,6 +1616,7 @@ function setupHand(){
   put(S.players[sb],SB); S.players[sb].la={k:'sb',a:S.players[sb].bet,st:0};
   put(S.players[bb],BB); S.players[bb].la={k:'bb',a:S.players[bb].bet,st:0};
   S.currentBet=BB; S.minRaise=BB; S.raiseCount=1; S.cursor=bl.first;
+  specHook('newHand');
 }
 function put(p,amt){amt=Math.min(amt,p.stack); p.stack-=amt; p.bet+=amt; p.contrib+=amt; if(p.stack===0)p.allIn=true;}
 
@@ -1669,7 +1675,7 @@ async function playHandBody(resume){
     while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
-  settle(); S.done=true; const rec=buildRecord(); if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
+  settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
   if(!RP.on&&!MT.on){ S.session.n++; S.session.net+=rec.net; }
@@ -1807,6 +1813,7 @@ function applyAction(seat,dec){
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; p.rw2=dec.rw.slice(); p.rc2=null; p.rw3=dec.rw.slice(); p.rc3=null; } }   // tournament shoves carry their own range
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0,kind==='bet'&&st===1?{f:p.bet/potBefore,hu:S.players.filter(q=>!q.folded).length===2,ctx:((()=>{const tx=texture(S.board.slice(0,3)); return tx.s!=='rain'||tx.c==='conn';})()?2:0)+(S.pfAggr===seat?1:0)}:null); }
   S.log[st].push(posOf(seat)+(p.isHero?'*':'')+' '+code);
+  specHook('onAction',seat,{street:st,act:dec.act==='raise'?(wasBet?'bet':'raise'):dec.act,to:p.bet,potBefore,toCall,allIn:p.allIn});
 }
 /* beginner mode: flag an unopened-pot open/fold that is clearly outside the equilibrium open chart (the hand keeps going) */
 function openAdvice(act){
@@ -2082,7 +2089,15 @@ function botPostflopV2(seat){   // the previous postflop logic (kept for compari
    opponent: bluffs / all bets of a size = s / (1 + 2s) (s = bet as a fraction of the pot). Big bets are therefore nuts + air. */
 const wPick=items=>{ let t=0; items.forEach(x=>t+=x[1]); let r=Math.random()*t; for(const [v,w] of items){ r-=w; if(r<=0) return v; } return items[items.length-1][0]; };
 const bluffShare=s=>s/(1+2*s);
-function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):botPostflopV3(seat); }
+function botPostflop(seat){
+  const v=S.players[seat].ver;
+  if(v==='spec'&&window.SpecBot){ try{ return SpecBot.decide(seat); }catch(e){ console.error('SpecBot',e); } }   // the new bot (bot/spec, docs/postflop_spec.md); on an error the old bot plays the spot
+  return v===2?botPostflopV2(seat):botPostflopV3(seat);
+}
+/* the new bot reads the game through this object only (bot/spec/index.js) */
+const specHook=(f,...a)=>{ if(window.SpecBot) try{ return SpecBot[f](...a); }catch(e){ console.error('SpecBot.'+f,e); } };
+if(window.SpecBot) SpecBot.attach({S,BB:()=>BB,potTotal:()=>potTotal(),isIP:s=>isIP(s),posOf:s=>posOf(s),postOrder:s=>postOrder(s),legacy:s=>botPostflopV3(s),
+  storage:()=>{ try{ return window.localStorage; }catch(e){ return null; } },traceKey:()=>'spec_traces__'+UserGate.safe(UserGate.get()||'')});
 /* Ring-game adjustments on top of v3, found by playing v3 against itself (tests/ring-bench.mjs):
    v4: v3's river bets are mostly value (few bluffs), so its river calls lost money at every size. Call the river only with an equity that
        pays against that, higher the bigger the bet. A player with .ver===3 plays plain v3; the ring bots play the latest version (RING_VER).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the demo page: index.html + mtt/core.js in one file, Firebase replaced by a stub (no login, nothing is saved in the cloud).
+"""Build the demo page: index.html + mtt/core.js + bot/spec/*.js in one file, Firebase replaced by a stub (no login, nothing is saved in the cloud).
 usage: python3 tools/build-demo.py OUTPUT.html
 The output has no <html>/<head>/<body> (the Artifact tool adds them); publish it with the Artifact tool (see CLAUDE.md)."""
 import re, sys, os
@@ -23,6 +23,11 @@ assert 'firebasejs' not in body, 'firebase script tags were not removed'
 marker = '<script src="mtt/core.js"></script>'
 assert marker in body, 'mtt/core.js script tag not found'
 body = body.replace(marker, '<script>\n' + core + '\n</script>\n' + stub)
+# the new postflop bot's files (bot/spec): every <script src="bot/spec/..."> inlined
+for m in re.findall(r'<script src="(bot/spec/[a-z]+\.js)"></script>', body):
+    js = open(os.path.join(root, m), encoding='utf-8').read()
+    body = body.replace('<script src="%s"></script>' % m, '<script>\n' + js + '\n</script>')
+assert 'src="bot/' not in body, 'a bot/spec script tag was not inlined'
 out = '<title>6-Max Lab デモ</title>\n' + font + '\n' + style + '\n' + body
 open(sys.argv[1], 'w', encoding='utf-8').write(out)
 print('wrote', sys.argv[1], len(out), 'bytes')
