@@ -1681,7 +1681,7 @@ async function playHandBody(resume){
     while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
-  settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length) rec.sh=SpecBot.lastHand.id;   // rec.sh: the new bot's saved decision traces of this hand (bot/spec, the last 50 hands in this browser) if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
+  settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length) rec.sh=SpecBot.lastHand.id; /* rec.sh: the new bot's saved decision traces of this hand (bot/spec, the last 50 hands in this browser) */ if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
   if(!RP.on&&!MT.on){ S.session.n++; S.session.net+=rec.net; }
