@@ -62,8 +62,9 @@ const hist = await page.evaluate(async () => {
   document.getElementById('specReviewClose').click(); return r; });
 check(hist.button && hist.open && hist.rows > 0, 'the hand history opens the bot\'s decisions ' + JSON.stringify(hist));
 check(/残っていません/.test(hist.gone || '') && hist.goneRows === 0, 'a hand whose record is gone says so ' + JSON.stringify(hist));
+check(await page.evaluate(() => statsHands().every(h => !/^\d+-\d+$/.test(h.sh || ''))), 'the showdown hands (h.sh) are kept: the trace id has its own key (h.spt)');
 check(hist.showdownIdLeak === false, 'the history does not show the trace id as the showdown hands');
-check(await page.evaluate(() => [...document.querySelectorAll('#histBody .hitem')].every(d => { const h = statsHands().find(x => '#' + x.id === d.querySelector('.id').textContent); return !h || !!d.querySelector('[data-specrev]') === /^\d+-\d+$/.test(h.sh || ''); })), 'the history button only on hands with the new bot\'s record');
+check(await page.evaluate(() => [...document.querySelectorAll('#histBody .hitem')].every(d => { const h = statsHands().find(x => '#' + x.id === d.querySelector('.id').textContent); return !h || !!d.querySelector('[data-specrev]') === !!h.spt; })), 'the history button only on hands with the new bot\'s record');
 
 // the switch off: the bots go back to the old logic, no button after the hands
 await page.evaluate(() => { Nav.setScreen('ring'); document.getElementById('navSet').click(); });

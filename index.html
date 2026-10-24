@@ -211,6 +211,23 @@ svg.chart{width:100%;height:auto;display:block}
 .modalBox .sub{margin:0 0 10px;color:var(--muted);font-size:13px}
 .modalBox input[type=text],.modalBox input[type=password]{width:100%;font:inherit;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);margin:0 0 10px}
 .modalBox .err{color:var(--loss);font-size:12px;margin:0 0 10px}
+/* the new bot's review (ring game): the list of its decisions in a hand, each opens the explanation text of bot/spec/explain.js */
+.srBox{max-width:560px;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;padding:16px 14px 12px}
+.srHead{display:flex;align-items:center;gap:8px;margin:0 0 4px}
+.srHead h2{margin:0}
+.srHead .btn{margin-left:auto;min-height:36px;padding:6px 12px}
+.srList{overflow-y:auto;overscroll-behavior:contain;margin:0 -4px;padding:0 4px;display:flex;flex-direction:column;gap:6px}
+.srRow{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:1px;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px}
+.srRow .st{font-weight:700}
+.srRow .who{color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.srRow .cc{grid-column:1/-1;font-weight:700;overflow-wrap:anywhere}
+.srRow[aria-expanded="true"]{border-color:var(--brass)}
+.srText{margin:0 0 4px;padding:8px 10px;background:var(--bg);border-radius:9px;font:inherit;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.srEmpty{color:var(--muted);font-size:13px;margin:8px 0}
+.srOpen{margin-top:8px}
+.optnote{flex-basis:100%;font-size:12px;color:var(--muted);padding-left:22px}
+.opts label.optwrap{flex-wrap:wrap;row-gap:2px}
+.wrap.inrp label:has(#optSpec),.wrap.inmtt label:has(#optSpec){display:none!important}   /* the new bot plays the ring game only */
 .userChip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto}
 .userChip b{color:var(--ink);font-weight:700;font-size:13px}
 .userChip button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:3px 8px;font-size:12px}
@@ -660,6 +677,13 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
     <p class="err hidden" id="gateErr">ログインに失敗しました。もう一度お試しください</p>
   </div>
 </div>
+<div class="modalOverlay hidden" id="specReview" role="dialog" aria-modal="true" aria-labelledby="srTitle">
+  <div class="modalBox srBox">
+    <div class="srHead"><h2 id="srTitle">ボットの判断</h2><button class="btn" id="specReviewClose" type="button">閉じる</button></div>
+    <p class="sub">新しいボット（試験中）がこのハンドでした判断です。行を押すと理由が開きます</p>
+    <div class="srList" id="srList"></div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div class="brand"><h1>6-Max Lab</h1><span>NLH 6人テーブル／プリフロ練習 一体型</span></div>
@@ -682,6 +706,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
         <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
         <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
+        <label class="optwrap"><input type="checkbox" id="optSpec"> 新しいボット（試験中）を使う<span class="optnote">リングゲームだけで使います（練習テーブル・トーナメントでは使いません）。ハンドが終わると「ボットの判断を見る」から判断の理由を読めます</span></label>
       </div>
       <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
       <div class="begnote" id="stkNote">持ち点（スタック）は次のハンドに引き継がれます。最初は全員200点（＝100bb）で、0になった人は200点で再スタートします。
@@ -1681,7 +1706,7 @@ async function playHandBody(resume){
     while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
-  settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length) rec.sh=SpecBot.lastHand.id; /* rec.sh: the new bot's saved decision traces of this hand (bot/spec, the last 50 hands in this browser) */ if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
+  settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length) rec.spt=SpecBot.lastHand.id; /* rec.spt: the new bot's saved decision traces of this hand (bot/spec, the last 50 hands in this browser) */ if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
   if(S.board.length>=3) (S.flopSeats||[]).forEach(i=>{ if(i>0) S.players[i].reveal=true; });   // ended on/after the flop: reveal everyone who saw the flop
   else if(S.raiseCount>=3) S.players.forEach((p,i)=>{ if(i>0&&(p.raisedPre||p.called3)) p.reveal=true; });   // 3bet+ pot that ended preflop: reveal the players in the raising war
   if(!RP.on&&!MT.on){ S.session.n++; S.session.net+=rec.net; }
@@ -2104,6 +2129,30 @@ function botPostflop(seat){
    setSpecBot(on) is what the settings switch calls; switching it off gives the bots back the old logic at once. */
 function specBotOn(){ try{ return localStorage.getItem('sixmaxlab_specbot')==='1'; }catch(e){ return false; } }
 function setSpecBot(on){ try{ localStorage.setItem('sixmaxlab_specbot',on?'1':'0'); }catch(e){} if(!on) S.players.forEach(p=>{ if(!p.isHero&&p.ver==='spec') p.ver=undefined; }); }
+/* the review of the new bot's decisions (display only): the button after a ring hand (never during one: the list shows the bots' hole cards),
+   the list of the hand's decisions, each row opens SpecBot.explain(rec).text. The hand history opens a saved hand by its id (rec.spt). */
+function specReviewReady(){ return !MT.on&&!RP.on&&S.done&&!S.running&&!!(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length>0); }
+function openSpecReview(hand){
+  const box=document.getElementById('srList'), ST=['プリフロップ','フロップ','ターン','リバー'];
+  box.innerHTML='';
+  if(!hand||!hand.records||!hand.records.length){ const p=document.createElement('p'); p.className='srEmpty'; p.textContent='このハンドのボットの判断の記録は、このブラウザに残っていません（直近50ハンドまで保存）'; box.appendChild(p); }
+  else hand.records.forEach((rec,i)=>{
+    let text; try{ text=SpecBot.explain(rec).text; }catch(e){ text='説明文を作れませんでした（'+(e&&e.message||e)+'）'; }
+    const concl=(text.split('\n').find(l=>l.startsWith('結論：'))||'結論：—');
+    const row=document.createElement('button'); row.type='button'; row.className='srRow'; row.setAttribute('aria-expanded','false');
+    const st=document.createElement('span'); st.className='st'; st.textContent=ST[rec.street]||'';
+    const who=document.createElement('span'); who.className='who'; who.textContent=(rec.pos||'')+'　'+(rec.name||'');
+    const cc=document.createElement('span'); cc.className='cc'; cc.textContent=concl;
+    row.append(st,who,cc);
+    const pre=document.createElement('pre'); pre.className='srText hidden'; pre.id='srText'+i; pre.textContent=text; row.setAttribute('aria-controls',pre.id);
+    row.onclick=()=>{ const open=pre.classList.toggle('hidden')===false; row.setAttribute('aria-expanded',String(open)); };
+    box.append(row,pre);
+  });
+  box.scrollTop=0;
+  document.getElementById('specReview').classList.remove('hidden');
+  document.getElementById('specReviewClose').focus();
+}
+function closeSpecReview(){ document.getElementById('specReview').classList.add('hidden'); }
 /* the new bot reads the game through this object only (bot/spec/index.js) */
 const specHook=(f,...a)=>{ if(window.SpecBot) try{ return SpecBot[f](...a); }catch(e){ console.error('SpecBot.'+f,e); } };
 if(window.SpecBot) SpecBot.attach({S,BB:()=>BB,potTotal:()=>potTotal(),isIP:s=>isIP(s),posOf:s=>posOf(s),postOrder:s=>postOrder(s),legacy:s=>botPostflopV3(s),
@@ -2472,8 +2521,9 @@ function renderControls(){
   if(RP.on){ RP.controls(area); return; }
   if(!S.heroResolve){
     if(S.running){ area.innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; return; }
-    area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${MT.on?(MT.over?'結果へ進む':MT.hands.length?'次のハンドを配る':'最初のハンドを配る'):Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>`;
+    area.innerHTML=`<div class="row"><button class="btn main grow" id="btnDeal">${MT.on?(MT.over?'結果へ進む':MT.hands.length?'次のハンドを配る':'最初のハンドを配る'):Store.hands.length||S.session.n?'次のハンドを配る':'ゲームを始める'}</button></div>${specReviewReady()?'<div class="row srOpen"><button class="btn grow" id="btnSpecReview" type="button">ボットの判断を見る</button></div>':''}`;
     document.getElementById('btnDeal').onclick=()=>{ if(MT.on&&MT.over){ MT.showResult(); return; } if(!S.running) playHand(); };
+    const sr=document.getElementById('btnSpecReview'); if(sr) sr.onclick=()=>{ if(specReviewReady()) openSpecReview(SpecBot.lastHand); };
     return;
   }
   const p=S.players[0], toCall=S.currentBet-p.bet, maxTo=p.bet+p.stack;
@@ -2820,8 +2870,9 @@ function renderHist(){
   body.innerHTML=`<div class="gtoggle" id="histModes">${HIST_MODES.map(([v,l])=>`<button data-v="${v}" aria-pressed="${histMode===v}">${l}</button>`).join('')}</div>
     <p class="sub" style="color:var(--muted);font-size:12px">${note}。* が自分のアクション。</p>${list.length?'':'<div class="empty">該当するハンドはまだありません。</div>'}<div class="hlist">${list.map(h=>`
     <details class="hitem"><summary><span class="id">#${h.id}</span><span class="p">${h.pos}</span><span class="mini">${miniCards(h.hc)}</span><span class="mini" style="color:var(--muted)">${h.board?miniCards(h.board):'—'}</span><span class="net ${h.net>=0?'pos-c':'neg-c'}">${fmt(h.net)}</span></summary>
-    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb${(()=>{ const l=lastStreet(h); return l?'\n最後のストリート: '+LS_NAME[l.flag]+'（ハンドの強さ: '+l.str+'）':''; })()}</div><div class="row" style="padding:0 12px 10px"><button class="btn" data-copy="${h.id}">AIレビュー用にコピー</button><span class="cpmsg" style="font-size:12px;color:var(--muted)"></span></div>${vhHTML(h)}</details>`).join('')}</div>`;
+    <div class="log">${h.log}${h.sh?'\nショーダウン: '+h.sh:''}\nプリフロップ: ${h.pf}　ポット: ${h.pot}bb${(()=>{ const l=lastStreet(h); return l?'\n最後のストリート: '+LS_NAME[l.flag]+'（ハンドの強さ: '+l.str+'）':''; })()}</div><div class="row" style="padding:0 12px 10px"><button class="btn" data-copy="${h.id}">AIレビュー用にコピー</button>${h.spt?`<button class="btn" type="button" data-specrev="${h.spt}">ボットの判断を見る</button>`:''}<span class="cpmsg" style="font-size:12px;color:var(--muted)"></span></div>${vhHTML(h)}</details>`).join('')}</div>`;
   body.querySelectorAll('#histModes button').forEach(b=>b.onclick=()=>{ histMode=b.dataset.v; try{localStorage.setItem('sixmaxlab_histmode',histMode);}catch(e){} renderHist(); });
+  body.querySelectorAll('[data-specrev]').forEach(b=>b.onclick=()=>openSpecReview(window.SpecBot?SpecBot.savedHand(b.dataset.specrev):null));
   body.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
     const h=statsHands().find(x=>String(x.id)===b.dataset.copy), msg=b.parentNode.querySelector('.cpmsg'); if(!h) return;
     msg.textContent=(await copyText(handText(h)))?'コピーしました。ChatGPTなどに貼り付けてください':'コピーできませんでした';
@@ -4047,6 +4098,11 @@ try{ const f=localStorage.getItem('sixmaxlab_range'); if(f) document.getElementB
 document.getElementById('optRange').onchange=e=>{ try{localStorage.setItem('sixmaxlab_range',e.target.checked?'1':'0');}catch(_){} };
 try{ const f=localStorage.getItem('sixmaxlab_autofold'); if(f) document.getElementById('optAutoFold').checked=f==='1'; }catch(e){}
 document.getElementById('optAutoFold').onchange=e=>{ try{localStorage.setItem('sixmaxlab_autofold',e.target.checked?'1':'0');}catch(_){} };
+document.getElementById('optSpec').checked=specBotOn();
+document.getElementById('optSpec').onchange=e=>setSpecBot(e.target.checked);
+document.getElementById('specReviewClose').onclick=closeSpecReview;
+document.getElementById('specReview').onclick=e=>{ if(e.target.id==='specReview') closeSpecReview(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!document.getElementById('specReview').classList.contains('hidden')) closeSpecReview(); });
 function syncFast(){ const on=isBeginner(); document.getElementById('optFast').disabled=on; document.getElementById('begNote').classList.toggle('hidden',!on);
 }   // the settings that depend on the mode, without redrawing (the tournament has no beginner mode: nothing about it is shown there)
 function applyBeginner(){
