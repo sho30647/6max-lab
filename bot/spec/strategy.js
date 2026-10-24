@@ -305,6 +305,8 @@
     if (defense < mdf - eq.mdfSlack && list.length) {   // too many folds: the border hands call again, down to MDF - 10pt
       list.sort((x, y) => y[0] - x[0]); let acc = 0; const want = (mdf - eq.mdfSlack) * tw;
       for (const [v, w] of list) { acc += w; if (acc >= want) { cut = Math.min(cut, v); break; } }
+      // only the border hands come back (§9 B 5): at most mdfBorder under the price, so a hand far behind the narrowed range still folds (§9's example, docs/decisions.md)
+      cut = Math.max(cut, need + margin - eq.mdfBorder);
       guard = true;
     }
     let act = RE >= cut || a.E >= eq.bucket.b1 ? 'call' : 'fold';
@@ -335,5 +337,5 @@
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
-  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, betNode, facing };
+  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, probs, betNode, facing };
 });

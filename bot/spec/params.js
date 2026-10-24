@@ -43,7 +43,7 @@
       raiseRate: { flop: 0.10, turn: 0.08, river: 0.06 },
       eqDenial: { foldEq: 0.20 }, minSizeShare: 0.10,
       // §9 Step7
-      marginCall: { flopTurn: 0.03, river: 0 }, mdfSlack: 0.10,
+      marginCall: { flopTurn: 0.03, river: 0 }, mdfSlack: 0.10, mdfBorder: 0.10,   // mdfBorder: the MDF guard calls again only down to the price - 10pt (docs/decisions.md)
       raiseF: { flop: 0.75, turn: 1.0, river: 1.0 },
       // §10
       multiwayBluff: 0.3, multiwayValueEc: 0.60
