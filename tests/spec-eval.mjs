@@ -51,8 +51,8 @@ const counts = { decisions: 0, spec: 0, legacy: {}, kinds: {} };
 for (const x of all) { counts.decisions += x.counts.decisions; counts.spec += x.counts.spec || 0; for (const k in x.counts.legacy) counts.legacy[k] = (counts.legacy[k] || 0) + x.counts.legacy[k]; }
 const f = x => `${x.mean.toFixed(1)} ± ${(1.96 * x.se).toFixed(1)} (95%, SE ${x.se.toFixed(1)})`;
 console.log(`spec minus v13, bb/100 hands per player, ${tot.n} duplicate deals (${2 * tot.n} hands), seeds ${seed0}..${+seed0 + +procs - 1}, ${Math.round((Date.now() - t0) / 1000)} s`);
-console.log(`all deals:                                   ${f(tot)}`);
-console.log(`deals where the new bot decided postflop:    ${f(withSpec)}  (${withSpec.n} deals)`);
+console.log(`POSTFLOP hands (the new bot decided postflop): ${f(withSpec)}  (${withSpec.n} deals)   <- the number to read: the postflop logic's difference`);
+console.log(`all deals (the others differ by exactly 0):  ${f(tot)}   (the same difference, diluted by the hands that never reach a new-bot decision)`);
 console.log(`deals where it did not (preflop only / old): ${f(without)}  (${without.n} deals)`);
 const leg = Object.values(counts.legacy).reduce((a, b) => a + b, 0);
 console.log(`postflop decisions of the new bot's seats: ${counts.decisions}; decided by the new bot ${counts.spec} (${(100 * counts.spec / counts.decisions).toFixed(1)}%), handed to the old bot ${leg} (${(100 * leg / counts.decisions).toFixed(1)}%): ${JSON.stringify(counts.legacy)}`);
