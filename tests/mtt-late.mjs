@@ -5,7 +5,7 @@ const require = createRequire('/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
 const html = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.html');
 const STUB = `window.__writes=[];window.firebase=(function(){const user={uid:'test',displayName:'Tester',email:'t@example.com',isAnonymous:false};const doc=(p)=>({get:async()=>({exists:false,data:()=>null}),set:async(b)=>{window.__writes.push([p,JSON.stringify(b).length]);},delete:async()=>{}});const auth=()=>({onAuthStateChanged:cb=>{setTimeout(()=>cb(user),0);return()=>{};},currentUser:user,signOut:async()=>{},signInAnonymously:async()=>user});auth.GoogleAuthProvider=function(){};return{initializeApp(){},auth,firestore:()=>({doc,collection:()=>({get:async()=>({docs:[]}),doc})})};})();`;
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch((P => require('fs').existsSync(P) ? { executablePath: P } : {})('/opt/pw-browsers/chromium-1194/chrome-linux/chrome'));   // the pinned browser where it exists, else Playwright's own
 const ctx = await browser.newContext(); const bad = [];
 async function open() {
   const page = await ctx.newPage(); page.on('pageerror', e => bad.push('PAGEERROR ' + e.message));

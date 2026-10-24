@@ -12,6 +12,14 @@ description: 6max-labのボットの判断ロジック（プリフロップ/ポ�
 - MTTの計算部：`mtt/core.js`（仕様は `docs/mtt-spec.md`）。プッシュ/フォールド表は `tools/pushfold.mjs`。
 - 検証：`tests/` 配下。
 
+## リングのポストフロップは新ボット（`bot/spec/`）が正
+- 指示書は `docs/postflop_spec.md`。数字は `bot/spec/params.js` の1か所。旧ボット（`botPostflopV3`、v13）は比較用で、これからは直さない。
+- 直す前に `docs/rebuild_report.md`（現状と次にやること）と `docs/decisions.md`（これまでの判断）を読む。
+- 数字を変えたら、`docs/decisions.md` に理由と前後の数字を足す。指示書11章の区分①②③のうち、1回に1つだけ。
+- 物差しは、新旧の対戦成績（`node tests/spec-eval.mjs`）より先に、理論値とのずれ：ブラフの比率（リバーなら B÷(P+2B)）、ベットを受けたときのフォールド率と降りすぎない目安（MDF）、打つ頻度と目標（`tests/spec-decisions.mjs` ほか）。対戦成績だけで数字を決めない（特定の相手への過学習を避ける）。
+- 説明文（`bot/spec/explain.js`）と判断トレースは、ロジックを変えたら同じコミットで直す。「説明テンプレート未定義」が出ないこと（`tests/spec-decisions.mjs`）。
+- テスト一式：`tests/spec-*.mjs`（`spec-handeval`、`spec-equity`、`spec-routing`、`spec-examples`、`spec-ranges`、`spec-stage0`、`spec-decisions`、`spec-trace`）と `ring-regression`。
+
 ## 進め方（この順で）
 1. **変更前の数字を取る**。対象の挙動に合う測定を選ぶ：
    - ボット同士の強さ比較：`node tests/mtt-bench-par.mjs <A> <B> [depths] [deals] [procs]`（同じ配札を席替えして2回打つ。結果は bb/100ハンド、正なら A が強い。標準誤差も見る）。新しい版は変種名として足して比べる。

@@ -1,7 +1,7 @@
 // Ring-game bot strength bench: two bot versions play the 6-max ring table (100bb, 0.5/1bb) against each other with duplicate deals
 // (each deal is played twice: seats 0,2,4 = A and 1,3,5 = B, then swapped). Every hand starts at 100bb.
 // All seats play the neutral style (loose/aggr/three = 1) so that only the logic differs.
-// Usage: node tests/ring-bench.mjs <A> <B> [deals=1000] [seed=1]     versions: 3, 4, ... (the postflop logic of index.html, player.ver);
+// Usage: node tests/ring-bench.mjs <A> <B> [deals=1000] [seed=1]     versions: 3, 4, ... (the postflop logic of index.html, player.ver), or spec (the new bot, bot/spec);
 //        a version can carry changed tweaks (BOT_TWEAKS in index.html): "5+riverBluff=3" = v5 that bluffs the river 3x
 //        node tests/ring-bench.mjs stats <ver> [hands=3000] [seed=1]  how a version plays: facing-bet folds and the EV of its river calls/folds
 // Output (bench): A minus B in bb per 100 hands per player, with the standard error over deals. Positive = A is stronger.
@@ -11,7 +11,7 @@ const require = createRequire('/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
 const html = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.html');
 const FIREBASE_STUB = `window.firebase=(function(){const user={uid:'test',displayName:'Tester',email:'t@example.com',isAnonymous:false};const doc=()=>({get:async()=>({exists:false,data:()=>null}),set:async()=>{},delete:async()=>{}});const auth=()=>({onAuthStateChanged:cb=>{setTimeout(()=>cb(user),0);return()=>{};},currentUser:user,signOut:async()=>{},signInAnonymously:async()=>user});auth.GoogleAuthProvider=function(){};return{initializeApp(){},auth,firestore:()=>({doc,collection:()=>({get:async()=>({docs:[]}),doc})})};})();`;
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch((P => require('fs').existsSync(P) ? { executablePath: P } : {})('/opt/pw-browsers/chromium-1194/chrome-linux/chrome'));   // the pinned browser where it exists, else Playwright's own
 const page = await browser.newPage();
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 await page.route('**/*', r => { const u = r.request().url(); if (u.includes('gstatic.com/firebasejs')) return r.fulfill({ contentType: 'text/javascript', body: u.endsWith('firebase-app-compat.js') ? FIREBASE_STUB : '' }); return u.startsWith('file:') ? r.continue() : r.abort(); });
@@ -29,7 +29,7 @@ const out = await page.evaluate(async ([mode, A, B, N, SEED]) => {
   S.autoHero = true;
   S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
   async function play(deal, vers, button) {
-    S.players.forEach((p, i) => { const [v, ...tw] = String(vers[i]).split('+'); p.ver = +v; p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; });   // "6+riverBluff=3": v6 with a tweak changed
+    S.players.forEach((p, i) => { const [v, ...tw] = String(vers[i]).split('+'); p.ver = v === 'spec' ? 'spec' : +v; p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; });   // "6+riverBluff=3": v6 with a tweak changed
     S.resetStacks = true; S.button = button; Store.hands.length = 0;
     seed(SEED * 7919 + deal * 13);   // the cards and the bots' dice are the same in both plays
     await playHand();
