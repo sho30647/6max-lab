@@ -1,6 +1,6 @@
 {
-  "champion": "12",
-  "championNote": "v12（v11＋bluffF=6＋barrelRead＋slow=0.3）。bot-check-range から staging に入った版（RING_VER=12）にリーグのチャンピオンを合わせた（2026-10-23）。",
+  "champion": "13",
+  "championNote": "v13（v12のリバーのブラフを、5倍・大サイズのみ → 理論の1.5倍・両サイズに：riverBluff=0, bluffR=1.5）。均衡からの距離（ring-river-gap、シード1〜4）IPの損 17〜21% → 7〜8%（ポット比）。v12との直接対決 +2.3 ± 3.2。穴なし。",
   "exploiters": [
     {
       "id": "riverBluff4",
@@ -137,95 +137,89 @@
     }
   ],
   "probe": {
-    "spec": "11",
+    "spec": "12",
     "deals": 4000,
     "seed": 1,
     "results": {
       "riverBluff4": {
         "mean": -0.7,
-        "ci": 0.7
+        "ci": 0.6
       },
       "overbetBluff": {
-        "mean": 1.2,
-        "ci": 3.2
+        "mean": 0.3,
+        "ci": 2.9
       },
       "thinValue": {
-        "mean": -0.8,
-        "ci": 2.8
+        "mean": -1.9,
+        "ci": 3.3
       },
       "bigFlopValue": {
-        "mean": -1.1,
-        "ci": 5.5
+        "mean": -5.1,
+        "ci": 7.4
       },
       "maniac": {
-        "mean": 2.3,
-        "ci": 1.4
+        "mean": -0.3,
+        "ci": 3.3
       },
       "valueOnly": {
-        "mean": -0.8,
-        "ci": 3.6
+        "mean": -3.5,
+        "ci": 4.5
       },
       "station": {
-        "mean": 0.5,
-        "ci": 0.9
+        "mean": -0.8,
+        "ci": 1.4
       },
       "nit": {
-        "mean": 0.8,
-        "ci": 1.5
+        "mean": 0.1,
+        "ci": 0.8
       },
       "drawTight": {
-        "mean": -1.6,
-        "ci": 4.2
+        "mean": -2.6,
+        "ci": 3.9
       },
       "thinFold": {
-        "mean": 0.6,
-        "ci": 1.4
+        "mean": 0.3,
+        "ci": 0.6
       },
       "advCbet": {
         "mean": 0.5,
-        "ci": 1.2
-      },
-      "invCbet": {
-        "mean": -1.9,
-        "ci": 1.7
-      },
-      "bbDonk": {
-        "mean": -1,
-        "ci": 0.9
-      },
-      "blankBarrel": {
-        "mean": -1.8,
-        "ci": 2.5
-      },
-      "realizeOop": {
-        "mean": 0.2,
-        "ci": 1.7
-      },
-      "realizeInv": {
-        "mean": 0.4,
         "ci": 3.2
       },
-      "flopDrawRaise": {
+      "invCbet": {
+        "mean": -0.5,
+        "ci": 2.8
+      },
+      "bbDonk": {
+        "mean": -0.6,
+        "ci": 2.1
+      },
+      "blankBarrel": {
         "mean": -0.4,
+        "ci": 1.7
+      },
+      "realizeOop": {
+        "mean": 0.7,
         "ci": 2.5
+      },
+      "realizeInv": {
+        "mean": -1.9,
+        "ci": 3.3
+      },
+      "flopDrawRaise": {
+        "mean": -0.6,
+        "ci": 2.2
       },
       "noDrawRaise": {
-        "mean": 0.4,
-        "ci": 2.3
+        "mean": 1.8,
+        "ci": 2.4
       },
       "extremeCbet": {
-        "mean": 1.6,
-        "ci": 2.5
+        "mean": 2.1,
+        "ci": 3.8
       }
     },
-    "leaks": [
-      {
-        "id": "maniac",
-        "mean": 2.3,
-        "ci": 1.4
-      }
-    ],
-    "date": "2026-10-22"
+    "leaks": [],
+    "date": "2026-10-24"
   },
   "history": [
     {
@@ -271,6 +265,14 @@
       "from": "11",
       "to": "12",
       "why": "RING_VER が 12 になっていたので、リーグのチャンピオンを合わせた（偵察し直し）"
+    },
+    {
+      "date": "2026-10-24",
+      "from": "12",
+      "to": "13",
+      "why": "方針書4.0：リバーの均衡からの距離が4シードすべてで減った（合計 25〜32% → 15〜19%）。直接対決で負けず、リーグで新しい穴なし",
+      "worstBefore": "none",
+      "worstAfter": "none"
     }
   ]
 }

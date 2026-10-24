@@ -756,7 +756,7 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <option value="">全ポジション</option><option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
       </select>
       <select id="fBot" aria-label="対戦ボット">
-        <option value="">全ボット</option><option value="11">ボットv11（ボードのレンジ優位で、降りる頻度を動かす版）</option><option value="10">ボットv10（降りるハンドを、ドロー込みの勝率の順位で選ぶ版）</option><option value="9">ボットv9（ターンのドローのレイズを増やした版）</option><option value="8">ボットv8（相手のベットをサイズで読む版）</option><option value="7">ボットv7（自己対戦で均衡に寄せた版）</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
+        <option value="">全ボット</option><option value="13">ボットv13（リバーのブラフを理論の量にし、小さいサイズにも混ぜる版）</option><option value="12">ボットv12（チェックレンジに強い手を残し、フロップのブラフを増やした版）</option><option value="11">ボットv11（ボードのレンジ優位で、降りる頻度を動かす版）</option><option value="10">ボットv10（降りるハンドを、ドロー込みの勝率の順位で選ぶ版）</option><option value="9">ボットv9（ターンのドローのレイズを増やした版）</option><option value="8">ボットv8（相手のベットをサイズで読む版）</option><option value="7">ボットv7（自己対戦で均衡に寄せた版）</option><option value="6">ボットv6（v3の弱点を突く調整）</option><option value="3">ボットv3（サイズ・ポラライズ）</option><option value="2">ボットv2（GTO表）</option><option value="1">ボットv1（旧）</option>
       </select>
       <select id="fRange" aria-label="対象期間">
         <option value="0">全ハンド</option><option value="1000">直近1000</option><option value="300">直近300</option><option value="100">直近100</option>
@@ -2110,6 +2110,9 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
        that bluffed the last street keep about half of them (rw3). Folds cost 674 bb; the exploiter no longer wins (+6.2 +- 4.9 -> -0.1 +- 8.3 bb/100).
        slow=0.3: v11 kept 6% of its strong flop hands (the top fifth of its range) in the check range, so a check meant a weak hand. Now 28% (less on a wet board).
        Self-play against v12 without it: +0.1 +- 5.9 bb/100 (seeds 81-84), against v10 0.0 +- 11.0; the two exploiters (turn bluffs x3, bluffs x2.5) still do not win.
+   v13: v12 with the river bluffs of both sizes at 1.5x their theory budget (riverBluff=0, bluffR=1.5), not 5x and all big. Measured by the distance to the equilibrium
+       (tests/ring-river-gap.mjs, docs/bot-lab/policy.md 4.0): v12 bluffed ~50% of its big river bets (equilibrium ~30-35%) and never its small ones (~20%);
+       IP's loss against a best response fell from 17-21% of the pot to 7-8% on every seed (1-4), the total from 25-32% to 15-19%. Against v12: +2.3 +- 3.2 bb/100; the league finds no leak.
    (tests/ring-bench.mjs can add tweaks to a version: .tw replaces the version's tweaks.)
    Knobs for the exploiters of docs/bot-lab (left out = the version plays as it is): bluffF / bluffT / bluffR = x the air bluffs on the flop / turn / river (bluffR: the river's bluffs of both sizes, when riverBluff is off),
    thin = x the merged (non-nut) value bets, bigR = the river's big size (x pot), drawEq = x the flop equity of a draw when it calls
@@ -2118,8 +2121,8 @@ function botPostflop(seat){ return S.players[seat].ver===2?botPostflopV2(seat):b
    cbetHi / cbetLo = x the flop bet of the preflop aggressor on a K/A-high / 9-or-lower board, donk = x the lead of the caller out of position on a 9-or-lower board, blankBarrel = x the turn bet of the aggressor on a blank turn card, realize = the share of its equity a hand realizes out of position when it decides to call (in position: a bit more), flopDrawRaise = x how often a draw raises a flop bet (0.28), advCap = the largest shift of advFold (0.25), advFold = how much the fold cut moves with the range advantage (fold cut + advFold x (0.5 - the equity of its range)), eqGate = x the pot odds the hand's equity must reach to defend by range (0.55), sizeRange = read a first flop bet by its size (SIZE_FIT) when estimating the bettor's range (see rw2, narrowRange), turnDrawRaise = x how often a draw raises a turn bet (0.12),
    slow = the share of the strong flop value hands (the top fifth of the range) that check (x0.5 on a wet board), so the check range holds strong hands, barrelRead = read a second and later bet of a player by a range that keeps the hands that bluff on (rw3, see narrowRange), eqRank = rank the hand in its range by its equity (eqPercentile), not by its current strength, when it decides to call or fold,
    splitFold = facing a single flop/turn bet heads-up, the fold set is filled from the hands that do not raise (the cut moves up by the share of the range that raises from below it). */
-const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2},12:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2,bluffF:6,barrelRead:true,slow:0.3}};
-const RING_VER=12;
+const BOT_TWEAKS={4:{riverCall:true},5:{riverCall:true,turnCall:true},6:{riverCall:true,turnCall:true,riverBluff:2},7:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1},8:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true},9:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2},10:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true},11:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2},12:{riverCall:true,turnCall:true,riverBluff:5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2,bluffF:6,barrelRead:true,slow:0.3},13:{riverCall:true,turnCall:true,riverBluff:0,bluffR:1.5,riverDefend:1,sizeRange:true,turnDrawRaise:2,eqRank:true,advFold:2,bluffF:6,barrelRead:true,slow:0.3}};
+const RING_VER=13;
 /* The percentile of the hand's equity among the hands of its own range (game-wide strength: draws count, a hand that is ahead now but has no future counts less),
    sampled: n hands of the range, each one's equity against the opponents' ranges. eqRank uses it in place of the percentile of the current strength (q). */
 let lastRangeEq=0.5, lastRangeSamples=[];   // lastRangeSamples: the sampled hands of the last eqPercentile, [equity, is a draw] (splitFold reads them)
@@ -2888,7 +2891,7 @@ const COL_DOC={
   pact:['ポストフロップの行動回数','フロップ以降に行動した回数（pb÷pactがアグレッション頻度）'],
   log:['アクションログ','P=プリフロップ F=フロップ T=ターン R=リバー。*=自分。f=フォールド x=チェック c=コール b=ベット r=レイズ、数字はその時点の合計額(bb)、(AI)=オールイン'],
   sh:['相手の公開ハンド','ショーダウンで見えた相手のハンド（ポジション:ハンド）'],
-  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）、7=自己対戦で均衡に寄せた版（リング）、8=相手の最初のフロップベットをサイズで読む版（リング）、9=ターンのドローのレイズを2倍にした版（リング）、11=ボードのレンジ優位で降りる頻度を動かした版（リング）、10=降りるハンドを、ドロー込みの勝率の順位で選ぶ版（リング）。空欄は1'],
+  bv:['ボットのバージョン','1=初期版、2=GTO表＋理論頻度版、3=サイズ・ポラライズ版、6=v3の弱点を突く調整版（リング）、7=自己対戦で均衡に寄せた版（リング）、8=相手の最初のフロップベットをサイズで読む版（リング）、9=ターンのドローのレイズを2倍にした版（リング）、11=ボードのレンジ優位で降りる頻度を動かした版（リング）、10=降りるハンドを、ドロー込みの勝率の順位で選ぶ版（リング）、12=チェックレンジに強い手を残し、フロップのブラフを増やした版（リング）、13=リバーのブラフを理論の量にし、小さいサイズにも混ぜる版（リング）。空欄は1'],
   vh:['相手全員のハンド','ハンド終了後に公開した相手5人のハンド。末尾:SD=ショーダウンまで残った、:W=降りずに勝った、無印=途中で降りた']
 };
 function rowValues(h,cols){
