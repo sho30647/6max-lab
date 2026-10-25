@@ -111,17 +111,19 @@
     if (need > 0) for (let c = 0; c < 52; c++) if (nT[c] > 0) nextEq[c] = nW[c] / nT[c];
     return { eq: tot > 0 ? win / tot : NaN, nextEq };
   }
-  function devVulOf(nextEq, dHi, vLo) {
-    let n = 0, d = 0, v = 0;
-    for (let c = 0; c < 52; c++) { const e = nextEq[c]; if (isNaN(e)) continue; n++; if (e >= dHi) d++; if (e < vLo) v++; }
-    return n ? { D: d / n, V: v / n } : { D: 0, V: 0 };
+  // J (the draw flag, docs/decisions.md 2026-10-27): the share of the next cards after which the equity is >= dHi AND at least jump over e0 (the equity
+  // now), so a made hand that only creeps over dHi is no draw. Without e0 / jump, J = D
+  function devVulOf(nextEq, dHi, vLo, e0, jump) {
+    let n = 0, d = 0, v = 0, j = 0; const lo = e0 >= 0 && jump > 0 ? e0 + jump : -1;
+    for (let c = 0; c < 52; c++) { const e = nextEq[c]; if (isNaN(e)) continue; n++; if (e >= dHi) { d++; if (e >= lo) j++; } if (e < vLo) v++; }
+    return n ? { D: d / n, V: v / n, J: j / n } : { D: 0, V: 0, J: 0 };
   }
 
   /* D and V of a combo from a sweep with withNext (docs/postflop_spec.md §7): the share of the next cards after which its equity is >= dHi (D) / < vLo (V) */
-  function devVul(sw, i, dHi, vLo) {
-    let n = 0, d = 0, v = 0;
-    for (let c = 0; c < 52; c++) { const t = sw.nextTot[i * 52 + c]; if (!(t > 0)) continue; const e = sw.nextWin[i * 52 + c] / t; n++; if (e >= dHi) d++; if (e < vLo) v++; }
-    return n ? { D: d / n, V: v / n } : { D: 0, V: 0 };
+  function devVul(sw, i, dHi, vLo, jump) {   // J as in devVulOf, from the combo's equity now (sw.eq[i])
+    let n = 0, d = 0, v = 0, j = 0; const lo = jump > 0 && sw.eq[i] >= 0 ? sw.eq[i] + jump : -1;
+    for (let c = 0; c < 52; c++) { const t = sw.nextTot[i * 52 + c]; if (!(t > 0)) continue; const e = sw.nextWin[i * 52 + c] / t; n++; if (e >= dHi) { d++; if (e >= lo) j++; } if (e < vLo) v++; }
+    return n ? { D: d / n, V: v / n, J: j / n } : { D: 0, V: 0, J: 0 };
   }
 
   /* Monte Carlo: one hand against one or more ranges at once (it wins only by beating every one of them). rng: () => [0, 1) */
