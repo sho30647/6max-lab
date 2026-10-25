@@ -310,7 +310,7 @@
   function facing(ctx) {
     const eq = ctx.prm.equilibrium, P = ctx.P, toCall = ctx.toCall, river = ctx.street === 3;
     const R = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
-    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : eq.marginCall.flopTurn;
+    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;   // turn: its own margin when set (docs/decisions.md)
     const a = attrs(ctx, ctx.own), k = bucketOf(ctx, a);
     const RE = R * a.E;
     // the defence of the whole range at this price, for the MDF guard (§9 B 5): MDF = 1 - B / (P + B), B = the bet faced, P = the pot before it
