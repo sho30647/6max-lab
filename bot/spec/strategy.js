@@ -181,8 +181,12 @@
       const t = b.tier;
       if ((t === 1 || t === 2) && Ec > vEc) reason = 'value';
       else if ((t === 2 || t === 3) && rc.s <= 0.34) { const ef = eqFold(ctx, rc, i, a.E); if (ef != null && 1 - ef >= eq.eqDenial.foldEq && Ec >= 0.5) reason = 'denial'; }
-      if (!reason && b.draw && ev > evCheck && !(ctx.nOpp > 1 && !(a.nutty >= 0.5))) reason = 'semibluff';
-      if (!reason && t === 5 && !b.draw && rc.FE * P - (1 - rc.FE) * B > 0) reason = 'bluff';
+      // no value reason: bet when the bet beats the check on its whole EV (owner 2026-10-27, docs/decisions.md). Ec is the equity to the river
+      // against the callers, so a gutshot, backdoor draws and overcards count as a solver counts them; no draw threshold gates it. Several
+      // opponents: a draw bets only when its completions are near the nuts (§10). The label: a draw (flop / turn) is a semi-bluff; on the river,
+      // or air with no draw, a bluff (only these count toward the bluff caps); any other hand a semi-bluff
+      if (!reason && ev > evCheck && !(ctx.nOpp > 1 && b.draw && !(a.nutty >= 0.5)))
+        reason = ctx.street === 3 || (t === 5 && !b.draw) ? 'bluff' : 'semibluff';
       out.push({ s: rc.s, B, FE: rc.FE, rho: rc.rho, Ec, Er, needR, vRaised, EV: ev, reason });
     }
     return { evCheck, bets: out };
@@ -339,5 +343,5 @@
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
-  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, probs, betNode, facing };
+  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, evalCombo, probs, betNode, facing };
 });
