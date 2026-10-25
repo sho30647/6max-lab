@@ -20,7 +20,7 @@ window.firebase = (function(){
   return { initializeApp(){}, auth, firestore: fs };
 })();`;
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch((P => require('fs').existsSync(P) ? { executablePath: P } : {})('/opt/pw-browsers/chromium-1194/chrome-linux/chrome'));   // the pinned browser where it exists, else Playwright's own
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGEERROR', e.message));
 await page.route('**/*', r => {

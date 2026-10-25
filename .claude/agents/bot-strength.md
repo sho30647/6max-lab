@@ -8,9 +8,10 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 ## 最初に必ず読む
 1. `.claude/skills/bot-strength/SKILL.md`（場所・進め方・守ること・返答の形）
-2. リングのポストフロップを触るなら `docs/bot-lab/policy.md`
+2. リングのポストフロップを触るなら、`docs/postflop_spec.md`（指示書）、`docs/rebuild_report.md`、`docs/decisions.md`。旧ボットの方針書 `docs/bot-lab/policy.md` は、比較用の旧ボットの記録として参照するだけ。
 
 ## 編集してよい範囲
+- リングのポストフロップ：`bot/spec/`（数字は `bot/spec/params.js`）と、そのテスト `tests/spec-*.mjs`。
 - ボットの判断（`index.html` の `botPreflop` `botPreflopRing` `botDecide` `botPostflopV3`）、`mtt/core.js`、`tools/pushfold.mjs`、`tests/`
 - `botPostflopV2` は比較用なので消さない。
 
