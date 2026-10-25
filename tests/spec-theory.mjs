@@ -2,6 +2,8 @@
 //   facing a bet: the fold rate against the bet's price B / (P + B) (what makes a pure bluff break even; much more = folding too much)
 //   the river: the share of bluffs among the bets (equity under 50% against the calling range) against B / (P + 2B) (what makes a call break even)
 //   flop and turn: how often it bets, and the share of air (B5) and draws (B4) in the bets
+// Checks (the default version only): the river's bets of 0.8x pot or more hold 15%+ bluffs, and the river's fold rate against a bet is within
+// 10pt of its theoretical bound (before 2026-10-26: 2% bluffs, 15pt over; docs/decisions.md)
 // Usage: node tests/spec-theory.mjs [duels per process=300] [processes=4] [first seed=1] [--A=spec]   (--A: a version as spec-duel reads it, both seats)
 import { fileURLToPath } from 'url'; import path from 'path';
 import { options, worker } from './eval-stats.mjs';
@@ -73,5 +75,15 @@ for (let st = 1; st <= 3; st++) {
     console.log(`      by bucket B1..B5: bet small ${fmt(um.betSmall)} | bet big ${fmt(um.betBig)} | check ${fmt(um.check)} | continue vs a bet ${fmt(fbB)}`);
   }
   out.streets[ST[st]] = res;
+}
+if (V === 'spec') {
+  const rv = out.streets.river || {}, big = (rv.riverBluff || []).filter(x => x.lo >= 0.8);
+  const n = big.reduce((a, x) => a + x.n, 0), bl = big.reduce((a, x) => a + x.n * x.share, 0) / (n || 1);
+  const fails = [];
+  if (!(bl >= 0.15)) fails.push(`river bets of 0.8x pot or more: ${(100 * bl).toFixed(1)}% bluffs (want 15%+)`);
+  if (rv.facingBet && rv.facingBet.fold > rv.facingBet.alpha + 0.10) fails.push(`river: folds ${(100 * rv.facingBet.fold).toFixed(1)}% to a bet, bound ${(100 * rv.facingBet.alpha).toFixed(1)}% (want within 10pt)`);
+  for (const f of fails) console.log('FAIL', f);
+  console.log(fails.length ? `${fails.length} failed` : 'spec-theory: all passed');
+  process.exitCode = fails.length ? 1 : 0;
 }
 console.log('RESULT ' + JSON.stringify(out));
