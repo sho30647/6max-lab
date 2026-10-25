@@ -38,9 +38,9 @@
   }
   function bucketOf(ctx, a) {
     const eq = ctx.prm.equilibrium;
-    // §7: a draw whose completions are not the nuts counts less (D x (0.5 + 0.5 x nuttiness)), docs/decisions.md
-    const D = a.nutty == null ? a.D : a.D * (0.5 + 0.5 * a.nutty);
-    return RG.bucketOf(a.E, D, ctx.street === 3, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
+    // §7: the bucket takes D as it is; the nuttiness no longer discounts it (it counted almost every straight draw as non-nut, docs/decisions.md).
+    // It still narrows the semi-bluffs of a multiway pot (evalCombo, §10)
+    return RG.bucketOf(a.E, a.D, ctx.street === 3, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
   }
 
   /* Step2 (§4): the texture, with the static / dynamic axis from the bot's range */

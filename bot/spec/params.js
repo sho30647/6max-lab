@@ -36,7 +36,8 @@
       oopSlowB1: 0.20, stepFreq: 0.15,             // §6 corrections: one "step" of frequency; the B1 share an out-of-position bettor keeps in its check range
       sprLow: 2, sprHigh: 6,
       // §7 Step5
-      bucket: { b1: 0.80, b2: 0.60, b3: 0.40, drawMaxE: 0.50 }, devD: 0.20, devHi: 0.80, vulLo: 0.50,
+      bucket: { b1: 0.80, b2: 0.60, b3: 0.40, drawMaxE: 0.60 }, devD: 0.15,   // B4: E < 60% and D >= 15% (a flush draw ~19%, an open-ended straight draw ~17%, a gutshot ~9%; docs/decisions.md)
+      devHi: 0.80, vulLo: 0.50,
       // §8 Step6
       realize: { ip: 1.0, oop: 0.85, river: 1.0 },
       tau: 0.02, delta0: 0, deltaMax: 0.15, marginReact: 0.05,   // deltaMax: the frequency shift is at most 15% of the pot (docs/decisions.md)
