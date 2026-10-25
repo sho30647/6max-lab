@@ -117,7 +117,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
     function theoryOf(r) {
       const c = r.step6 && r.step6.cands && r.step6.chosen ? r.step6.cands.find(x => x.act === r.step6.chosen.act && (x.size || 0) === (r.step6.chosen.size || 0)) : null;
       return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, act: r.decision.act, to: r.decision.to,
-        E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, Ec: c && c.Ec, na: r.step3 && r.step3.na };
+        E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, tgt: r.step6 && r.step6.target, rf: r.step6 && r.step6.rangeFreq, sh: r.step6 && r.step6.shift, ev: c && r.step6.cands[0] ? r.step6.cands.map(x => x.EV) : null, Ec: c && c.Ec, na: r.step3 && r.step3.na };
     }
     const rows = [];
     for (let k = 0; k < N; k++) {

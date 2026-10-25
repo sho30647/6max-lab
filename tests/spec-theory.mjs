@@ -38,7 +38,10 @@ for (let st = 1; st <= 3; st++) {
     for (const x of open) { const k = x.ini || 'none'; (byIni[k] = byIni[k] || [0, 0])[0]++; if (x.act === 'raise') byIni[k][1]++; }
     const air = bets.filter(x => x.b === 5).length / (bets.length || 1), draw = bets.filter(x => x.b === 4).length / (bets.length || 1);
     const size = bets.reduce((a, x) => a + x.to / x.pot, 0) / (bets.length || 1);
-    res.bet = { n: open.length, freq: bets.length / open.length, byIni, air, draw, size };
+    const sh = open.filter(x => x.sh != null), shUp = sh.filter(x => x.sh > 0).length / (sh.length || 1), shDn = sh.filter(x => x.sh < 0).length / (sh.length || 1);
+    const tg = sh.reduce((a, x) => a + (x.tgt || 0), 0) / (sh.length || 1), rf = sh.reduce((a, x) => a + (x.rf || 0), 0) / (sh.length || 1);
+    console.log(`      the range's bet frequency ${pct(rf)} against the target ${pct(tg)} (Step4); the shift delta pushed bets up in ${pct(shUp)} of the spots, down in ${pct(shDn)}`);
+    res.bet = { n: open.length, shUp, shDn, target: tg, rangeFreq: rf, freq: bets.length / open.length, byIni, air, draw, size };
     console.log(`${ST[st].padEnd(5)} checked to / first  n=${String(open.length).padStart(5)}  bets ${pct(bets.length / open.length)}  ` + Object.entries(byIni).map(([k, [n, b]]) => `${k} ${pct(b / n)}`).join('  ') + `  | in the bets: air ${pct(air)} draws ${pct(draw)}, mean size ${pct(size)} of the pot`);
     if (st === 3 && bets.length) {
       const bl = x => (x.Ec != null ? x.Ec : x.E) < 0.5;
