@@ -14,13 +14,17 @@
   'use strict';
   const { NC, CA, CB } = C;
 
-  function bucketOf(e, d, river, b) {   // §7: 1..5 (0 = not live)
-    if (!(e >= 0)) return 0;
-    if (e >= b.b1) return 1;
-    if (e >= b.b2) return 2;
-    if (!river && e < b.drawMaxE && d >= b.devD) return 4;   // B3 and B4 overlap (E 40-60% with D >= 14%): B4 (§7, docs/decisions.md)
-    if (e >= b.b3) return 3;
-    return 5;
+  /* §7 (owner's choice 2026-10-27, docs/decisions.md): a hand's class is its equity tier (1 nuts, 2 value, 3 marginal, 5 air: E alone) and,
+     apart from it, a draw flag (D >= devD before the river). col: the column of §3's update table, 1..5: a draw under drawMaxE takes the draw
+     column (4), every other hand its tier. null when the combo is not live */
+  function classify(e, d, river, b) {   // d: the draw measure J (equity.js devVul)
+    if (!(e >= 0)) return null;
+    const tier = e >= b.b1 ? 1 : e >= b.b2 ? 2 : e >= b.b3 ? 3 : 5;
+    const draw = !river && d >= b.devD;
+    return { tier, draw, col: draw && e < b.drawMaxE ? 4 : tier };
+  }
+  function bucketOf(e, d, river, b) {   // the update column (1..5, 0 = not live)
+    const k = classify(e, d, river, b); return k ? k.col : 0;
   }
 
   class HandRanges {
@@ -50,13 +54,13 @@
       this.cache = {};
       for (const s of this.seats()) {
         const sw = table.sweep(this.others(s), !river);
-        const W = this.W[s], D = new Float32Array(NC), V = new Float32Array(NC), bucket = new Uint8Array(NC);
+        const W = this.W[s], D = new Float32Array(NC), V = new Float32Array(NC), J = new Float32Array(NC), bucket = new Uint8Array(NC);
         for (let i = 0; i < NC; i++) {
           if (!(W[i] > 0)) continue;
-          if (!river) { const dv = E.devVul(sw, i, eq.devHi, eq.vulLo); D[i] = dv.D; V[i] = dv.V; }
-          bucket[i] = bucketOf(sw.eq[i], D[i], river, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
+          if (!river) { const dv = E.devVul(sw, i, eq.devHi, eq.vulLo, eq.drawJump); D[i] = dv.D; V[i] = dv.V; J[i] = dv.J; }
+          bucket[i] = bucketOf(sw.eq[i], J[i], river, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
         }
-        this.cache[s] = { eq: sw.eq, D, V, bucket, nextWin: sw.nextWin, nextTot: sw.nextTot };
+        this.cache[s] = { eq: sw.eq, D, V, J, bucket, nextWin: sw.nextWin, nextTot: sw.nextTot };
       }
       this.table = table; this.exact = table.exact; this.ms = Date.now() - t0;
     }
@@ -79,5 +83,5 @@
       return { before, after: this.bucketShares(seat), mult: mult.slice() };
     }
   }
-  return { bucketOf, HandRanges };
+  return { classify, bucketOf, HandRanges };
 });

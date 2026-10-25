@@ -127,7 +127,7 @@
       const rk = s5.rank != null ? `ボットのレンジの中では上から${pct(s5.rank)}の位置。` : '';
       L.push('⑥ このハンドの強さ',
         `  事実：${oppName}の今のレンジに対する勝率${pct(s5.E)}。${river ? '' : `次のカードで勝率が80%以上に上がる確率${pct(s5.D)}、50%未満に下がる確率${pct(s5.V)}。`}${rk}${blk}${s5.equityMode && s5.equityMode !== 'exact' ? '（この手の勝率は厳密計算、レンジのほかの手は近似）' : ''}`);
-      const bw = W.bucket[s5.bucket] ? `${W.bucket[s5.bucket]}「${BUCKET[s5.bucket]}」帯` : missing('Step5', 'bucket' + s5.bucket);
+      const bw = W.bucket[s5.bucket] ? `${W.bucket[s5.bucket]}「${BUCKET[s5.bucket]}」帯${s5.draw ? '。それとは別に、ドロー（次のカードで強くなる見込みが大きい手）でもある' : ''}` : missing('Step5', 'bucket' + s5.bucket);
       L.push(`  判断：${bw}。${river ? 'リバーなので、この先強くなることも逆転されることもない' : `${pick(W.D, s5.D)}。${pick(W.V, s5.V)}`}。`);
     }
     // ⑦ Step6, ⑧ Step7
