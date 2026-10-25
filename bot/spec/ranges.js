@@ -18,7 +18,7 @@
     if (!(e >= 0)) return 0;
     if (e >= b.b1) return 1;
     if (e >= b.b2) return 2;
-    if (!river && e < b.drawMaxE && d >= b.devD) return 4;   // B3 and B4 overlap (E 40-60% with D >= 15%): B4 (§7, docs/decisions.md)
+    if (!river && e < b.drawMaxE && d >= b.devD) return 4;   // B3 and B4 overlap (E 40-60% with D >= 14%): B4 (§7, docs/decisions.md)
     if (e >= b.b3) return 3;
     return 5;
   }
