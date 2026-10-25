@@ -30,7 +30,11 @@ export async function openGame(opts = {}) {
     document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;
     S.autoHero = true; S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
     // a version as tests/ring-bench.mjs reads it: 'spec' (the new bot), 13 (an old version), "13+riverBluff=3" (v13 with a tweak changed)
-    window.__setVer = (p, ver) => { const [v, ...tw] = String(ver).split('+'); p.ver = v === 'spec' ? 'spec' : +v; p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; };
+    window.__setVer = (p, ver) => { const [v, ...tw] = String(ver).split('+'); p.ver = v === 'spec' ? 'spec' : +v;
+      if (v === 'spec') { p.tw = null; p.specParams = tw.length ? tw.reduce((P, t) => { const [k, x] = t.split('='); return __setPath(P, k.split('.'), +x); }, SpecParams.DEFAULTS) : null; return; }
+      p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; };
+    // "spec+equilibrium.bucket.b1=0.75+equilibrium.nodeGrid.freq.1.1=0.6": a copy of the spec bot's params with those numbers changed (path by dots)
+    window.__setPath = (o, keys, x) => { const c = Array.isArray(o) ? o.slice() : Object.assign({}, o); c[keys[0]] = keys.length > 1 ? __setPath(o[keys[0]], keys.slice(1), x) : x; return c; };
     // every hand's traces, kept in memory for the tests (the browser keeps only the last 50 hands)
     window.__hands = []; const end = SpecBot.endHand; SpecBot.endHand = function () { const h = end.apply(this, arguments); if (h) window.__hands.push(h); return h; };
   });

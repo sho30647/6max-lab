@@ -14,7 +14,7 @@
       // §3 Step1: the multiplier of each bucket when a player takes the action
       updateMult: {
         callBet: B(0.5, 1.0, 0.9, 0.9, 0.1),
-        raiseBet: B(1.0, 0.4, 0.05, 0.4, 0.1),
+        raiseBet: B(1.0, 0.1, 0.02, 0.2, 0.05),    // was (1.0, 0.4, 0.05, 0.4, 0.1): set to how the bot itself raises (2026-10-26 night, docs/decisions.md)
         checkAggr: B(0.3, 0.6, 1.0, 0.6, 0.7),     // the aggressor checks
         checkBackIP: B(0.3, 0.6, 1.0, 0.6, 0.7),   // the caller in position checks back (its own copy, §3)
         checkOOPCaller: B(1, 1, 1, 1, 1),          // the caller out of position checks: no narrowing (§3)
@@ -41,11 +41,12 @@
       devHi: 0.80, vulLo: 0.50,
       // §8 Step6
       realize: { ip: 1.0, oop: 0.85, river: 1.0 },
+      reactSeesBet: true,                          // §8 2: the others react to the bot's range as narrowed by the bet (§3), not as it was before it (docs/decisions.md)
       tau: 0.02, delta0: 0, deltaMax: 0.15, marginReact: 0.05,   // deltaMax: the frequency shift is at most 15% of the pot (docs/decisions.md)
       raiseRate: { flop: 0.10, turn: 0.08, river: 0.06 },
       eqDenial: { foldEq: 0.20 }, minSizeShare: 0.10,
       // §9 Step7
-      marginCall: { flopTurn: 0.03, river: 0 }, mdfSlack: 0.10, mdfBorder: 0.10,   // mdfBorder: the MDF guard calls again only down to the price - 10pt (docs/decisions.md)
+      marginCall: { flopTurn: 0.03, river: 0 }, mdfSlack: 0, mdfBorder: 0.10,   // mdfSlack: 0.10 -> 0 (2026-10-26 night, docs/decisions.md); mdfBorder: the MDF guard calls again only down to the price - 10pt (docs/decisions.md)
       raiseF: { flop: 0.75, turn: 1.0, river: 1.0 },
       // §10
       multiwayBluff: 0.3, multiwayValueEc: 0.60

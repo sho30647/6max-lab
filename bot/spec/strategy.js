@@ -127,7 +127,7 @@
 
   /* Step6 (§8): the opponents' reaction to a bet of size s (share of the pot): fold / call / raise, by their equity against the bot's range */
   function reaction(ctx, s) {
-    const eq = ctx.prm.equilibrium, P = ctx.P, B = s * P, Wo = ctx.Wop, eo = ctx.swOp.eq;
+    const eq = ctx.prm.equilibrium, P = ctx.P, B = s * P, Wo = ctx.Wop, eo = eq.reactSeesBet ? seenBet(ctx, s) : ctx.swOp.eq;
     const need = B / (P + 2 * B) + eq.marginReact;
     const rate = ctx.street === 1 ? eq.raiseRate.flop : ctx.street === 2 ? eq.raiseRate.turn : eq.raiseRate.river;
     const callers = [];
@@ -150,6 +150,17 @@
     react.RT = Math.min(B + f * (P + 2 * B), ctx.effStack);
     react.callShare = tot ? (tot - wf - acc) / tot : 0; react.foldShare = tot ? wf / tot : 0; react.raiseShare = tot ? acc / tot : 0;
     return react;
+  }
+  /* the others' equity against the bot's range as they see it after a bet of s x pot: narrowed by §3's multiplier of that size, as index.js
+     narrows it when the bet is made (docs/decisions.md 2026-10-26 night). Before, it was the range before the bet, so a big bet looked far
+     less likely to be folded to than it is, and the river had almost no bluffs */
+  function seenBet(ctx, s) {
+    const um = ctx.prm.equilibrium.updateMult, mult = s >= um.bigBet ? um.betBig : um.betSmall;
+    const key = mult === um.betBig ? 'big' : 'small'; ctx.seen = ctx.seen || {};
+    if (ctx.seen[key]) return ctx.seen[key];
+    const c = ctx.H.cache[ctx.seat], W = ctx.Wme, W0 = ctx.H.W0[ctx.seat], floor = ctx.prm.design.weightFloor, Wn = new Float32Array(NC);
+    for (let i = 0; i < NC; i++) { if (!(W[i] > 0)) continue; const b = c && c.bucket[i]; Wn[i] = b ? Math.max(W[i] * mult[b - 1], floor * (W0 ? W0[i] : W[i])) : W[i]; }
+    return (ctx.seen[key] = ctx.H.table.sweep(Wn, false).eq);
   }
   /* the equity of combo i against the folding part, from E = share-weighted Ec, Er, Ef (no extra sweep) */
   function eqFold(ctx, rc, i, Ei) {
@@ -299,7 +310,7 @@
   function facing(ctx) {
     const eq = ctx.prm.equilibrium, P = ctx.P, toCall = ctx.toCall, river = ctx.street === 3;
     const R = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
-    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : eq.marginCall.flopTurn;
+    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;   // turn: its own margin when set (docs/decisions.md)
     const a = attrs(ctx, ctx.own), k = bucketOf(ctx, a);
     const RE = R * a.E;
     // the defence of the whole range at this price, for the MDF guard (§9 B 5): MDF = 1 - B / (P + B), B = the bet faced, P = the pot before it
