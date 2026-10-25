@@ -7,6 +7,7 @@
 // Output (bench): A minus B in bb per 100 hands per player, with the standard error over deals. Positive = A is stronger.
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
+import { fastTimers } from './spec-harness.mjs';   // setTimeout without the wait: about 9x faster for the old bots
 const require = createRequire('/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
 const html = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.html');
@@ -15,7 +16,7 @@ const browser = await chromium.launch((P => require('fs').existsSync(P) ? { exec
 const page = await browser.newPage();
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 await page.route('**/*', r => { const u = r.request().url(); if (u.includes('gstatic.com/firebasejs')) return r.fulfill({ contentType: 'text/javascript', body: u.endsWith('firebase-app-compat.js') ? FIREBASE_STUB : '' }); return u.startsWith('file:') ? r.continue() : r.abort(); });
-await page.addInitScript(() => { window.__noPopup = true; const st = window.setTimeout; window.setTimeout = (f, ms, ...a) => st(f, 0, ...a); });
+await page.addInitScript(fastTimers);
 await page.goto('file://' + html);
 await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode, null, { timeout: 20000 });
 await page.waitForTimeout(1500);
