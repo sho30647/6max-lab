@@ -1,4 +1,7 @@
 // The bot evaluation, by what the change is about. One command, a plain verdict at the end.
+// Which one: `full` reaches a given precision about 1.8x sooner (measured 2026-10-25, spec vs v13: SE 3.3 in 3.0 min for full, 2.9 in 6.9 min for
+// postflop): the deals that end preflop are almost free, and the duel's flops are the bigger pots. So `full` is the default verdict for any change;
+// `postflop` is for the breakdown by line (which heads-up flops the change wins or loses in).
 //   node tests/bot-eval.mjs postflop [--precision=3] [--minutes=60] [--A=spec --B=13] [--raw]
 //     a postflop change: only heads-up flops are played (tests/spec-duel.mjs): the hands from the charts' ranges of each line, the pot the line makes.
 //     The deals that end preflop (most of them) are not played at all: in a duplicate match they differ by exactly 0 anyway, they would only cost time.
