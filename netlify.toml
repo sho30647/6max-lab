@@ -2,4 +2,4 @@
 # (rules for Claude, agent instructions, docs, tests, tools, Firebase config).
 # Exit 0 = cancel the build; any other change outside these paths deploys as usual.
 [build]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)CLAUDE.md' ':(exclude)BACKLOG.md' ':(exclude).claude' ':(exclude)docs' ':(exclude)tests' ':(exclude)tools' ':(exclude)firestore.rules' ':(exclude)firestore.indexes.json' ':(exclude)firebase.json'"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)CLAUDE.md' ':(exclude)BACKLOG.md' ':(exclude).claude' ':(exclude)docs' ':(exclude)tests' ':(exclude)tools' ':(exclude)firestore.rules' ':(exclude)firestore.indexes.json' ':(exclude)firebase.json' ':(exclude)netlify.toml'"

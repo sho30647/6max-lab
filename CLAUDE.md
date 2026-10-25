@@ -35,3 +35,4 @@ Netlifyはクレジット制プランで、`main` へのマージ（本番デプ
 - `staging` に溜めて動作確認したあと、`staging` → `main` のPRを1本だけ作ってマージする。
 - `main` への直接pushと、`main` 向けのPR作成は、ユーザーが明示的に指示した場合を除いて禁止。
 - `staging` が無ければ `main` から作る。
+- **ルール類だけを先に `main` へ出す（無料）**：`netlify.toml` が `main` にあれば、`CLAUDE.md` / `BACKLOG.md` / `.claude/` / `docs/` / `tests/` / `tools/` / Firebase設定だけの変更は、本番デプロイが取りやめになり0クレジット。`staging` に画面の変更が溜まっていても、ユーザーが「ルールだけ main へ」と言ったら、`origin/main` から枝を切り、出したいルールの変更だけを入れて、`main` 向けのPRを作ってマージする（この場合だけ `main` 向けPRを許可）。画面のファイル（`index.html`、`mtt/`、`bot/` など）が1つでも混ざると15クレジットかかるので、PRの変更ファイル一覧を見て確認する。そのあと `main` を `staging` に取り込んで、差が開かないようにする。
