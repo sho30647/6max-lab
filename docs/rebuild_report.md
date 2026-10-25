@@ -27,6 +27,8 @@
 
 詳しい数字は `docs/decisions.md` の「2026-10-26 夜」の各項目。
 
+**このブランチのデモ：** https://claude.ai/artifact/787MPyiCFMgjXN3NsgpXEx （いつものデモのURLは、1時間ごとの定期作業が `staging` の内容で上書きするため別にした。設定で「新しいボット（試験中）を使う」をオンにして打つ）
+
 ---
 
 ## 結論
