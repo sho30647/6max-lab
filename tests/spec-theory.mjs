@@ -64,7 +64,11 @@ for (let st = 1; st <= 3; st++) {
       um.betSmall.push(small / o.length); um.betBig.push(big / o.length); um.check.push(1 - (small + big) / o.length);
     }
     const fbB = []; for (let b = 1; b <= 5; b++) { const o = fb.filter(x => x.b === b); fbB.push(o.length ? o.filter(x => x.act !== 'fold').length / o.length : null); }
-    res.byBucket = Object.assign(um, { continueVsBet: fbB });
+    const fmtP = a => a.map(x => x == null ? '  -  ' : (100 * x).toFixed(0).padStart(4) + '%').join(' ');
+    const rB = [], crB = []; for (let b = 1; b <= 5; b++) { const o = fb.filter(x => x.b === b); rB.push(o.length ? o.filter(x => x.act === 'raise').length / o.length : null); const q = fr.filter(x => x.b === b); crB.push(q.length ? q.filter(x => x.act !== 'fold').length / q.length : null); }
+    const share = a => { const n = a.length || 1; return [1, 2, 3, 4, 5].map(b => a.filter(x => x.b === b).length / n); };
+    console.log(`      by bucket B1..B5: raise vs a bet ${fmtP(rB)} | continue vs a raise ${fmtP(crB)} | the hands facing a raise ${fmtP(share(fr))}`);
+    res.byBucket = Object.assign(um, { continueVsBet: fbB, raiseVsBet: rB, continueVsRaise: crB });
     const fmt = a => a.map(x => x == null ? '  -  ' : (100 * x).toFixed(0).padStart(4) + '%').join(' ');
     console.log(`      by bucket B1..B5: bet small ${fmt(um.betSmall)} | bet big ${fmt(um.betBig)} | check ${fmt(um.check)} | continue vs a bet ${fmt(fbB)}`);
   }
