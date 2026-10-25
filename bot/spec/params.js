@@ -14,7 +14,7 @@
       // §3 Step1: the multiplier of each bucket when a player takes the action
       updateMult: {
         callBet: B(0.5, 1.0, 0.9, 0.9, 0.1),
-        raiseBet: B(1.0, 0.4, 0.05, 0.4, 0.1),
+        raiseBet: B(1.0, 0.1, 0.02, 0.2, 0.05),    // was (1.0, 0.4, 0.05, 0.4, 0.1): set to how the bot itself raises (2026-10-26 night, docs/decisions.md)
         checkAggr: B(0.3, 0.6, 1.0, 0.6, 0.7),     // the aggressor checks
         checkBackIP: B(0.3, 0.6, 1.0, 0.6, 0.7),   // the caller in position checks back (its own copy, §3)
         checkOOPCaller: B(1, 1, 1, 1, 1),          // the caller out of position checks: no narrowing (§3)
