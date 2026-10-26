@@ -135,7 +135,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 /* ===== analysis ===== */
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 14px}
-.filters select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.filters select{max-width:100%;min-width:0;font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .kpi{background:var(--surface);padding:10px 12px}
 .kpi .v{font-family:var(--num);font-size:26px;font-weight:600;line-height:1.1}
@@ -164,6 +164,26 @@ table.t th:first-child,table.t td:first-child{text-align:left}
 table.t td{padding:6px;text-align:right;border-bottom:1px solid var(--line);font-family:var(--num);font-size:15px;white-space:nowrap}
 table.t td:first-child{font-family:inherit;font-size:13px}
 table.t td.few{color:var(--muted)}
+.lsview{display:flex;gap:6px;margin:4px 0 8px;flex-wrap:wrap}
+.lsview .btn{min-height:36px;padding:6px 10px;font-size:13px;font-weight:500}
+.lsview .btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+table.lshm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:max-content}
+table.lshm th{font-weight:500;color:var(--muted);padding:3px 4px;white-space:nowrap;text-align:center;font-size:11px}
+table.lshm th[scope=row]{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;max-width:104px;white-space:normal;min-width:104px;color:var(--ink);font-size:11px;line-height:1.25}
+table.lshm th em{display:block;font-style:normal;font-size:10px;color:var(--brass);font-weight:700}
+table.lshm td{padding:0;text-align:center}
+table.lshm td button{display:block;width:100%;min-width:52px;height:44px;border:0;border-radius:4px;font-family:var(--num);padding:2px;line-height:1.1;background:var(--b2);color:var(--f2)}
+table.lshm:not(.tot) td button{background:var(--b1);color:var(--f1)}
+table.lshm td button b{display:none;font-size:13px}
+table.lshm.tot td button .m2,table.lshm:not(.tot) td button .m1{display:block}
+table.lshm td button i{display:block;font-style:normal;font-size:9.5px;opacity:.8}
+table.lshm td button.few{opacity:.42;filter:grayscale(.7)}
+table.lshm td button.sel{outline:2px solid var(--ink)}
+table.lshm td.tt{font-family:var(--num);padding:0 4px;white-space:nowrap}
+table.lshm td.tt i{display:block;font-style:normal;font-size:9.5px;color:var(--muted)}
+.lsins{margin:2px 0 10px;padding-left:18px;font-size:13px}.lsins li{margin:3px 0}
+.lsins .ref,.lsnote .ref{color:var(--muted);font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px}
+li.ref{color:var(--muted);list-style:none;margin-left:-18px}
 .bar{position:relative;height:10px;width:110px;margin-left:auto}
 .bar::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}
 .bar span{position:absolute;top:0;height:100%;border-radius:2px}
@@ -2706,6 +2726,11 @@ function renderStats(){
     <section class="block"><h2>スターティングハンド別</h2><p class="sub">色は1ハンドあたりの収支（緑=プラス、赤=マイナス）。</p>${grid.html}</section>
   `;
   foldStats(body);
+  const hm=document.getElementById('lshm');
+  if(hm){ const li=document.getElementById('lsinfo'); const cs=lsCells(hs.map(h=>({h,l:lastStreet(h)})).filter(x=>x.l));
+    hm.parentNode.previousElementSibling.querySelectorAll('button').forEach(b=>b.onclick=()=>{ hm.classList.toggle('tot',b.dataset.v==='tot'); b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); });
+    hm.querySelectorAll('td>button').forEach(b=>b.onclick=()=>{ hm.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+      const d=cs[b.dataset.f+'|'+b.dataset.s]; li.innerHTML=`<b style="color:var(--ink)">${b.dataset.s}・${LS_NAME[b.dataset.f]}</b>　${d.n}ハンド／収支 <span class="${d.net>=0?'pos-c':'neg-c'}">${fmt(d.net)}bb</span>／${fmt(d.bph,2)} bb/ハンド${d.n<LS_MIN_N?'（参考：ハンド数が少ない）':''}`; }); }
   const gi=document.getElementById('grid13');
   gi.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     gi.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
@@ -2792,13 +2817,44 @@ function lastStreetSection(hs){
   const maxBb=Math.max(...flagRows.map(r=>Math.abs(agg(r.hs).bph)));
   const head=`<div class="tscroll"><table class="t"><thead><tr><th>パターン</th><th>ハンド</th><th>割合</th><th>収支 bb</th><th>bb/ハンド</th><th></th></tr></thead><tbody>${flagRows.map(r=>{ const a=agg(r.hs);
     return `<tr><td>${r.lab}</td><td class="${a.n<20?'few':''}">${a.n}</td><td>${(a.n/n*100).toFixed(1)}%</td><td class="${a.net>=0?'pos-c':'neg-c'}">${fmt(a.net)}</td><td class="${a.bph>=0?'pos-c':'neg-c'}">${fmt(a.bph,2)}</td><td>${barHTML(a.bph,maxBb)}</td></tr>`; }).join('')}</tbody></table></div>`;
-  const byFlag=flagRows.map(r=>`<details class="hitem"><summary><span class="p" style="width:auto;flex:1">${r.lab}</span><span class="id" style="width:auto">${r.hs.length}ハンド</span></summary><div style="padding:0 12px 10px">${groupTable(by(r.hs,h=>lastStreet(h).str,STR_ORDER),'ハンドの強さ',10)}</div></details>`).join('');
-  const strRows=STR_ORDER.map(k=>({k,hs:rows.filter(x=>x.l.str===k).map(x=>x.h)})).filter(r=>r.hs.length);
-  const byStr=strRows.map(r=>`<details class="hitem"><summary><span class="p" style="width:auto;flex:1">${r.k}</span><span class="id" style="width:auto">${r.hs.length}ハンド</span></summary><div style="padding:0 12px 10px">${groupTable(by(r.hs,h=>LS_NAME[lastStreet(h).flag],LS_ORDER),'パターン',10)}</div></details>`).join('');
-  return `<p class="sub">対象 ${n}ハンド（すべてのハンドが、必ずどれか1つのパターンに入ります）。灰色の数字は20ハンド未満です。</p>${head}
-    <h3 class="subh">パターンごとの、ハンドの強さ別</h3><div class="hlist">${byFlag}</div>
-    <h3 class="subh">ハンドの強さ別（全パターン合計）</h3>${groupTable(by(rows.map(x=>x.h),h=>lastStreet(h).str,STR_ORDER),'ハンドの強さ',10)}
-    <h3 class="subh">ハンドの強さごとの、パターン別</h3><div class="hlist">${byStr}</div>`;
+  return `<p class="sub">対象 ${n}ハンド（すべてのハンドが、必ずどれか1つのパターンに入ります）。灰色の数字は20ハンド未満です。色の見方：緑=得（プラス）、赤=損（マイナス）、濃いほど大きい。薄くて小さい数字は、ハンド数が少なく当てになりません。</p>${head}
+    <h3 class="subh">どこで得して、どこで損しているか（色の表）</h3>${lsHeatmap(rows)}
+    <h3 class="subh">気づき（当たり前の項目をのぞく）</h3>${lsInsights(rows)}
+    <h3 class="subh">ハンドの強さ別（全パターン合計）</h3>${groupTable(by(rows.map(x=>x.h),h=>lastStreet(h).str,STR_ORDER),'ハンドの強さ',10)}`;
+}
+/* the patterns whose result depends on the player's decision; the others are (nearly) decided by the cards (wins: chop, everyone folds, a bet that takes the pot; sure losses: folding to a better hand) */
+const LS_JUDGE=['fold-bad','call-lose','bet-win','bet-lose'];
+const LS_MIN_N=20;
+/* cells of the table: pattern x hand strength -> {n, net, bph} */
+function lsCells(rows){
+  const m={}; rows.forEach(x=>{ const k=x.l.flag+'|'+x.l.str; (m[k]=m[k]||[]).push(x.h); });
+  const o={}; Object.keys(m).forEach(k=>{ o[k]=agg(m[k]); }); return o;
+}
+function lsHeatmap(rows){
+  const cells=lsCells(rows), flags=LS_FLAGS.filter(([k])=>rows.some(x=>x.l.flag===k));
+  const strs=STR_ORDER.filter(k=>rows.some(x=>x.l.str===k));
+  const maxNet=Math.max(1,...Object.values(cells).map(c=>Math.abs(c.net)));
+  const col=(v,few)=>{ const a=(0.18+Math.abs(v)*0.72).toFixed(2); return {bg:v>=0?`rgba(43,122,87,${a})`:`rgba(182,68,58,${a})`, fg:(!few&&Math.abs(v)>0.5)?'#fff':'var(--ink)'}; };
+  const body=flags.map(([fk,lab])=>{
+    const tot=agg(rows.filter(x=>x.l.flag===fk).map(x=>x.h)), judge=LS_JUDGE.includes(fk);
+    return `<tr><th scope="row" class="${judge?'j':''}">${lab}${judge?'<em>判断しだい</em>':''}</th>`+strs.map(sk=>{
+      const c=cells[fk+'|'+sk]; if(!c) return '<td class="e"></td>';
+      const few=c.n<LS_MIN_N, a=col(clamp(c.bph/6,-1,1),few), b=col(clamp(c.net/maxNet,-1,1),few);
+      return `<td><button type="button" class="${few?'few':''}" data-f="${fk}" data-s="${sk}" style="--b1:${a.bg};--f1:${a.fg};--b2:${b.bg};--f2:${b.fg}"><b class="m1">${fmt(c.bph,1)}</b><b class="m2">${fmt(c.net,0)}</b><i>${c.n}</i></button></td>`; }).join('')
+      +`<td class="tt"><b class="${tot.net>=0?'pos-c':'neg-c'}">${fmt(tot.net,0)}</b><i>${tot.n}</i></td></tr>`; }).join('');
+  return `<div class="lsview" role="group" aria-label="表の色の基準"><button type="button" class="btn on" data-v="tot">合計bb（全体への影響）</button><button type="button" class="btn" data-v="bph">1ハンドあたり</button></div>
+  <div class="tscroll"><table class="lshm tot" id="lshm"><thead><tr><th></th>${strs.map(k=>`<th>${k}</th>`).join('')}<th>合計</th></tr></thead><tbody>${body}</tbody></table></div>
+  <div class="cellinfo" id="lsinfo">マスを押すと、そのマスの詳しい成績が出ます。</div>`;
+}
+function lsInsights(rows){
+  const cells=lsCells(rows), list=[];
+  Object.keys(cells).forEach(k=>{ const [f,s]=k.split('|'); if(LS_JUDGE.includes(f)) list.push({f,s,...cells[k]}); });
+  const line=c=>`<li>${c.s==='ボードなし'?'ボードが出る前':c.s}のとき「${LS_NAME[c.f]}」：合計 <b class="${c.net>=0?'pos-c':'neg-c'}">${fmt(c.net)} bb</b>（${c.n}回、1ハンドあたり ${fmt(c.bph,2)} bb）${c.n<LS_MIN_N?'<span class="ref">参考</span>':''}</li>`;
+  const pick=(neg)=>{ const ok=list.filter(c=>neg?c.net<0:c.net>0).sort((x,y)=>neg?x.net-y.net:y.net-x.net);
+    return {main:ok.filter(c=>c.n>=LS_MIN_N).slice(0,3), ref:ok.filter(c=>c.n<LS_MIN_N).slice(0,2)}; };
+  const part=(title,neg,none)=>{ const r=pick(neg); if(!r.main.length&&!r.ref.length) return `<p class="sub"><b>${title}</b>：${none}</p>`;
+    return `<p class="sub" style="margin-bottom:2px"><b>${title}</b></p><ul class="lsins">${r.main.map(line).join('')||'<li class="ref">20ハンド以上の目立つ項目はまだありません。</li>'}${r.ref.map(line).join('')}</ul>`; };
+  return `<div class="lsnote">${part('損が大きいところ（弱点）',true,'まだありません。')}${part('稼げているところ（得意）',false,'まだありません。')}<p class="sub">「判断しだい」のパターンだけを見ています（降ろされた／強いハンドにコール／ベットしてコールされた）。チョップやプリフロップの全員フォールドなど、当たり前に勝ち負けが決まるものは入れていません。「参考」は20ハンド未満で、たまたまの可能性が高い数字です。</p></div>`;
 }
 
 /* ---------- history ---------- */
