@@ -26,21 +26,22 @@
   function attrs(ctx, i) {
     const eq = ctx.prm.equilibrium, river = ctx.street === 3;
     if (i === ctx.own && ctx.ownExact) {
-      const dv = river ? { D: 0, V: 0 } : E.devVulOf(ctx.ownExact.nextEq, eq.devHi, eq.vulLo);
+      const dv = river ? { D: 0, V: 0, J: 0 } : E.devVulOf(ctx.ownExact.nextEq, eq.devHi, eq.vulLo, ctx.ownExact.eq, eq.drawJump);
       let up = 0, nut = 0; if (!river) for (let c = 0; c < 52; c++) { const e = ctx.ownExact.nextEq[c]; if (e >= eq.devHi) { up++; if (e >= 0.95) nut++; } }
-      return { E: ctx.ownExact.eq, D: dv.D, V: dv.V, nutty: up ? nut / up : null };
+      return { E: ctx.ownExact.eq, D: dv.D, V: dv.V, J: dv.J, nutty: up ? nut / up : null };
     }
     const e = ctx.swMe.eq[i];
-    if (river) return { E: e, D: 0, V: 0, nutty: null };
-    const sw = ctx.swMe; let n = 0, d = 0, v = 0, nut = 0;
-    for (let c = 0; c < 52; c++) { const t = sw.nextTot[i * 52 + c]; if (!(t > 0)) continue; const x = sw.nextWin[i * 52 + c] / t; n++; if (x >= eq.devHi) { d++; if (x >= 0.95) nut++; } if (x < eq.vulLo) v++; }
-    return { E: e, D: n ? d / n : 0, V: n ? v / n : 0, nutty: d ? nut / d : null };
+    if (river) return { E: e, D: 0, V: 0, J: 0, nutty: null };
+    const sw = ctx.swMe, lo = e + eq.drawJump; let n = 0, d = 0, v = 0, j = 0, nut = 0;
+    for (let c = 0; c < 52; c++) { const t = sw.nextTot[i * 52 + c]; if (!(t > 0)) continue; const x = sw.nextWin[i * 52 + c] / t; n++; if (x >= eq.devHi) { d++; if (x >= lo) j++; if (x >= 0.95) nut++; } if (x < eq.vulLo) v++; }
+    return { E: e, D: n ? d / n : 0, V: n ? v / n : 0, J: n ? j / n : 0, nutty: d ? nut / d : null };
   }
   function bucketOf(ctx, a) {
     const eq = ctx.prm.equilibrium;
-    // §7: a draw whose completions are not the nuts counts less (D x (0.5 + 0.5 x nuttiness)), docs/decisions.md
-    const D = a.nutty == null ? a.D : a.D * (0.5 + 0.5 * a.nutty);
-    return RG.bucketOf(a.E, D, ctx.street === 3, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
+    // §7: {tier, draw, col} (ranges.js classify). The draw flag reads J (the next cards that take the hand to 80%+ and up drawJump), not D, so a
+    // made hand that only creeps over 80% is no draw; the nuttiness does not discount it (docs/decisions.md), it still narrows the semi-bluffs of a
+    // multiway pot (evalCombo, §10)
+    return RG.classify(a.E, a.J, ctx.street === 3, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
   }
 
   /* Step2 (§4): the texture, with the static / dynamic axis from the bot's range */
@@ -126,7 +127,7 @@
 
   /* Step6 (§8): the opponents' reaction to a bet of size s (share of the pot): fold / call / raise, by their equity against the bot's range */
   function reaction(ctx, s) {
-    const eq = ctx.prm.equilibrium, P = ctx.P, B = s * P, Wo = ctx.Wop, eo = ctx.swOp.eq;
+    const eq = ctx.prm.equilibrium, P = ctx.P, B = s * P, Wo = ctx.Wop, eo = eq.reactSeesBet ? seenBet(ctx, s) : ctx.swOp.eq;
     const need = B / (P + 2 * B) + eq.marginReact;
     const rate = ctx.street === 1 ? eq.raiseRate.flop : ctx.street === 2 ? eq.raiseRate.turn : eq.raiseRate.river;
     const callers = [];
@@ -150,6 +151,17 @@
     react.callShare = tot ? (tot - wf - acc) / tot : 0; react.foldShare = tot ? wf / tot : 0; react.raiseShare = tot ? acc / tot : 0;
     return react;
   }
+  /* the others' equity against the bot's range as they see it after a bet of s x pot: narrowed by §3's multiplier of that size, as index.js
+     narrows it when the bet is made (docs/decisions.md 2026-10-26 night). Before, it was the range before the bet, so a big bet looked far
+     less likely to be folded to than it is, and the river had almost no bluffs */
+  function seenBet(ctx, s) {
+    const um = ctx.prm.equilibrium.updateMult, mult = s >= um.bigBet ? um.betBig : um.betSmall;
+    const key = mult === um.betBig ? 'big' : 'small'; ctx.seen = ctx.seen || {};
+    if (ctx.seen[key]) return ctx.seen[key];
+    const c = ctx.H.cache[ctx.seat], W = ctx.Wme, W0 = ctx.H.W0[ctx.seat], floor = ctx.prm.design.weightFloor, Wn = new Float32Array(NC);
+    for (let i = 0; i < NC; i++) { if (!(W[i] > 0)) continue; const b = c && c.bucket[i]; Wn[i] = b ? Math.max(W[i] * mult[b - 1], floor * (W0 ? W0[i] : W[i])) : W[i]; }
+    return (ctx.seen[key] = ctx.H.table.sweep(Wn, false).eq);
+  }
   /* the equity of combo i against the folding part, from E = share-weighted Ec, Er, Ef (no extra sweep) */
   function eqFold(ctx, rc, i, Ei) {
     const ec = rc.swC.eq[i], er = rc.swR ? rc.swR.eq[i] : 0;
@@ -159,7 +171,7 @@
   }
 
   /* §8: the EV of each action for combo i, and why a bet would be made (null: no reason, the bet is not taken) */
-  function evalCombo(ctx, i, a, b, reacts) {
+  function evalCombo(ctx, i, a, b, reacts) {   // b: the class {tier, draw} (bucketOf)
     const eq = ctx.prm.equilibrium, P = ctx.P;
     const R = ctx.street === 3 ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
     const evCheck = R * a.E * P;
@@ -177,10 +189,15 @@
       const ev = rc.FE * P + c * (R * (Ec >= 0 ? Ec : 0) * (P + 2 * B) - B) + rc.rho * vRaised;
       // the reasons (§8's table)
       let reason = null;
-      if ((b === 1 || b === 2) && Ec > vEc) reason = 'value';
-      else if ((b === 2 || b === 3) && rc.s <= 0.34) { const ef = eqFold(ctx, rc, i, a.E); if (ef != null && 1 - ef >= eq.eqDenial.foldEq && Ec >= 0.5) reason = 'denial'; }
-      if (!reason && b === 4 && ev > evCheck && !(ctx.nOpp > 1 && !(a.nutty >= 0.5))) reason = 'semibluff';
-      if (!reason && b === 5 && rc.FE * P - (1 - rc.FE) * B > 0) reason = 'bluff';
+      const t = b.tier;
+      if ((t === 1 || t === 2) && Ec > vEc) reason = 'value';
+      else if ((t === 2 || t === 3) && rc.s <= 0.34) { const ef = eqFold(ctx, rc, i, a.E); if (ef != null && 1 - ef >= eq.eqDenial.foldEq && Ec >= 0.5) reason = 'denial'; }
+      // no value reason: bet when the bet beats the check on its whole EV (owner 2026-10-27, docs/decisions.md). Ec is the equity to the river
+      // against the callers, so a gutshot, backdoor draws and overcards count as a solver counts them; no draw threshold gates it. Several
+      // opponents: a draw bets only when its completions are near the nuts (§10). The label: a draw (flop / turn) is a semi-bluff; on the river,
+      // or air with no draw, a bluff (only these count toward the bluff caps); any other hand a semi-bluff
+      if (!reason && ev > evCheck && !(ctx.nOpp > 1 && b.draw && !(a.nutty >= 0.5)))
+        reason = ctx.street === 3 || (t === 5 && !b.draw) ? 'bluff' : 'semibluff';
       out.push({ s: rc.s, B, FE: rc.FE, rho: rc.rho, Ec, Er, needR, vRaised, EV: ev, reason });
     }
     return { evCheck, bets: out };
@@ -208,12 +225,12 @@
     const combos = [];
     for (let i = 0; i < NC; i++) {
       if (!(Wm[i] > 0) || !(ctx.swMe.eq[i] >= 0)) continue;
-      const a = attrs(ctx, i), b = bucketOf(ctx, a);
-      combos.push({ i, w: Wm[i], a, b, ev: evalCombo(ctx, i, a, b, reacts) });
+      const a = attrs(ctx, i), k = bucketOf(ctx, a);
+      combos.push({ i, w: Wm[i], a, b: k.tier, draw: k.draw, ev: evalCombo(ctx, i, a, k, reacts) });
     }
     if (!combos.some(c => c.i === ctx.own)) {   // the bot's own hand is not in its range as the others see it (it played off its chart): add it with no weight
-      const a = attrs(ctx, ctx.own), b = bucketOf(ctx, a);
-      combos.push({ i: ctx.own, w: 0, a, b, ev: evalCombo(ctx, ctx.own, a, b, reacts) });
+      const a = attrs(ctx, ctx.own), k = bucketOf(ctx, a);
+      combos.push({ i: ctx.own, w: 0, a, b: k.tier, draw: k.draw, ev: evalCombo(ctx, ctx.own, a, k, reacts) });
     }
     const nS = reacts.length;
     const ratio = s => (s * P) / (P + 2 * s * P);
@@ -228,12 +245,12 @@
         const r = probs(ctx, c.ev, delta); c.p = r.p; c.d = r.d;
         if (s4.freq === 0) { c.p = c.p.map((x, k) => k === 0 ? 1 : 0); continue; }
         if (c.b === 1 && s4.slowB1 > 0) { const move = (1 - c.p[0]) * s4.slowB1; for (let k = 1; k <= nS; k++) c.p[k] *= 1 - s4.slowB1; c.p[0] += move; }   // §6: OOP keeps a share of B1 in its check range
-        if (ctx.nOpp > 1 && c.b === 5) { const keep = eq.multiwayBluff; for (let k = 1; k <= nS; k++) { c.p[0] += c.p[k] * (1 - keep); c.p[k] *= keep; } }
+        if (ctx.nOpp > 1 && c.b === 5 && !c.draw) { const keep = eq.multiwayBluff; for (let k = 1; k <= nS; k++) { c.p[0] += c.p[k] * (1 - keep); c.p[k] *= keep; } }
       }
       // bluff caps per size, the bluffs with the best blockers kept first (§8, §10)
       for (let k = 1; k <= nS; k++) {
         let val = 0, bl = 0; const bluffs = [];
-        for (const c of combos) { const x = c.w * c.p[k]; if (!x) continue; if (c.b === 5) { bl += x; bluffs.push(c); } else val += x; }
+        for (const c of combos) { const x = c.w * c.p[k]; if (!x) continue; if (c.b === 5 && !c.draw) { bl += x; bluffs.push(c); } else val += x; }
         const cap = capOf(reacts[k - 1].s); if (bl <= cap * (bl + val) || !bluffs.length) continue;
         let room = cap / (1 - cap) * val;
         if (!bluffBlk) { bluffBlk = new Map(); }
@@ -260,7 +277,7 @@
       const tot = w[0] + w[1];
       if (tot > 0) for (let k = 0; k < 2; k++) if (w[k] / tot < eq.minSizeShare) { merged = { from: s4.sizes[k], to: s4.sizes[1 - k] }; for (const c of combos) { c.p[2 - k] += c.p[k + 1]; c.p[k + 1] = 0; } break; }
     }
-    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (c.b === 5) bl += x; } return { s: rc.s, weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
+    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (c.b === 5 && !c.draw) bl += x; } return { s: rc.s, weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
 
     // the bot's own hand
     const me = combos.find(c => c.i === ctx.own);
@@ -269,7 +286,7 @@
     // Step5 record (§7, §12): the bot's hand
     let rank = 0, tw = 0; for (const c of combos) { tw += c.w; if (c.a.E > me.a.E) rank += c.w; }
     const z = blk(me);
-    ctx.tr.step5 = { E: r3(me.a.E), bucket: me.b, D: r3(me.a.D), V: r3(me.a.V), nutty: r3(me.a.nutty), blockCall: r3(z.call), blockFold: r3(z.fold), rank: r3(tw ? rank / tw : 0),
+    ctx.tr.step5 = { E: r3(me.a.E), bucket: me.b, draw: me.draw, D: r3(me.a.D), J: r3(me.a.J), V: r3(me.a.V), nutty: r3(me.a.nutty), blockCall: r3(z.call), blockFold: r3(z.fold), rank: r3(tw ? rank / tw : 0),
       Er: me.ev.bets.map(x => r3(x.Er)), equityMode: ctx.H.mode };
     // Step6 record
     ctx.tr.step6 = {
@@ -280,7 +297,7 @@
     // Step7 A (§9): the plan if raised
     const x = me.ev.bets[pick - 1];
     let plan;
-    const strongDraw = me.b === 4 && me.a.D >= 0.3 && ctx.sprClass === 'low';
+    const strongDraw = me.draw && me.a.J >= 0.3 && ctx.sprClass === 'low';
     if ((me.b === 1 && x.Er != null && x.Er >= Math.max(x.needR, 0.5) + 0.1) || strongDraw) plan = 'bet/3bet';
     else if (x.Er != null && x.Er >= x.needR) plan = 'bet/call';
     else plan = 'bet/fold';
@@ -292,9 +309,15 @@
   /* Step7 B (§9): facing a bet or a raise. The ranges are already narrowed by the bet (index.js); R x E against them against the price */
   function facing(ctx) {
     const eq = ctx.prm.equilibrium, P = ctx.P, toCall = ctx.toCall, river = ctx.street === 3;
-    const R = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
-    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : eq.marginCall.flopTurn;
-    const a = attrs(ctx, ctx.own), b = bucketOf(ctx, a);
+    const R0 = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
+    const need = toCall / (P + toCall), margin0 = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;   // turn: its own margin when set (docs/decisions.md)
+    // the SPR after the call (P holds the bet faced, so P + toCall is the pot after the call; effStack is what the bot can still put in, matched).
+    // R under 1 and the margin are for the later streets (folded off them, made to pay more): with little stack behind there is little of either,
+    // so both go in a line to 1 / 0 as that SPR goes to 0 (an all-in call), and stay as they are from facingSprFull on (docs/hand_reviews.md #1)
+    const sprAfter = Math.max(0, ctx.effStack - toCall) / (P + toCall);
+    const w = eq.facingSprFull > 0 ? Math.min(1, sprAfter / eq.facingSprFull) : 1;
+    const R = river ? R0 : 1 - (1 - R0) * w, margin = river ? margin0 : margin0 * w;
+    const a = attrs(ctx, ctx.own), k = bucketOf(ctx, a);
     const RE = R * a.E;
     // the defence of the whole range at this price, for the MDF guard (§9 B 5): MDF = 1 - B / (P + B), B = the bet faced, P = the pot before it
     const Pb = P - toCall, mdf = 1 - toCall / (Pb + toCall);
@@ -330,12 +353,12 @@
       }
     }
     if (raiseWhy) act = 'raise';
-    ctx.tr.step5 = { E: r3(a.E), bucket: b, D: r3(a.D), V: r3(a.V), nutty: r3(a.nutty), blockCall: null, blockFold: null, rank: null, Er: null, equityMode: ctx.H.mode };
+    ctx.tr.step5 = { E: r3(a.E), bucket: k.tier, draw: k.draw, D: r3(a.D), J: r3(a.J), V: r3(a.V), nutty: r3(a.nutty), blockCall: null, blockFold: null, rank: null, Er: null, equityMode: ctx.H.mode };
     ctx.tr.step6 = { facing: true, cands: [{ act: 'fold', EV: 0 }, { act: 'call', EV: r3((RE * (P + toCall) - toCall) / ctx.bb) }].concat(raiseWhy ? [{ act: 'raise', to: Math.round(to), reason: raiseWhy, estFold: r3(estFold) }] : []),
       chosen: { act }, probs: null, rnd: null };
-    ctx.tr.step7 = { kind: 'facing', need: r3(need), margin, R, RE: r3(RE), cut: r3(cut), mdf: r3(mdf), defense: r3(defense), mdfGuard: guard, raiseWhy, raiseTo: raiseWhy ? Math.round(to) : null, estFold: r3(estFold) };
+    ctx.tr.step7 = { kind: 'facing', need: r3(need), margin: r3(margin), R: r3(R), R0, margin0, sprAfter: r3(sprAfter), RE: r3(RE), cut: r3(cut), mdf: r3(mdf), defense: r3(defense), mdfGuard: guard, raiseWhy, raiseTo: raiseWhy ? Math.round(to) : null, estFold: r3(estFold) };
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
-  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, probs, betNode, facing };
+  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, evalCombo, probs, betNode, facing };
 });

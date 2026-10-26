@@ -55,5 +55,45 @@ let fails = 0; const check = (ok, msg) => { if (!ok) { fails++; console.log('FAI
   const f = geo(95, 10, 3);
   check(Math.abs(f - 0.86) < 0.01, 'geometric size ' + f.toFixed(3));
 }
+// 4. docs/hand_reviews.md #1: the turn 7c8s6hQh, the bot OOP with Ah5h (the nut flush draw, ~48% against the betting range) faces a bet of
+//    2.45x the pot before it with an effective stack of 4.9 pots. After a call ~0.42 pots of stack stay behind for ~5.9 pots in the middle
+//    (SPR 0.42): R and the margin shrink toward 1 and 0 (facingSprFull), so it calls. An all-in call: R = 1, margin 0. Deep: as before
+{
+  const board = C.parseCards('7c8s6hQh'), hole = C.parseCards('Ah5h'), me = C.comboOf(hole[0], hole[1]);
+  const dead = new Set(board.concat(hole)), cls = {};
+  for (let i = 0; i < C.NC; i++) { if (dead.has(C.CA[i]) || dead.has(C.CB[i])) continue; (cls[C.CLASS[i]] = cls[C.CLASS[i]] || []).push(i); }
+  const W = keys => { const w = new Float32Array(C.NC); for (const k of keys) for (const i of cls[k] || []) w[i] = 1; return w; };
+  // the bettor: sets, two pairs, straights, top pairs, and K-high / J-high bluffs (so the bot's hand is at ~48%)
+  const opp = W(['77', '88', '66', 'QQ', 'T9s', 'T9o', '87s', '76s', 'AQs', 'AQo', 'KQs', 'KJs', 'KJo', 'KTs', 'JTs']);
+  // the bot's range: its hand and enough strong hands that it defends more than the MDF (the guard stays out of it)
+  const mine = W(['T9s', 'T9o', '54s', '99', 'A5s']); mine[me] = 1;
+  const run = (effStack, pb, bet) => {
+    const H = new RG.HandRanges(P.DEFAULTS); H.setPre(0, mine); H.setPre(1, opp); H.startStreet(2, board);
+    const tr = {};
+    const ctx = { prm: P.DEFAULTS, seat: 0, street: 2, board, hole, own: me, P: pb + bet, toCall: bet, stack: effStack, myBet: 0, currentBet: bet, effStack, ip: false,
+      nodeKind: 'facingBet', nOpp: 1, H, Wme: H.W[0], Wop: H.W[1], WopRaw: H.W[1], rng: () => 0.99, tr, bb: 100, sprClass: 'mid' };
+    ST.prepare(ctx); const d = ST.facing(ctx); return { d, s7: tr.step7, E: tr.step5.E, tr };
+  };
+  const a = run(4900, 1000, 2450), s = a.s7;
+  check(a.E > 0.46 && a.E < 0.52, `A5hh against the betting range: ${a.E} (want ~48%)`);
+  check(Math.abs(s.sprAfter - 2450 / 5900) < 0.002, `SPR after the call ${s.sprAfter} (want 0.415)`);
+  check(Math.abs(s.R - (1 - 0.15 * 2450 / 5900)) < 0.002 && Math.abs(s.margin - 0.03 * 2450 / 5900) < 0.002, `R ${s.R} margin ${s.margin} (want 0.938 / 0.012)`);
+  check(!s.mdfGuard, 'the MDF guard is not what decides it');
+  check(a.d.act === 'call', `facing 2.45x pot with 4.9 pots behind: ${a.d.act} (want call); trace ${JSON.stringify(s)}`);
+  const b = run(2450, 1000, 2450).s7;   // the bet puts the bot all-in
+  check(b.sprAfter === 0 && b.R === 1 && b.margin === 0, `an all-in call: SPR ${b.sprAfter} R ${b.R} margin ${b.margin} (want 0 / 1 / 0)`);
+  const c = run(30000, 1000, 2450).s7;   // deep: SPR after the call ~4.7
+  check(c.sprAfter >= 1 && c.R === 0.85 && c.margin === 0.03, `deep: SPR ${c.sprAfter} R ${c.R} margin ${c.margin} (want R 0.85, margin 0.03)`);
+  const e = run(5900 * 1 + 2450, 1000, 2450).s7;   // exactly SPR 1 after the call: unchanged
+  check(Math.abs(e.sprAfter - 1) < 1e-3 && e.R === 0.85 && e.margin === 0.03, `SPR 1 after the call: R ${e.R} margin ${e.margin} (want 0.85 / 0.03)`);
+  // the explanation's ⑦ says, in plain words, that R and the margin were made smaller because little stack is left (explain.js)
+  const X = require('../bot/spec/explain.js');
+  const text = tr => { try { const t = X.explain(Object.assign({ street: 2, pos: 'BB', hole, board, step0: { bb: 100, pot: 3450, toCall: 2450, nodeKind: 'facingBet', potType: 'SRP', sprClass: 'mid', spr: 2, nPlayers: 2 }, decision: { act: 'call' } }, tr), P.DEFAULTS); return t.lines.find(l => l.includes('コールに必要な勝率')) || ''; } catch (err) { return 'ERROR ' + err.message; } };
+  const ta = text(a.tr), tb = text(run(2450, 1000, 2450).tr), tc = text(run(30000, 1000, 2450).tr);
+  check(ta.includes('残るチップがポットの42%しかなく') && ta.includes('ふだんは実現率0.85、上乗せ3pt'), 'the explanation of the shallow call: ' + ta);
+  check(tb.includes('コールするとオールイン') && tb.includes('上乗せを0にした'), 'the explanation of the all-in call: ' + tb);
+  check(!tc.includes('ふだんは'), 'the explanation of the deep call says nothing of it: ' + tc);
+  console.log(`hand review #1: A5hh ${(a.E * 100).toFixed(1)}%, SPR after the call ${s.sprAfter}, R ${s.R}, margin ${s.margin}, RE ${s.RE} vs ${s.cut} -> ${a.d.act}`);
+}
 console.log(fails ? `${fails} failed` : 'spec-examples: all passed');
 process.exit(fails ? 1 : 0);

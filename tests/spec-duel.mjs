@@ -12,7 +12,7 @@
 // Usage: node tests/spec-duel.mjs [duels per process=2000] [processes=4] [first seed=1] [--A=spec --B=13] [--precision=2] [--minutes=30] [--raw]
 //          --precision=X: more batches until the 95% interval per dealt hand is +-X bb/100 or narrower; --minutes=M: stop after M minutes
 //        node tests/spec-duel.mjs --selftest   (v13 against v13 and spec against spec: both must be 0 +- noise)
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'url'; import path from 'path';
 import { stat, options, worker, runBatches, verdict } from './eval-stats.mjs';
 const self = fileURLToPath(import.meta.url);
 const args = process.argv.slice(2);
@@ -46,7 +46,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
   const N = +args[1], SEED = +args[2], LW = JSON.parse(args[3]), MODE = args[4] || 'a';   // MODE: a = A vs B, 'oo' = v13 vs v13, 'ss' = spec vs spec
   const VA = args[5] || 'spec', VB = args[6] || '13';
   const { browser, page, errors } = await openGame({ allinEV: args[7] !== 'raw' });
-  const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB]) => {
+  const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB, THEORY]) => {
     const POSN = ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'];
     const toSpot = T => { const r = new Map(), c = new Map(), j = new Map(); for (const k in T.h) { const x = T.h[k]; if (+x.r > 0) r.set(k, +x.r); if (+x.c > 0) c.set(k, +x.c); if (+x.j > 0) j.set(k, +x.j); } return { r, c, j, size: T.size }; };
     const spots = {};   // the chart spots of each line (what the game's bots read)
@@ -110,7 +110,19 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       S.cursor = (S.button + 1) % 6;
       await playHand(true);
       const lh = SpecBot.lastHand;   // the new bot's decisions of this play (when a spec bot is in it)
-      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street })) : [] };
+      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
+        th: THEORY && !r.other.fallback ? theoryOf(r) : undefined, flip: flipOf(r) })) : [] };
+    }
+    // a call that the R and margin before the shallow-SPR shrink (R0, margin0, docs/hand_reviews.md #1) would have folded (outside the MDF guard)
+    function flipOf(r) {
+      const s = r.step7, e = r.step5 && r.step5.E;
+      return !!(s && s.kind === 'facing' && s.R0 != null && r.decision.act === 'call' && !s.mdfGuard && (s.R !== s.R0 || s.margin !== s.margin0) && e < 0.8 && s.R0 * e < s.need + s.margin0);
+    }
+    // --theory: each decision, in short, for tests/spec-theory.mjs (the frequencies against their theoretical values)
+    function theoryOf(r) {
+      const c = r.step6 && r.step6.cands && r.step6.chosen ? r.step6.cands.find(x => x.act === r.step6.chosen.act && (x.size || 0) === (r.step6.chosen.size || 0)) : null;
+      return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, eff: r.step0.effStack, act: r.decision.act, to: r.decision.to,
+        E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, tgt: r.step6 && r.step6.target, rf: r.step6 && r.step6.rangeFreq, sh: r.step6 && r.step6.shift, ev: c && r.step6.cands[0] ? r.step6.cands.map(x => x.EV) : null, Ec: c && c.Ec, na: r.step3 && r.step3.na };
     }
     const rows = [];
     for (let k = 0; k < N; k++) {
@@ -137,16 +149,17 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       const recs = r1.recs.concat(r2.recs);
       const same = MODE === 'a' ? null : (r1.log.replace(/\bseat\d\b/g, '') === r2.log.replace(/\bseat\d\b/g, ''));
       if (same === false && !globalThis.__shown) { globalThis.__shown = 1; console.log('DIFF', L.name, '\n 1:', r1.log, '\n 2:', r2.log); }
-      rows.push({ same, line: L.name, d: (a1 + a2) / 2 - (b1 + b2) / 2, a1, a2, sum, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
+      rows.push({ th: THEORY ? recs.map(r => r.th).filter(Boolean) : undefined, same, line: L.name, d: (a1 + a2) / 2 - (b1 + b2) / 2, a1, a2, sum, flip: recs.filter(r => r.flip).length, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
       if (__hands.length > 50) __hands.length = 0;
     }
     return rows;
-  }, [N, SEED, LW, MODE, VA, VB]);
+  }, [N, SEED, LW, MODE, VA, VB, args[8] === 'theory']);
   console.log('RESULT ' + JSON.stringify({ rows: out, errors: errors.slice(0, 3), allin: await page.evaluate(() => __allinCount) }));
   await browser.close();
   process.exit(0);
 }
 
+if (path.resolve(process.argv[1] || '') === self) {   // not when another script imports LINES
 // ---- the main process: runs the workers and pools the rows ----
 const selftest = args[0] === '--selftest';
 const o = options(args);
@@ -175,6 +188,8 @@ for (const mode of modes) {
   console.log(`  all lines, as sampled:   ${f(tot)}   (SE ${(tot.se * 100).toFixed(1)})`);
   console.log(`  all lines, weighted by how often a dealt hand reaches the flop heads-up in that line: ${P.flop.mean.toFixed(1)} ± ${(1.96 * P.flop.se).toFixed(1)} bb/100 flops`);
   console.log(`  per dealt hand and player (x ${P.wsum.toFixed(3)} of the deals / 3 players of the 6 in the duel's 2): ${P.hand.mean.toFixed(1)} ± ${(1.96 * P.hand.se).toFixed(1)} bb/100 hands   <- the number to read`);
+  { const fl = rows.filter(r => r.flip > 0), x = stat(fl);   // the samples where the new rule turned a fold into a call (docs/hand_reviews.md #1)
+    if (fl.length) console.log(`  calls that R and the margin before the shallow-SPR shrink would have folded: ${fl.reduce((a, r) => a + r.flip, 0)} in ${fl.length} samples (${(100 * fl.length / rows.length).toFixed(1)}%); A minus B in them ${(x.mean * 100).toFixed(1)} ± ${(196 * x.se).toFixed(1)} bb/100 of those flops, ${(fl.reduce((a, r) => a + r.d, 0) / rows.length * 100).toFixed(2)} bb/100 of all flops`); }
   const badSum = rows.filter(r => Math.abs(r.sum) > 1e-6).length, noSpec = rows.filter(r => mode !== 'oo' && (VA === 'spec' || VB === 'spec') && r.spec === 0).length, fbs = rows.reduce((a, r) => a + r.fb, 0), nd = rows.reduce((a, r) => a + r.spec, 0);
   const wrongPt = rows.filter(r => r.pt && r.pt !== (r.line.startsWith('SRP') ? 'SRP' : '3BP')).length;
   console.log(`  checks: chips not conserved in ${badSum} samples; samples with no decision of the new bot ${noSpec}; new-bot decisions ${nd}, handed to the old bot ${fbs}; pot type in the trace wrong in ${wrongPt}`);
@@ -183,4 +198,5 @@ for (const mode of modes) {
   if (mode === 'ss' && Math.abs(tot.mean) > 2.5 * tot.se) { console.log('SELFTEST FAIL: spec against spec must differ by 0 within the noise'); process.exitCode = 1; }
   if (mode === 'a') console.log(verdict(P.hand.mean, P.hand.se, VA === 'spec' ? '新ボット' : 'A', VB === '13' ? '旧ボット' : 'B') + `（1対1のフロップだけ。配られたハンドの ${(100 * wsumAll).toFixed(0)}% にあたる）`);
   console.log('RESULT ' + JSON.stringify({ mode, tot, flop: P.flop, hand: P.hand, n: rows.length }));
+}
 }

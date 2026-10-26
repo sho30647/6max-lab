@@ -127,7 +127,7 @@
       const rk = s5.rank != null ? `ボットのレンジの中では上から${pct(s5.rank)}の位置。` : '';
       L.push('⑥ このハンドの強さ',
         `  事実：${oppName}の今のレンジに対する勝率${pct(s5.E)}。${river ? '' : `次のカードで勝率が80%以上に上がる確率${pct(s5.D)}、50%未満に下がる確率${pct(s5.V)}。`}${rk}${blk}${s5.equityMode && s5.equityMode !== 'exact' ? '（この手の勝率は厳密計算、レンジのほかの手は近似）' : ''}`);
-      const bw = W.bucket[s5.bucket] ? `${W.bucket[s5.bucket]}「${BUCKET[s5.bucket]}」帯` : missing('Step5', 'bucket' + s5.bucket);
+      const bw = W.bucket[s5.bucket] ? `${W.bucket[s5.bucket]}「${BUCKET[s5.bucket]}」帯${s5.draw ? '。それとは別に、ドロー（次のカードで強くなる見込みが大きい手）でもある' : ''}` : missing('Step5', 'bucket' + s5.bucket);
       L.push(`  判断：${bw}。${river ? 'リバーなので、この先強くなることも逆転されることもない' : `${pick(W.D, s5.D)}。${pick(W.V, s5.V)}`}。`);
     }
     // ⑦ Step6, ⑧ Step7
@@ -135,8 +135,12 @@
     if (!s6) L.push('⑦ アクションの比較', '  ' + missing('Step6', 'none'));
     else if (s6.facing) {
       const call = s6.cands.find(c => c.act === 'call'), r = s6.cands.find(c => c.act === 'raise');
+      // the SPR after the call under facingSprFull: R and the margin were pulled toward 1 and 0 (strategy.js facing, docs/hand_reviews.md #1)
+      const shrunk = s7.R0 != null && (s7.R !== s7.R0 || s7.margin !== s7.margin0);
+      const shallow = !shrunk ? '' : s7.sprAfter === 0 ? `コールするとオールインで、この後に降ろされることも追加で払うこともないので、${s7.R0 < 1 ? '実現率を1に、' : ''}上乗せを0にした（ふだんは${s7.R0 < 1 ? `実現率${s7.R0}、` : ''}上乗せ${Math.round(s7.margin0 * 100)}pt）。`
+        : `コールした後に残るチップがポットの${Math.round(s7.sprAfter * 100)}%しかなく、この後に降ろされる心配も追加で払う額も小さいので、${s7.R0 < 1 ? '実現率を1に近づけ、上乗せを' : '上乗せを'}その分だけ小さくした（ふだんは${s7.R0 < 1 ? `実現率${s7.R0}、` : ''}上乗せ${Math.round(s7.margin0 * 100)}pt）。`;
       L.push('⑦ アクションの比較',
-        `  事実：コールに必要な勝率${pct(s7.need)}${s7.margin ? `（後のストリートで追加の支払いを迫られる分、${Math.round(s7.margin * 100)}ptを上乗せして${pct(s7.need + s7.margin)}）` : ''}。実現率${s7.R}×勝率で${pct(s7.RE)}。コールの期待値は約${call.EV}bb。${r ? `レイズするなら${bb(r.to, b)}まで。` : ''}`);
+        `  事実：コールに必要な勝率${pct(s7.need)}${s7.margin ? `（後のストリートで追加の支払いを迫られる分、${Math.round(s7.margin * 100)}ptを上乗せして${pct(s7.need + s7.margin)}）` : ''}。実現率${s7.R}×勝率で${pct(s7.RE)}。${shallow}コールの期待値は約${call.EV}bb。${r ? `レイズするなら${bb(r.to, b)}まで。` : ''}`);
       let j;
       if (s6.chosen.act === 'raise') j = s7.raiseWhy === 'value' ? '絞り込んだレンジに対してもナッツ級なので、レイズして価値を取る' : s7.raiseWhy === 'bluff' ? `ショーダウンで勝てる見込みがなく、相手が降りる割合（推定${pct(s7.estFold)}）が高いので、ブラフでレイズする` : missing('Step7', 'raise:' + s7.raiseWhy);
       else if (s6.chosen.act === 'call') j = s7.mdfGuard && s7.RE < s7.need + s7.margin ? `勝率だけなら足りないが、降りすぎを防ぐ基準（下の⑧）でコールに回す` : '必要な勝率を上回るのでコールする';
@@ -147,7 +151,7 @@
         `  判断：${s7.mdfGuard ? `目安を10pt以上下回るので、境界の手（必要な勝率より最大10pt低い手まで）をコールに戻した（基準を${pct(s7.cut)}まで下げた）` : '目安を大きくは下回らないので、基準はそのまま'}。`);
     } else {
       const bets = s6.cands.filter(c => c.act === 'bet');
-      const REASON = { value: 'コールしてくる手にも勝っているので、ベットがバリューとして機能する', denial: '降りる手が持っている勝率を消せるので、エクイティ否定の小さいベットが成り立つ', semibluff: '降りてもらう分と、コールされた後に強くなる見込みを合わせると、チェックより得', bluff: '降りてもらうだけで得になるので、ブラフとして打てる' };
+      const REASON = { value: 'コールしてくる手にも勝っているので、ベットがバリューとして機能する', denial: '降りる手が持っている勝率を消せるので、エクイティ否定の小さいベットが成り立つ', semibluff: '降りてもらう分と、コールされた後に強くなる見込みを合わせると、チェックより得', bluff: '降りてもらう分と、コールされても勝つ分（ガットショットやバックドアの見込みを含む）を合わせると、チェックより得なので、ブラフとして打てる' };
       const facts = bets.map(c => `ポットの${pct(c.size)}ベットでは、${oppName}のレンジの${pct(c.FE)}が降り、${pct(c.raise)}がレイズし、コールしてくる手に対する勝率は${pct(c.Ec)}`).join('。');
       const evs = [`チェック${s6.cands[0].EV}bb`].concat(bets.map(c => `${pct(c.size)}ベット${c.EV}bb`)).join('、');
       L.push('⑦ アクションの比較', `  事実：${facts}。期待値は${evs}。${s6.shift ? `レンジ全体のベット頻度を目標（${pct(s6.target)}）に近づけるため、ベットの期待値に一律でポットの${pct(s6.shift)}を足して比べた（調整後の頻度${pct(s6.rangeFreq)}）。` : ''}${s6.deltaPot != null ? `${s6.shift ? '調整後の' : ''}1番目と2番目の差はポットの約${pct(s6.deltaPot)}。` : ''}${s6.merged ? `ポットの${pct(s6.merged.from)}のサイズを使う手がベット全体の10%未満なので、${pct(s6.merged.to)}にまとめた。` : ''}`);
