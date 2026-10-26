@@ -12,6 +12,7 @@
 // Usage: node tests/spec-duel.mjs [duels per process=2000] [processes=4] [first seed=1] [--A=spec --B=13] [--precision=2] [--minutes=30] [--raw]
 //          --precision=X: more batches until the 95% interval per dealt hand is +-X bb/100 or narrower; --minutes=M: stop after M minutes
 //        node tests/spec-duel.mjs --selftest   (v13 against v13 and spec against spec: both must be 0 +- noise)
+// The worker's 'scan' and 'detail' modes are for tests/spec-scan.mjs (each decision played again with another action; one deal's hand history).
 import { fileURLToPath } from 'url'; import path from 'path';
 import { stat, options, worker, runBatches, verdict } from './eval-stats.mjs';
 const self = fileURLToPath(import.meta.url);
@@ -46,7 +47,8 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
   const N = +args[1], SEED = +args[2], LW = JSON.parse(args[3]), MODE = args[4] || 'a';   // MODE: a = A vs B, 'oo' = v13 vs v13, 'ss' = spec vs spec
   const VA = args[5] || 'spec', VB = args[6] || '13';
   const { browser, page, errors } = await openGame({ allinEV: args[7] !== 'raw' });
-  const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB, THEORY]) => {
+  const EXTRA = args[8] || '', DETAIL = EXTRA === 'detail' ? JSON.parse(args[9]) : null;   // scan / detail: tests/spec-scan.mjs
+  const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB, THEORY, SCAN, DETAIL]) => {
     const POSN = ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'];
     const toSpot = T => { const r = new Map(), c = new Map(), j = new Map(); for (const k in T.h) { const x = T.h[k]; if (+x.r > 0) r.set(k, +x.r); if (+x.c > 0) c.set(k, +x.c); if (+x.j > 0) j.set(k, +x.j); } return { r, c, j, size: T.size }; };
     const spots = {};   // the chart spots of each line (what the game's bots read)
@@ -74,6 +76,21 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
     // the dice: one stream for the cards (per sample), the game's Math.random for the bots, seeded the same in both plays
     const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const seatOf = p => S.players.findIndex((q, i) => posOf(i) === p);
+    // scan / detail (tests/spec-scan.mjs): the k-th decision of the new bot in a play can be replaced by another action (force), and every action is logged.
+    // Everything before it is the same as in the first play (the same cards and dice), so the difference in the result is what that one action changed.
+    let force = null, nDec = 0, acts = [];
+    if (SCAN || DETAIL) SpecBot.setEquityMode('exact');   // not the timed probe: the same numbers in every worker, however busy the machine
+    const dec0 = SpecBot.decide;
+    SpecBot.decide = function (seat) { const d = dec0.apply(this, arguments), k = nDec++; return force && force.k === k ? altOf(seat, d) : d; };
+    function altOf(seat, d) {   // the other action: facing a bet fold <-> call (a raise -> call); first to act check <-> a bet of 2/3 of the pot
+      const p = S.players[seat], toCall = S.currentBet - p.bet;
+      if (toCall > 0) return { act: d.act === 'call' ? 'fold' : 'call' };
+      if (d.act === 'raise') return { act: 'check' };
+      let amt = Math.max(BB, Math.round(0.66 * potTotal())); if (amt >= p.stack || p.stack - amt < potTotal() + 2 * amt) amt = p.stack;
+      return { act: 'raise', to: p.bet + amt };
+    }
+    if (SCAN || DETAIL) { const ap0 = window.applyAction; window.applyAction = function (seat, dec) { const p = S.players[seat], pot = potTotal(), toCall = S.currentBet - p.bet, bet0 = S.currentBet === 0, st = S.street;
+      ap0.apply(this, arguments); acts.push({ seat, pos: posOf(seat), st, act: p.folded ? 'fold' : dec.act === 'raise' ? (bet0 ? 'bet' : 'raise') : toCall === 0 ? 'check' : 'call', to: p.bet, pot, toCall, allIn: p.allIn }); }; }
     async function play(L, card, vers) {   // vers: [version of the opener, version of the other player]
       const sp = spots[L.name];
       // seats: choose the button so that neither player sits in seat 0 (the hero seat)
@@ -98,7 +115,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       S.firstRaiser = so; S.threeBettor = L.type === '3bp' ? sv : -1; S.heroIPflop = null;
       S.players[so].raisedPre = true; if (L.type === '3bp') { S.players[sv].raisedPre = true; S.players[so].called3 = true; } else S.players[sv].called = true;
       // the preflop actions, as the game would have announced them (the new bot builds the ranges from these; the old bot's ranges the game builds with assignPreRange)
-      SpecBot.newHand();
+      SpecBot.newHand(SCAN || DETAIL ? 1e6 + curK : undefined); nDec = 0; acts = [];   // scan / detail: the bot's own dice fixed per deal, so a play again is the same up to the replaced action
       const note = (s, act, spot, kind) => { SpecBot.onAction(s, { street: 0, act, to: 0, potBefore: 0, toCall: 0, allIn: false, pre: { spot, kind } }); };
       if (L.type === 'srp') {
         note(so, 'raise', sp.o, 'open'); note(sv, 'call', sp.v, 'vsOpen');
@@ -110,7 +127,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       S.cursor = (S.button + 1) % 6;
       await playHand(true);
       const lh = SpecBot.lastHand;   // the new bot's decisions of this play (when a spec bot is in it)
-      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
+      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), lh, acts: acts.slice(), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
         th: THEORY && !r.other.fallback ? theoryOf(r) : undefined })) : [] };
     }
     // --theory: each decision, in short, for tests/spec-theory.mjs (the frequencies against their theoretical values)
@@ -119,8 +136,35 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, act: r.decision.act, to: r.decision.to,
         E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, tgt: r.step6 && r.step6.target, rf: r.step6 && r.step6.rangeFreq, sh: r.step6 && r.step6.shift, ev: c && r.step6.cands[0] ? r.step6.cands.map(x => x.EV) : null, Ec: c && c.Ec, na: r.step3 && r.step3.na };
     }
+    // scan: one row per decision of the new bot, with the result of the play again with the other action (d = other minus actual, in bb, for that player)
+    async function scanOf(L, card, vers, k, play, r) {
+      const out = [];
+      for (let j = 0; j < (r.lh ? r.lh.records.length : 0); j++) {
+        const tr = r.lh.records[j]; if (tr.other.fallback) continue;
+        __seed(SEED * 7919 + k * 13); force = { k: j }; const r2 = await playOne(L, card, vers); force = null;
+        const pre = tr.actionNo - (L.type === 'srp' ? 2 : 3), same = JSON.stringify(r2.acts.slice(0, pre)) === JSON.stringify(r.acts.slice(0, pre));   // the play again is the same up to this decision
+        const s0 = tr.step0, s5 = tr.step5 || {}, s7 = tr.step7 || {}, act = tr.decision.act === 'raise' ? (s0.toCall ? 'raise' : 'bet') : tr.decision.act === 'call' && !s0.toCall ? 'check' : tr.decision.act;
+        out.push({ k, play, j, st: tr.street, nk: s0.nodeKind, ip: s0.ip, pt: s0.potType, spr: s0.spr, act, alt: s0.toCall ? (act === 'call' ? 'fold' : 'call') : (act === 'bet' ? 'check' : 'bet'),
+          size: s0.toCall ? +(s0.toCall / Math.max(1, s0.pot - s0.toCall)).toFixed(2) : tr.decision.to ? +(tr.decision.to / s0.pot).toFixed(2) : null,
+          b: s5.bucket, draw: s5.draw || null, E: s5.E, need: s7.need, guard: s7.mdfGuard || false, same, d: +(r2.net[tr.seat] - r.net[tr.seat]).toFixed(3) });
+      }
+      return out;
+    }
+    // detail: the hand history of one decision, as bot-judge reads it (the opponent's cards are left out: he judges from what the bot could see)
+    const fmtC = cs => cs.map(c => SpecCards.cardStr(c)).join(' ');
+    function detailOf(L, r, j) {
+      const tr = r.lh.records[j], me = tr.seat;
+      return { line: L.name, potType: L.type, hero: tr.pos, opp: tr.oppPos, heroHole: fmtC(tr.hole), board: fmtC(tr.board), street: tr.street,
+        stacks: '100bb', preflop: L.type === 'srp' ? `${L.open} open ${spots[L.name].openSize}bb, ${L.vs} call` : `${L.open} open ${spots[L.name].openSize}bb, ${L.vs} 3bet ${spots[L.name].tbSize}bb, ${L.open} call`,
+        // the actions before this decision (tr.actionNo counts every action the bot was told of, the preflop ones of the line included)
+        actions: r.acts.slice(0, tr.actionNo - (L.type === 'srp' ? 2 : 3)).map(a => ({ street: ['pre', 'flop', 'turn', 'river'][a.st], who: a.pos + (a.seat === me ? '(bot)' : ''), act: a.act, toBB: +(a.to / BB).toFixed(2), potBeforeBB: +(a.pot / BB).toFixed(2), allIn: a.allIn })),
+        facing: { potBB: +(tr.step0.pot / BB).toFixed(2), toCallBB: +(tr.step0.toCall / BB).toFixed(2), effStackBB: +(tr.step0.effStack / BB).toFixed(2) },
+        botAction: tr.decision, trace: SpecBot.explain(tr).text };
+    }
+    let playOne, curK = 0;
     const rows = [];
     for (let k = 0; k < N; k++) {
+      if (DETAIL && !DETAIL.some(x => x.k === k)) continue;
       const rand = mul(SEED * 100003 + k * 7919), L = pickLine(rand());
       // the cards of this sample: the opener's hand, the other's hand, the flop, turn and river, then the rest of the deck in a fixed order
       const dead = new Uint8Array(52); const wo = rngW[L.name].op, wv = rngW[L.name].vs;
@@ -134,9 +178,14 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       const card = { hole, board, deck };
       const A = MODE === 'oo' ? 13 : MODE === 'ss' ? 'spec' : VA, B = MODE === 'oo' ? 13 : MODE === 'ss' ? 'spec' : VB;
       // play 1: A is the opener, B the other player;  play 2: B the opener, A the other (the same cards in the same seats)
+      playOne = play; curK = k;
       __seed(SEED * 7919 + k * 13); const r1 = await play(L, card, [A, B]);
+      if (DETAIL) { for (const x of DETAIL.filter(x => x.k === k && x.play === 1)) rows.push(Object.assign({ key: x }, detailOf(L, r1, x.j))); }
+      const sc1 = SCAN ? await scanOf(L, card, [A, B], k, 1, r1) : null;
       const seats = [seatOf(L.open), seatOf(L.vs)];   // the button (so the seats) is the same in both plays
       __seed(SEED * 7919 + k * 13); const r2 = await play(L, card, [B, A]);
+      if (DETAIL) { for (const x of DETAIL.filter(x => x.k === k && x.play === 2)) rows.push(Object.assign({ key: x }, detailOf(L, r2, x.j))); continue; }
+      if (SCAN) { rows.push(...sc1, ...(A === B ? [] : await scanOf(L, card, [B, A], k, 2, r2))); if (__hands.length > 50) __hands.length = 0; continue; }
       const a1 = r1.net[seats[0]], a2 = r2.net[seats[1]];   // A's result: as the opener in play 1, as the other player in play 2
       const b1 = r1.net[seats[1]], b2 = r2.net[seats[0]];   // B's result: as the other player in play 1, as the opener in play 2
       // (the two players are not zero-sum: the folded small / big blind is dead money that goes to the winner, so A - B, not 2 x A)
@@ -148,7 +197,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       if (__hands.length > 50) __hands.length = 0;
     }
     return rows;
-  }, [N, SEED, LW, MODE, VA, VB, args[8] === 'theory']);
+  }, [N, SEED, LW, MODE, VA, VB, EXTRA === 'theory', EXTRA === 'scan', DETAIL]);
   console.log('RESULT ' + JSON.stringify({ rows: out, errors: errors.slice(0, 3), allin: await page.evaluate(() => __allinCount) }));
   await browser.close();
   process.exit(0);
