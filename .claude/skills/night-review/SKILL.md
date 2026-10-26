@@ -50,6 +50,7 @@ node tests/spec-scan.mjs --minutes=60 --out=docs/night-review/latest-scan.json
 ## 4. 保存
 1. `git add docs/night-review docs/hand_reviews.md` → コミット（メッセージ：`夜間審査 <日付>：<見つかった件数>件`）→ `git push -u origin claude/night-review-log`。
 2. `claude/night-review-log` から `staging` 向けの、開いたPRが無ければ作る（題：「夜間の判断審査の記録」。変更は記録だけで、画面のファイルを含まない）。あれば、pushで足されるので何もしない。マージはしない。
+   - 予約で動くセッションには GitHub のPR作成の道具が無いことがある。無ければPRは作らず、レポートに「記録はブランチ `claude/night-review-log` にある」と書く（オーナーが昼の会話で「夜間の記録を staging へ」と言えば、そのときにPRを作る）。
 
 ## 5. 朝のレポート（このセッションの最後の返答）
 オーナーが朝にスマホで読む。CLAUDE.md の「オーナーへの返答・質問の書き方」に従う。
