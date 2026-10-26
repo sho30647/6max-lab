@@ -22,5 +22,6 @@
 | `design` | 見た目の変更。完了の条件に、変更前後のスクリーンショットを含む | `design` ＋ `docs/design-notes.md` |
 | `bot-strength` | ボットの判断を数字で改善する（長いシミュレーションを会話から切り離す） | `bot-strength` |
 | `reviewer` | 別の目での確認。**読むだけ**（編集ツールを持たない）。合否で返す | なし（`CLAUDE.md` の約束事） |
+| `bot-judge` | 判断審査。ボットのハンドヒストリーを、ロジックと切り離して理論で評価（STEP0 情報チェック→1 役判定→2 レンジ→3 コンボ計算→4 結論）し、ずれがあれば原因と改善案（bot-strength 向け）を返す。情報が足りなければ質問1つで止まる。**読むだけ** | `docs/postflop_spec.md` ＋ 記録 `docs/hand_reviews.md` |
 
 `manager` と `bot-lab` はエージェントにしない（`manager` は会話の相手である私の役割、`bot-lab` は夜間に自律で動く別セッション）。
