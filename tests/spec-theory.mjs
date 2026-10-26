@@ -27,6 +27,15 @@ for (let st = 1; st <= 3; st++) {
     const alpha = fb.reduce((a, x) => a + x.toCall / x.pot, 0) / fb.length;
     res.facingBet = { n: fb.length, fold, raise, alpha };
     console.log(`${ST[st].padEnd(5)} facing a bet  n=${String(fb.length).padStart(5)}  fold ${pct(fold)}  (theory: at most ${pct(alpha)}; gap ${(100 * (fold - alpha)).toFixed(1)}pt)  raise ${pct(raise)}`);
+    // split by the SPR after the call (strategy.js facing: under facingSprFull R and the margin shrink, docs/hand_reviews.md #1)
+    const sprA = x => Math.max(0, x.eff - x.toCall) / (x.pot + x.toCall);
+    res.facingBetSpr = {};
+    for (const [key, f] of [['le1', x => sprA(x) <= 1], ['gt1', x => sprA(x) > 1]]) {
+      const g = fb.filter(x => x.eff != null && f(x)); if (!g.length) continue;
+      const gf = g.filter(x => x.act === 'fold').length / g.length, ga = g.reduce((a, x) => a + x.toCall / x.pot, 0) / g.length;
+      res.facingBetSpr[key] = { n: g.length, fold: gf, alpha: ga };
+      console.log(`      SPR after the call ${key === 'le1' ? '<= 1' : ' > 1'}  n=${String(g.length).padStart(5)}  fold ${pct(gf)}  (theory: at most ${pct(ga)}; gap ${(100 * (gf - ga)).toFixed(1)}pt)`);
+    }
   }
   const fr = d.filter(x => x.k === 'facingRaise');
   if (fr.length) {

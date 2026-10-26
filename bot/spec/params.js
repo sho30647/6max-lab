@@ -46,6 +46,7 @@
       raiseRate: { flop: 0.10, turn: 0.08, river: 0.06 },
       eqDenial: { foldEq: 0.20 }, minSizeShare: 0.10,
       // §9 Step7
+      facingSprFull: 1.0,   // facing a bet: when the SPR after the call is this or more, R and the margin as they are; under it both shrink in a line to 1 / 0 at an all-in call (docs/hand_reviews.md #1, docs/decisions.md 2026-10-26). 0: off
       marginCall: { flopTurn: 0.03, river: 0 }, mdfSlack: 0, mdfBorder: 0.10,   // mdfSlack: 0.10 -> 0 (2026-10-26 night, docs/decisions.md); mdfBorder: the MDF guard calls again only down to the price - 10pt (docs/decisions.md)
       raiseF: { flop: 0.75, turn: 1.0, river: 1.0 },
       // §10
