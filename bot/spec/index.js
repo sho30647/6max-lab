@@ -28,7 +28,8 @@
   function paramsOf(p) { return p.specParams || P.DEFAULTS; }
   const isSpec = p => p && p.ver === 'spec';
 
-  function newHand() { rs = 0x2545F491 ^ (handNo * 0x9E3779B1); handNo++; hand = new T.Hand(Date.now() + '-' + handNo); actions = []; nAct = 0; preActs = {}; views = new Map(); lastDecision = {}; }
+  function newHand(no) { if (no != null) handNo = no;   // no: a fixed hand number, so a hand played again gets the same dice (tests/spec-scan.mjs)
+    rs = 0x2545F491 ^ (handNo * 0x9E3779B1); handNo++; hand = new T.Hand(Date.now() + '-' + handNo); actions = []; nAct = 0; preActs = {}; views = new Map(); lastDecision = {}; }
 
   /* the preflop line: who opened, who 3-bet / 4-bet, the limpers, and the callers who make a 3-bet pot leave phase 1
      (coldCallers: a call of the open by a player other than the 3-bettor-to-be (in a 3-bet pot: a squeeze), or a call of a 3-bet or more by a player who had not raised) */
