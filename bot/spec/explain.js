@@ -80,7 +80,7 @@
     if (!s2) L.push('③ ボード', '  ' + missing('Step2', 'none'));
     else {
       const nc = s2.newCard ? `新しいカードは${s2.newCard.map(x => NEWCARD[x] || x).join('、')}。` : '';
-      const dynF = s2.dynScore == null ? '' : `次のカードでボットのレンジの平均勝率が5pt以上動くのは、全体の${pct(s2.dynScore)}のカード。`;
+      const topW = pct((prm.equilibrium && prm.equilibrium.dynTop) || 0.2), dynF = s2.dynScore == null ? '' : `ボットのレンジで今いちばん強い${topW}の手のうち、次のカードの後にその${topW}から落ちる手は、カードの平均で${pct(s2.dynScore)}。`;
       L.push('③ ボード', `  事実：${HIGH[s2.high] || s2.high}、${CONN[s2.conn] || s2.conn}、${SUITW[s2.suit] || s2.suit}、${PAIR[s2.pair] || s2.pair}。${nc}${dynF}`);
       const dj = s2.dyn == null ? 'リバーなので、次のカードはない' : (W.dyn[s2.dyn] ? `${W.dyn[s2.dyn]}「${s2.dyn === 'static' ? '静的' : s2.dyn === 'dynamic' ? '動的' : '中間'}」なボード` : missing('Step2', s2.dyn));
       L.push(`  判断：${dj}。`);

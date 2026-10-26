@@ -44,19 +44,33 @@
     return RG.classify(a.E, a.J, ctx.street === 3, { b1: eq.bucket.b1, b2: eq.bucket.b2, b3: eq.bucket.b3, drawMaxE: eq.bucket.drawMaxE, devD: eq.devD });
   }
 
-  /* Step2 (§4): the texture, with the static / dynamic axis from the bot's range */
+  /* the weighted percentile of each combo in ids by val (ties share their middle), into out (docs/decisions.md 2026-10-26: the top-share turnover) */
+  function wRank(ids, val, W, out) {
+    const o = ids.slice().sort((x, y) => val[x] - val[y]); let tot = 0; for (const i of ids) tot += W[i];
+    let acc = 0, k = 0;
+    while (k < o.length) { let j = k, w = 0; while (j < o.length && Math.abs(val[o[j]] - val[o[k]]) < 1e-9) { w += W[o[j]]; j++; } for (let q = k; q < j; q++) out[o[q]] = (acc + w / 2) / tot; acc += w; k = j; }
+  }
+  /* Step2 (§4): the texture, with the static / dynamic axis from the bot's range: for each next card, the share (by weight) of the range's
+     top dynTop (by equity now) that is out of the top dynTop after the card, averaged over the next cards (the owner's decision, 2026-10-26) */
   function step2(ctx) {
     const eq = ctx.prm.equilibrium, W = ctx.Wme, sw = ctx.swMe;
     let dynScore = null;
     if (ctx.street < 3) {
-      let a = 0, t = 0; for (let i = 0; i < NC; i++) if (W[i] > 0 && sw.eq[i] >= 0) { a += W[i] * sw.eq[i]; t += W[i]; }
-      const now = t ? a / t : 0.5; let moved = 0, n = 0;
+      const q = 1 - eq.dynTop, ids = [];
+      for (let i = 0; i < NC; i++) if (W[i] > 0 && sw.eq[i] >= 0) ids.push(i);
+      const r0 = new Float64Array(NC), r1 = new Float64Array(NC), ev = new Float64Array(NC);
+      wRank(ids, sw.eq, W, r0);
+      let sum = 0, n = 0;
       for (let c = 0; c < 52; c++) {
-        let ac = 0, tc = 0;
-        for (let i = 0; i < NC; i++) { if (!(W[i] > 0)) continue; const tt = sw.nextTot[i * 52 + c]; if (!(tt > 0)) continue; ac += W[i] * sw.nextWin[i * 52 + c] / tt; tc += W[i]; }
-        if (tc > 0) { n++; if (Math.abs(ac / tc - now) >= eq.dynMove) moved++; }
+        const idc = [];
+        for (const i of ids) { const tt = sw.nextTot[i * 52 + c]; if (!(tt > 0)) continue; ev[i] = sw.nextWin[i * 52 + c] / tt; idc.push(i); }
+        if (!idc.length) continue;
+        wRank(idc, ev, W, r1);
+        let tw = 0, out = 0;
+        for (const i of idc) if (r0[i] >= q) { tw += W[i]; if (r1[i] < q) out += W[i]; }
+        if (tw > 0) { sum += out / tw; n++; }
       }
-      dynScore = n ? moved / n : 0;
+      dynScore = n ? sum / n : 0;
     }
     const ax = TX.axes(ctx.board, dynScore, eq.staticDynamic);
     const s2 = Object.assign({}, ax, { newCard: ctx.street > 1 ? TX.newCardClass(ctx.board) : null });
@@ -92,7 +106,7 @@
   function step4(ctx, s3, s2) {
     const eq = ctx.prm.equilibrium, g = eq.nodeGrid, th = eq.raNaThresh;
     const x = clamp(s3.raEff / th, -1, 1), y = clamp(s3.na / th, -1, 1);   // -1 .. +1 = -5pt .. +5pt
-    // the RA+/NA+ point's size: static 29% .. dynamic 63% along the dynamic score (docs/decisions.md)
+    // the RA+/NA+ point's size: static 29% .. dynamic 63% along the dynamic score, in a line between the static / dynamic bounds (docs/decisions.md)
     const ds = s2.dynScore == null ? 0 : s2.dynScore, lo = eq.staticDynamic[0], hi = eq.staticDynamic[1];
     const topSize = g.sizeTopStatic + (g.sizeTopDynamic - g.sizeTopStatic) * clamp((ds - lo) / (hi - lo), 0, 1);
     const val = (grid, i, j) => grid[i][j] == null ? topSize : grid[i][j];

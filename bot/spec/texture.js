@@ -16,7 +16,7 @@
     for (let lo = 1; lo <= 10; lo++) { let n = 0; for (let r = lo; r < lo + 5; r++) if (s.has(r)) n++; if (n >= 3) return true; }
     return false;
   }
-  /* §4's five axes. dynScore: the share of next cards that move the range's mean equity by 5pt or more (null on the river) */
+  /* §4's five axes. dynScore: the share of the range's top 20% that drops out of it after a next card, averaged over the cards (strategy.js step2; null on the river) */
   function axes(board, dynScore, bounds) {
     const ranks = board.map(rk).sort((a, b) => b - a), top = ranks[0];
     const high = top === 12 ? 'A' : top >= 10 ? 'KQ' : top >= 8 ? 'JT' : '9-';

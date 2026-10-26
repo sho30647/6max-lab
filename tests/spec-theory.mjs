@@ -44,6 +44,28 @@ for (let st = 1; st <= 3; st++) {
     console.log(`${ST[st].padEnd(5)} facing a raise n=${String(fr.length).padStart(4)}  fold ${pct(fold)}  (theory: at most ${pct(alpha)}; gap ${(100 * (fold - alpha)).toFixed(1)}pt)`);
   }
   const open = d.filter(x => x.toCall === 0), bets = open.filter(x => x.act === 'raise');
+  // §4 Step2: how the bot's own decisions split into static / mid / dynamic boards (each decision counted once, the bot's range as it is then)
+  const dd = d.filter(x => x.dy);
+  if (dd.length) {
+    const cnt = { static: 0, mid: 0, dynamic: 0 }; for (const x of dd) cnt[x.dy]++;
+    const ds = dd.map(x => x.ds).sort((a, b) => a - b), q = f => ds[Math.min(ds.length - 1, Math.floor(f * ds.length))];
+    res.dyn = { n: dd.length, static: cnt.static / dd.length, mid: cnt.mid / dd.length, dynamic: cnt.dynamic / dd.length, q10: q(0.1), q50: q(0.5), q90: q(0.9) };
+    console.log(`${ST[st].padEnd(5)} board (Step2)  n=${String(dd.length).padStart(5)}  static ${pct(res.dyn.static)} mid ${pct(res.dyn.mid)} dynamic ${pct(res.dyn.dynamic)}  | score 10/50/90%: ${pct(q(0.1))} ${pct(q(0.5))} ${pct(q(0.9))}`);
+    // by class, the first-to-act spots: how often the bot bets and the mean size (§4's table: static -> small, high frequency; dynamic -> big or check)
+    res.dynBet = {};
+    for (const k of ['static', 'mid', 'dynamic']) {
+      const o = dd.filter(x => x.dy === k && x.toCall === 0); if (!o.length) continue; const b = o.filter(x => x.act === 'raise');
+      res.dynBet[k] = { n: o.length, freq: b.length / o.length, size: b.reduce((a, x) => a + x.to / x.pot, 0) / (b.length || 1) };
+    }
+    console.log('      first to act, by board: ' + Object.entries(res.dynBet).map(([k, v]) => `${k} n=${v.n} bets ${pct(v.freq)} size ${pct(v.size)}`).join(' | '));
+    // the c-bet in position (§4's table is for it: static 25-33% at a high frequency, dynamic 50-75% or more checks)
+    res.dynCbetIP = {};
+    for (const k of ['static', 'mid', 'dynamic']) {
+      const o = dd.filter(x => x.dy === k && x.k === 'cbet' && x.ip); if (!o.length) continue; const b = o.filter(x => x.act === 'raise');
+      res.dynCbetIP[k] = { n: o.length, freq: b.length / o.length, size: b.reduce((a, x) => a + x.to / x.pot, 0) / (b.length || 1) };
+    }
+    if (Object.keys(res.dynCbetIP).length) console.log('      c-bet in position, by board: ' + Object.entries(res.dynCbetIP).map(([k, v]) => `${k} n=${v.n} bets ${pct(v.freq)} size ${pct(v.size)}`).join(' | '));
+  }
   if (open.length) {
     const byIni = {};
     for (const x of open) { const k = x.ini || 'none'; (byIni[k] = byIni[k] || [0, 0])[0]++; if (x.act === 'raise') byIni[k][1]++; }

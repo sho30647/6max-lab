@@ -23,7 +23,7 @@
         bigBet: 0.75                               // a bet of this share of the pot or more is "big"
       },
       // §4 Step2
-      staticDynamic: [0.30, 0.60], dynMove: 0.05,  // the share of next cards that move the range's mean equity by dynMove or more
+      staticDynamic: [0.22, 0.35], dynTop: 0.20,  // the share of the range's top dynTop (by equity) that drops out of it after a next card, averaged over the cards (the owner's decision 2026-10-26; was: the share of cards that move the mean equity 5pt)
       // §5 Step3
       raNaThresh: 0.05, oopRaAdj: 0.03, nutEq: 0.80, midBand: [0.40, 0.60],
       // §6 Step4: the 9 points of the bilinear interpolation, [RA][NA] with RA and NA at -5 / 0 / +5 pt; size as a share of the pot
