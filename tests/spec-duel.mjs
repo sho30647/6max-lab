@@ -111,12 +111,17 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       await playHand(true);
       const lh = SpecBot.lastHand;   // the new bot's decisions of this play (when a spec bot is in it)
       return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
-        th: THEORY && !r.other.fallback ? theoryOf(r) : undefined })) : [] };
+        th: THEORY && !r.other.fallback ? theoryOf(r) : undefined, flip: flipOf(r) })) : [] };
+    }
+    // a call that the R and margin before the shallow-SPR shrink (R0, margin0, docs/hand_reviews.md #1) would have folded (outside the MDF guard)
+    function flipOf(r) {
+      const s = r.step7, e = r.step5 && r.step5.E;
+      return !!(s && s.kind === 'facing' && s.R0 != null && r.decision.act === 'call' && !s.mdfGuard && (s.R !== s.R0 || s.margin !== s.margin0) && e < 0.8 && s.R0 * e < s.need + s.margin0);
     }
     // --theory: each decision, in short, for tests/spec-theory.mjs (the frequencies against their theoretical values)
     function theoryOf(r) {
       const c = r.step6 && r.step6.cands && r.step6.chosen ? r.step6.cands.find(x => x.act === r.step6.chosen.act && (x.size || 0) === (r.step6.chosen.size || 0)) : null;
-      return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, act: r.decision.act, to: r.decision.to,
+      return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, eff: r.step0.effStack, act: r.decision.act, to: r.decision.to,
         E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, tgt: r.step6 && r.step6.target, rf: r.step6 && r.step6.rangeFreq, sh: r.step6 && r.step6.shift, ev: c && r.step6.cands[0] ? r.step6.cands.map(x => x.EV) : null, Ec: c && c.Ec, na: r.step3 && r.step3.na };
     }
     const rows = [];
@@ -144,7 +149,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       const recs = r1.recs.concat(r2.recs);
       const same = MODE === 'a' ? null : (r1.log.replace(/\bseat\d\b/g, '') === r2.log.replace(/\bseat\d\b/g, ''));
       if (same === false && !globalThis.__shown) { globalThis.__shown = 1; console.log('DIFF', L.name, '\n 1:', r1.log, '\n 2:', r2.log); }
-      rows.push({ th: THEORY ? recs.map(r => r.th).filter(Boolean) : undefined, same, line: L.name, d: (a1 + a2) / 2 - (b1 + b2) / 2, a1, a2, sum, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
+      rows.push({ th: THEORY ? recs.map(r => r.th).filter(Boolean) : undefined, same, line: L.name, d: (a1 + a2) / 2 - (b1 + b2) / 2, a1, a2, sum, flip: recs.filter(r => r.flip).length, spec: recs.filter(r => !r.fb).length, fb: recs.filter(r => r.fb).length, pt: recs.length ? recs[0].pt : null, k1: recs.length ? recs[0].k : null });
       if (__hands.length > 50) __hands.length = 0;
     }
     return rows;
@@ -183,6 +188,8 @@ for (const mode of modes) {
   console.log(`  all lines, as sampled:   ${f(tot)}   (SE ${(tot.se * 100).toFixed(1)})`);
   console.log(`  all lines, weighted by how often a dealt hand reaches the flop heads-up in that line: ${P.flop.mean.toFixed(1)} ± ${(1.96 * P.flop.se).toFixed(1)} bb/100 flops`);
   console.log(`  per dealt hand and player (x ${P.wsum.toFixed(3)} of the deals / 3 players of the 6 in the duel's 2): ${P.hand.mean.toFixed(1)} ± ${(1.96 * P.hand.se).toFixed(1)} bb/100 hands   <- the number to read`);
+  { const fl = rows.filter(r => r.flip > 0), x = stat(fl);   // the samples where the new rule turned a fold into a call (docs/hand_reviews.md #1)
+    if (fl.length) console.log(`  calls that R and the margin before the shallow-SPR shrink would have folded: ${fl.reduce((a, r) => a + r.flip, 0)} in ${fl.length} samples (${(100 * fl.length / rows.length).toFixed(1)}%); A minus B in them ${(x.mean * 100).toFixed(1)} ± ${(196 * x.se).toFixed(1)} bb/100 of those flops, ${(fl.reduce((a, r) => a + r.d, 0) / rows.length * 100).toFixed(2)} bb/100 of all flops`); }
   const badSum = rows.filter(r => Math.abs(r.sum) > 1e-6).length, noSpec = rows.filter(r => mode !== 'oo' && (VA === 'spec' || VB === 'spec') && r.spec === 0).length, fbs = rows.reduce((a, r) => a + r.fb, 0), nd = rows.reduce((a, r) => a + r.spec, 0);
   const wrongPt = rows.filter(r => r.pt && r.pt !== (r.line.startsWith('SRP') ? 'SRP' : '3BP')).length;
   console.log(`  checks: chips not conserved in ${badSum} samples; samples with no decision of the new bot ${noSpec}; new-bot decisions ${nd}, handed to the old bot ${fbs}; pot type in the trace wrong in ${wrongPt}`);

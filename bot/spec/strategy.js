@@ -309,8 +309,14 @@
   /* Step7 B (§9): facing a bet or a raise. The ranges are already narrowed by the bet (index.js); R x E against them against the price */
   function facing(ctx) {
     const eq = ctx.prm.equilibrium, P = ctx.P, toCall = ctx.toCall, river = ctx.street === 3;
-    const R = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
-    const need = toCall / (P + toCall), margin = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;   // turn: its own margin when set (docs/decisions.md)
+    const R0 = river ? eq.realize.river : ctx.ip ? eq.realize.ip : eq.realize.oop;
+    const need = toCall / (P + toCall), margin0 = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;   // turn: its own margin when set (docs/decisions.md)
+    // the SPR after the call (P holds the bet faced, so P + toCall is the pot after the call; effStack is what the bot can still put in, matched).
+    // R under 1 and the margin are for the later streets (folded off them, made to pay more): with little stack behind there is little of either,
+    // so both go in a line to 1 / 0 as that SPR goes to 0 (an all-in call), and stay as they are from facingSprFull on (docs/hand_reviews.md #1)
+    const sprAfter = Math.max(0, ctx.effStack - toCall) / (P + toCall);
+    const w = eq.facingSprFull > 0 ? Math.min(1, sprAfter / eq.facingSprFull) : 1;
+    const R = river ? R0 : 1 - (1 - R0) * w, margin = river ? margin0 : margin0 * w;
     const a = attrs(ctx, ctx.own), k = bucketOf(ctx, a);
     const RE = R * a.E;
     // the defence of the whole range at this price, for the MDF guard (§9 B 5): MDF = 1 - B / (P + B), B = the bet faced, P = the pot before it
@@ -350,7 +356,7 @@
     ctx.tr.step5 = { E: r3(a.E), bucket: k.tier, draw: k.draw, D: r3(a.D), J: r3(a.J), V: r3(a.V), nutty: r3(a.nutty), blockCall: null, blockFold: null, rank: null, Er: null, equityMode: ctx.H.mode };
     ctx.tr.step6 = { facing: true, cands: [{ act: 'fold', EV: 0 }, { act: 'call', EV: r3((RE * (P + toCall) - toCall) / ctx.bb) }].concat(raiseWhy ? [{ act: 'raise', to: Math.round(to), reason: raiseWhy, estFold: r3(estFold) }] : []),
       chosen: { act }, probs: null, rnd: null };
-    ctx.tr.step7 = { kind: 'facing', need: r3(need), margin, R, RE: r3(RE), cut: r3(cut), mdf: r3(mdf), defense: r3(defense), mdfGuard: guard, raiseWhy, raiseTo: raiseWhy ? Math.round(to) : null, estFold: r3(estFold) };
+    ctx.tr.step7 = { kind: 'facing', need: r3(need), margin: r3(margin), R: r3(R), R0, margin0, sprAfter: r3(sprAfter), RE: r3(RE), cut: r3(cut), mdf: r3(mdf), defense: r3(defense), mdfGuard: guard, raiseWhy, raiseTo: raiseWhy ? Math.round(to) : null, estFold: r3(estFold) };
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
