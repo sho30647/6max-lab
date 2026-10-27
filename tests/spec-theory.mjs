@@ -3,7 +3,8 @@
 //   the river: the share of bluffs among the bets (equity under 50% against the calling range) against B / (P + 2B) (what makes a call break even)
 //   flop and turn: how often it bets, and the share of air (B5) and draws (B4) in the bets
 // Checks (the default version only): the river's bets of 0.8x pot or more hold 15%+ bluffs, and the river's fold rate against a bet is within
-// 10pt of its theoretical bound (before 2026-10-26: 2% bluffs, 15pt over; docs/decisions.md)
+// 10pt of its theoretical bound (before 2026-10-26: 2% bluffs, 15pt over; docs/decisions.md); the planned river range bets 18%+ bluffs at
+// sizes of 1x pot or more (before 2026-10-27: 14%)
 // Usage: node tests/spec-theory.mjs [duels per process=300] [processes=4] [first seed=1] [--A=spec]   (--A: a version as spec-duel reads it, both seats)
 import { fileURLToPath } from 'url'; import path from 'path';
 import { options, worker } from './eval-stats.mjs';
@@ -103,6 +104,22 @@ for (let st = 1; st <= 3; st++) {
       }
     }
   }
+  // the bot's planned range at each bet node (strategy.js perSize, every candidate size, nodes with a target frequency over 0): the share of
+  // bluffs (what the bluff cap counts: flop / turn the air with no draw flag, river every bet that is not value) in the weight bet at that size,
+  // against B / (P + 2B). Each node gives the whole range, so this
+  // moves far less from run to run than the bets made (docs/decisions.md 2026-10-27: the bluffs cut at one size's cap)
+  const nodes = open.filter(x => x.ps && x.tgt > 0);
+  if (nodes.length) {
+    res.planBluff = [];
+    for (const band of BANDS) {
+      let n = 0, bw = 0, bl = 0, th = 0, cap = 0;
+      for (const x of nodes) for (const p of x.ps) { if (!(p.s >= band[0] && p.s < band[1]) || !(p.weight > 0)) continue; n++; bw += p.weight; bl += p.weight * p.bluffShare; th += p.weight * p.s / (1 + 2 * p.s); cap += p.weight * p.cap; }
+      if (!n) continue;
+      const row = { band: bandName(band), n, share: bl / bw, theory: th / bw, cap: cap / bw };
+      res.planBluff.push(row);
+      console.log(`      planned range, size ${row.band.padEnd(8)} n=${String(n).padStart(5)}  bluffs in the bets ${pct(row.share)}  (B / (P + 2B) ${pct(row.theory)}${st < 3 ? `, cap ${pct(row.cap)}` : ''}; gap ${(100 * (row.share - row.theory)).toFixed(1)}pt)`);
+    }
+  }
   // §3 by size: the bets of each size band, by bucket: what they are (the bettor's own bucket), and what the other reads them as (the bettor's
   // range before the bet x §3's row of that size, this checkout's params). river: the read's air (B5) against B / (P + 2B)
   const betsMb = bets.filter(x => x.mb && x.b);
@@ -148,6 +165,11 @@ if (V === 'spec') {
   const n = big.reduce((a, x) => a + x.n, 0), bl = big.reduce((a, x) => a + x.n * x.share, 0) / (n || 1);
   const fails = [];
   if (!(bl >= 0.15)) fails.push(`river bets of 0.8x pot or more: ${(100 * bl).toFixed(1)}% bluffs (want 15%+)`);
+  // the planned river range at sizes of 1x pot or more (docs/decisions.md 2026-10-27: the bluffs cut at one size move to the other; before
+  // 14.0 / 13.8% at seeds 1 / 5, after 21.5 / 21.2%, theory 36-39%)
+  const pb = (rv.planBluff || []).filter(x => x.band.startsWith('1-') || x.band.startsWith('1.6')), pn = pb.reduce((a, x) => a + x.n, 0);
+  const pbs = pb.reduce((a, x) => a + x.n * x.share, 0) / (pn || 1);
+  if (pn && !(pbs >= 0.18)) fails.push(`river, planned range at 1x pot or more: ${(100 * pbs).toFixed(1)}% bluffs (want 18%+)`);
   if (rv.facingBet && rv.facingBet.fold > rv.facingBet.alpha + 0.10) fails.push(`river: folds ${(100 * rv.facingBet.fold).toFixed(1)}% to a bet, bound ${(100 * rv.facingBet.alpha).toFixed(1)}% (want within 10pt)`);
   for (const f of fails) console.log('FAIL', f);
   console.log(fails.length ? `${fails.length} failed` : 'spec-theory: all passed');

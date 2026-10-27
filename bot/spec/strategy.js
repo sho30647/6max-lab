@@ -239,6 +239,44 @@
     return { p, d: d / ctx.P };
   }
 
+  /* §8: the bluff share of each size at most its cap (B / (P + 2B) on the river), the bluffs (isBluffAt) with the best blockers kept
+     first (score: higher first). Before 2026-10-27 the bluffs cut at one size all went to the check, so when most bluffs liked the same size
+     (the bigger, with more folds) and the value bet the other, the other size had room for bluffs and none (the river's big bets held 28%
+     bluffs against B / (P + 2B) = 39%, docs/decisions.md). Now the cut part goes to the other size when that bet has a reason, its EV (with
+     the frequency shift delta) beats the check, and that size's cap has room left; the rest checks. combos: {w, b, draw, p: [check, size 1, ...],
+     ev: {evCheck, bets: [{EV, reason}]}}; caps: per size (index 0 = size 1). Changes c.p in place */
+  /* the bet of combo c at size k (1, 2) is a bluff: its reason there is 'bluff' (evalCombo). Flop and turn: air with no draw flag. River: every
+     bet that is not value (§10: on the river a bet is value only when it beats half the calling range), so a hand with some showdown value that
+     bets is counted too (before 2026-10-27 only the air counted, and the river's small bets held 44% hands behind the callers, theory 28%) */
+  const isBluffAt = (c, k) => { const e = c.ev.bets[k - 1]; return !!e && e.reason === 'bluff'; };
+  function capBluffs(combos, caps, score, delta) {
+    const nS = caps.length, room = new Array(nS + 1).fill(0), over = [];
+    for (let k = 1; k <= nS; k++) {
+      let val = 0, bl = 0; const bluffs = [];
+      for (const c of combos) { const x = c.w * c.p[k]; if (!x) continue; if (isBluffAt(c, k)) { bl += x; bluffs.push(c); } else val += x; }
+      const cap = caps[k - 1], lim = cap >= 1 ? Infinity : cap / (1 - cap) * val;
+      if (bl <= lim || !bluffs.length) { room[k] = lim - bl; continue; }
+      let left = lim;
+      bluffs.sort((x, y) => score(y) - score(x));
+      for (const c of bluffs) {
+        const x = c.w * c.p[k]; if (left >= x) { left -= x; continue; }
+        const keep = left > 0 ? left / x : 0; left = 0;
+        over.push({ c, from: k, p: c.p[k] * (1 - keep) }); c.p[k] *= keep;
+      }
+      room[k] = 0;
+    }
+    over.sort((x, y) => score(y.c) - score(x.c));
+    for (const o of over) {
+      const c = o.c; let p = o.p;
+      // the other sizes this hand would bet: a reason, and the bet (with delta) better than the check; the best EV first
+      const alt = [];
+      for (let j = 1; j <= nS; j++) { if (j === o.from || !(room[j] > 0)) continue; const e = c.ev.bets[j - 1]; if (e && e.reason && e.EV + delta > c.ev.evCheck) alt.push(j); }
+      alt.sort((x, y) => c.ev.bets[y - 1].EV - c.ev.bets[x - 1].EV);
+      for (const j of alt) { if (!(p > 0) || !(c.w > 0)) break; const m = Math.min(p, room[j] / c.w); c.p[j] += m; room[j] -= m * c.w; p -= m; }
+      c.p[0] += p;
+    }
+  }
+
   /* Step5 + Step6 + Step7 A: the bot's whole range is played through the node (to hold the frequency and the bluff shares), then its own hand */
   function betNode(ctx, s4) {
     const eq = ctx.prm.equilibrium, Wm = ctx.Wme, P = ctx.P;
@@ -268,17 +306,9 @@
         if (c.b === 1 && s4.slowB1 > 0) { const move = (1 - c.p[0]) * s4.slowB1; for (let k = 1; k <= nS; k++) c.p[k] *= 1 - s4.slowB1; c.p[0] += move; }   // §6: OOP keeps a share of B1 in its check range
         if (ctx.nOpp > 1 && c.b === 5 && !c.draw) { const keep = eq.multiwayBluff; for (let k = 1; k <= nS; k++) { c.p[0] += c.p[k] * (1 - keep); c.p[k] *= keep; } }
       }
-      // bluff caps per size, the bluffs with the best blockers kept first (§8, §10)
-      for (let k = 1; k <= nS; k++) {
-        let val = 0, bl = 0; const bluffs = [];
-        for (const c of combos) { const x = c.w * c.p[k]; if (!x) continue; if (c.b === 5 && !c.draw) { bl += x; bluffs.push(c); } else val += x; }
-        const cap = capOf(reacts[k - 1].s); if (bl <= cap * (bl + val) || !bluffs.length) continue;
-        let room = cap / (1 - cap) * val;
-        if (!bluffBlk) { bluffBlk = new Map(); }
-        for (const c of bluffs) if (!bluffBlk.has(c.i)) { const z = blk(c); bluffBlk.set(c.i, z.call - z.fold); }
-        bluffs.sort((x, y) => bluffBlk.get(y.i) - bluffBlk.get(x.i));
-        for (const c of bluffs) { const x = c.w * c.p[k]; if (room >= x) { room -= x; continue; } const keep = room > 0 ? room / x : 0; room = 0; c.p[0] += c.p[k] * (1 - keep); c.p[k] *= keep; }
-      }
+      // bluff caps per size, the bluffs with the best blockers kept first; a bluff over one size's cap moves to the other size when that bet
+      // also beats the check and has room under its own cap (§8, §10, docs/decisions.md 2026-10-27)
+      capBluffs(combos, reacts.map(rc => capOf(rc.s)), c => { if (!bluffBlk) bluffBlk = new Map(); if (!bluffBlk.has(c.i)) { const z = blk(c); bluffBlk.set(c.i, z.call - z.fold); } return bluffBlk.get(c.i); }, delta);
       let tw = 0, bw = 0; for (const c of combos) { tw += c.w; for (let k = 1; k <= nS; k++) bw += c.w * c.p[k]; }
       return tw ? bw / tw : 0;
     };
@@ -298,7 +328,7 @@
       const tot = w[0] + w[1];
       if (tot > 0) for (let k = 0; k < 2; k++) if (w[k] / tot < eq.minSizeShare) { merged = { from: s4.sizes[k], to: s4.sizes[1 - k] }; for (const c of combos) { c.p[2 - k] += c.p[k + 1]; c.p[k + 1] = 0; } break; }
     }
-    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (c.b === 5 && !c.draw) bl += x; } return { s: rc.s, weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
+    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (isBluffAt(c, k + 1)) bl += x; } return { s: rc.s, weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
 
     // the bot's own hand
     const me = combos.find(c => c.i === ctx.own);
@@ -381,5 +411,5 @@
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
-  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, evalCombo, probs, betNode, facing };
+  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, evalCombo, probs, capBluffs, betNode, facing };
 });
