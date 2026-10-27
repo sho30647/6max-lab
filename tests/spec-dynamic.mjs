@@ -52,6 +52,27 @@ for (let k = 0; k < N; k++) {
   for (const side of ['btn', 'bb']) cnt[side][dynOf(b, side).dyn]++;
 }
 for (const side of ['btn', 'bb']) console.log(`${N} random flops, ${side === 'btn' ? 'BTN (opener)' : 'BB (caller)'}: static ${cnt[side].static}, mid ${cnt[side].mid}, dynamic ${cnt[side].dynamic}`);
+// 4. Step4's sizes at the RA+/NA+ point (docs/decisions.md 2026-10-27): its size is already set between static 29% and dynamic 63% by the
+//    dynamic score, so the dynamic one-step shift is not added on top (before: a dynamic flop's c-bet came out at 75% / 100%, over §6's 50-75%).
+//    Elsewhere the shift stays (RA+/NA- on a dynamic board: one step up), and so do the static step (static stays 25-33%), the dynamic
+//    frequency step and the turn's step.
+{
+  const eq = P.DEFAULTS.equilibrium, th = eq.raNaThresh;
+  const s4of = (ra, na, dyn, street = 1) => {
+    const [lo, hi] = street === 2 ? eq.staticDynamicTurn : eq.staticDynamic;
+    const ctx = { prm: P.DEFAULTS, ip: true, street, effStack: 100, P: 1, sprClass: 'high', nodeKind: 'cbet', tr: {} };
+    return ST.step4(ctx, { raEff: ra * th, na: na * th }, { dyn, dynScore: dyn === 'static' ? lo - 0.05 : dyn === 'dynamic' ? hi + 0.05 : (lo + hi) / 2 });
+  };
+  const inR = (s, a, b) => s.sizes.every(z => z >= a - 1e-9 && z <= b + 1e-9);
+  const top = s4of(1, 1, 'dynamic'), topS = s4of(1, 1, 'static'), side = s4of(1, -1, 'dynamic'), sideS = s4of(1, -1, 'static'), topT = s4of(1, 1, 'dynamic', 2);
+  const f = s => `sizes ${s.sizes.map(z => (100 * z).toFixed(0) + '%').join(' / ')} freq ${(100 * s.freq).toFixed(0)}% [${s.adjust.join(',')}]`;
+  console.log(`step4 RA+/NA+ flop: dynamic ${f(top)} | static ${f(topS)} | turn dynamic ${f(topT)}; RA+/NA- flop: dynamic ${f(side)} | static ${f(sideS)}`);
+  check(inR(top, 0.5, 0.75), `RA+/NA+ dynamic flop: ${f(top)}, want 50-75%`);
+  check(inR(topS, 0.25, 0.33), `RA+/NA+ static flop: ${f(topS)}, want 25-33%`);
+  check(Math.abs(top.freq - (eq.nodeGrid.freq[2][2] - eq.stepFreq)) < 1e-9, `RA+/NA+ dynamic flop: freq ${top.freq}, want one step down`);
+  check(Math.max(...topT.sizes) > Math.max(...top.sizes), `RA+/NA+ dynamic turn: ${f(topT)}, want one step over the flop's`);
+  check(Math.max(...side.sizes) > Math.max(...sideS.sizes), `RA+/NA- flop: dynamic ${f(side)} not over static ${f(sideS)} (the shift stays off the top point only)`);
+}
 // 3. the turn (docs/decisions.md 2026-10-27): how the bot's own turn decisions split, the new bot against itself on heads-up flops (tests/spec-duel.mjs,
 //    as tests/spec-theory.mjs: 4 x 100 duels, seeds 1-4). The turn has its own bounds (staticDynamicTurn): with the flop's bounds the turn leaned to
 //    dynamic (9 / 47 / 44%). Check: static 10%+, dynamic 10-40%, mid 65% or less (the flop's split in the same play: about 15 / 58 / 26%).

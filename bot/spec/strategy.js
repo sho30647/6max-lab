@@ -112,10 +112,10 @@
     const ds = s2.dynScore == null ? 0 : s2.dynScore, [lo, hi] = dynBounds(ctx);
     const topSize = g.sizeTopStatic + (g.sizeTopDynamic - g.sizeTopStatic) * clamp((ds - lo) / (hi - lo), 0, 1);
     const val = (grid, i, j) => grid[i][j] == null ? topSize : grid[i][j];
-    const interp = grid => {
-      const fi = x + 1, fj = y + 1, i0 = Math.min(1, Math.floor(fi)), j0 = Math.min(1, Math.floor(fj)), u = fi - i0, v = fj - j0;
-      return (1 - u) * (1 - v) * val(grid, i0, j0) + u * (1 - v) * val(grid, i0 + 1, j0) + (1 - u) * v * val(grid, i0, j0 + 1) + u * v * val(grid, i0 + 1, j0 + 1);
-    };
+    const fi = x + 1, fj = y + 1, i0 = Math.min(1, Math.floor(fi)), j0 = Math.min(1, Math.floor(fj)), u = fi - i0, v = fj - j0;
+    const interp = grid => (1 - u) * (1 - v) * val(grid, i0, j0) + u * (1 - v) * val(grid, i0 + 1, j0) + (1 - u) * v * val(grid, i0, j0 + 1) + u * v * val(grid, i0 + 1, j0 + 1);
+    // the weight of the RA+/NA+ point in the interpolation: its size (topSize) already holds the static / dynamic side
+    const wTop = i0 === 1 && j0 === 1 ? u * v : 0;
     let freq = interp(g.freq); const sizeRaw = interp(g.size);
     const L = eq.sizeLadder;
     // the nearest ladder size, and the nearest on the other side of the computed size (docs/decisions.md)
@@ -124,8 +124,12 @@
     const adjust = [];
     let shift = 0;
     if (!ctx.ip) { freq -= eq.stepFreq; adjust.push('oop'); }
+    // the dynamic one-step size shift, by the weight not on the RA+/NA+ point: the nearest whole step to (1 - wTop) steps, so it is dropped
+    // where that point weighs half or more. That point's size already rises from the base 29% to 63% along the dynamic score, so the step
+    // would count "dynamic -> bigger" twice (§6, docs/decisions.md 2026-10-27). Its static end is the base 29% (the RA+ row's size, not a
+    // smaller one), so the static step stays; so does the dynamic frequency step.
     if (s2.dyn === 'static') { shift -= 1; adjust.push('static'); }
-    if (s2.dyn === 'dynamic') { shift += 1; freq -= eq.stepFreq; adjust.push('dynamic'); }
+    if (s2.dyn === 'dynamic') { freq -= eq.stepFreq; if (wTop < 0.5) { shift += 1; adjust.push('dynamic'); } else adjust.push('dynamicTop'); }
     if (ctx.street === 2) { shift += 1; adjust.push('turn'); } else if (ctx.street === 3) { shift += 2; adjust.push('river'); }
     const at = k => k == null ? null : L[clamp(k + shift, 0, L.length - 1)];
     let sizes = [at(k1)]; const s2b = at(k2); if (s2b != null && s2b !== sizes[0]) sizes.push(s2b);
@@ -137,7 +141,7 @@
     let donkOpen = null;
     if (ctx.nodeKind === 'donk') { donkOpen = ctx.street > 1 && (s3.raEff >= th || s3.na >= th); if (!donkOpen) { freq = 0; adjust.push('donkCheck'); } else adjust.push('donkOpen'); }
     freq = clamp(freq, 0, 0.95);
-    const s4 = { x: r3(x), y: r3(y), freq: r3(freq), sizeRaw: r3(sizeRaw), topSize: r3(topSize), sizes: sizes.map(r3), slowB1: ctx.ip ? 0 : eq.oopSlowB1, adjust, donkOpen };
+    const s4 = { x: r3(x), y: r3(y), freq: r3(freq), sizeRaw: r3(sizeRaw), topSize: r3(topSize), wTop: r3(wTop), sizes: sizes.map(r3), slowB1: ctx.ip ? 0 : eq.oopSlowB1, adjust, donkOpen };
     ctx.tr.step4 = s4; return s4;
   }
 
