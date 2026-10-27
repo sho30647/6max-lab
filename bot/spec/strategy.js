@@ -175,8 +175,9 @@
      narrows it when the bet is made (docs/decisions.md 2026-10-26 night). Before, it was the range before the bet, so a big bet looked far
      less likely to be folded to than it is, and the river had almost no bluffs */
   function seenBet(ctx, s) {
-    const um = ctx.prm.equilibrium.updateMult, mult = s >= um.bigBet ? um.betBig : um.betSmall;
-    const key = mult === um.betBig ? 'big' : 'small'; ctx.seen = ctx.seen || {};
+    // the row of this size (RG.betMult: on a line between the table's sizes); one sweep per distinct row (the sizes under the first or over the last share theirs)
+    const mult = RG.betMult(ctx.prm.equilibrium.updateMult, s);
+    const key = mult.join(','); ctx.seen = ctx.seen || {};
     if (ctx.seen[key]) return ctx.seen[key];
     const c = ctx.H.cache[ctx.seat], W = ctx.Wme, W0 = ctx.H.W0[ctx.seat], floor = ctx.prm.design.weightFloor, Wn = new Float32Array(NC);
     for (let i = 0; i < NC; i++) { if (!(W[i] > 0)) continue; const b = c && c.bucket[i]; Wn[i] = b ? Math.max(W[i] * mult[b - 1], floor * (W0 ? W0[i] : W[i])) : W[i]; }

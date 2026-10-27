@@ -68,7 +68,7 @@ const out = await page.evaluate(async () => {
   const avgEq = s => { let a = 0, t = 0; const W = H.W[s], e = H.cache[s].eq; for (let i = 0; i < 1326; i++) if (W[i] > 0 && e[i] >= 0) { a += W[i] * e[i]; t += W[i]; } return a / t; };
   const ra = avgEq(0) - 0.5, raBB = avgEq(1) - 0.5;
   // 6. a big bet
-  const before = H.bucketShares(0), upd = H.apply(0, SpecParams.DEFAULTS.equilibrium.updateMult.betBig);
+  const before = H.bucketShares(0), upd = H.apply(0, SpecRanges.betMult(SpecParams.DEFAULTS.equilibrium.updateMult, 1.0));
   // 7. played hands: the bot's flop ranges = the products of the chart actions
   const seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   document.getElementById('optAuto').checked = false; document.getElementById('optAutoFold').checked = false; document.getElementById('optRange').checked = false;

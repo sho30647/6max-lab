@@ -8,6 +8,11 @@
 import { fileURLToPath } from 'url'; import path from 'path';
 import { options, worker } from './eval-stats.mjs';
 import { LINES } from './spec-duel.mjs';
+import { createRequire } from 'module';
+const RG = createRequire(import.meta.url)('../bot/spec/ranges.js');
+// §3 by the bet's size (docs/decisions.md 2026-10-27): the size bands around the table's sizes 33% / 75% / 125% / 200%
+const BANDS = [[0, 0.5], [0.5, 1.0], [1.0, 1.6], [1.6, 99]];
+const bandName = ([lo, hi]) => `${lo}-${hi === 99 ? '' : hi}x`;
 const duel = path.join(path.dirname(fileURLToPath(import.meta.url)), 'spec-duel.mjs');
 const o = options(process.argv.slice(2));
 const [duels = '300', procs = '4', seed0 = '1'] = o.pos;
@@ -35,6 +40,16 @@ for (let st = 1; st <= 3; st++) {
       const gf = g.filter(x => x.act === 'fold').length / g.length, ga = g.reduce((a, x) => a + x.toCall / x.pot, 0) / g.length;
       res.facingBetSpr[key] = { n: g.length, fold: gf, alpha: ga };
       console.log(`      SPR after the call ${key === 'le1' ? '<= 1' : ' > 1'}  n=${String(g.length).padStart(5)}  fold ${pct(gf)}  (theory: at most ${pct(ga)}; gap ${(100 * (gf - ga)).toFixed(1)}pt)`);
+    }
+  }
+  // facing a bet, by its size (s = the bet / the pot before it): the fold rate against B / (P + B)
+  if (fb.length) {
+    res.facingBetBySize = [];
+    for (const band of BANDS) {
+      const g = fb.filter(x => { const s = x.toCall / Math.max(1e-9, x.pot - x.toCall); return s >= band[0] && s < band[1]; }); if (!g.length) continue;
+      const gf = g.filter(x => x.act === 'fold').length / g.length, ga = g.reduce((a, x) => a + x.toCall / x.pot, 0) / g.length;
+      res.facingBetBySize.push({ band: bandName(band), n: g.length, fold: gf, alpha: ga });
+      console.log(`      bet ${bandName(band).padEnd(8)} n=${String(g.length).padStart(5)}  fold ${pct(gf)}  (theory: at most ${pct(ga)}; gap ${(100 * (gf - ga)).toFixed(1)}pt)`);
     }
   }
   const fr = d.filter(x => x.k === 'facingRaise');
@@ -86,6 +101,27 @@ for (let st = 1; st <= 3; st++) {
         res.riverBluff.push({ lo, hi, n: b.length, share, theory: th });
         console.log(`      river bets ${lo}-${hi === 99 ? '' : hi}x pot  n=${String(b.length).padStart(4)}  bluffs ${pct(share)}  (theory ${pct(th)}; gap ${(100 * (share - th)).toFixed(1)}pt)`);
       }
+    }
+  }
+  // §3 by size: the bets of each size band, by bucket: what they are (the bettor's own bucket), and what the other reads them as (the bettor's
+  // range before the bet x §3's row of that size, this checkout's params). river: the read's air (B5) against B / (P + 2B)
+  const betsMb = bets.filter(x => x.mb && x.b);
+  if (betsMb.length) {
+    const um = (await import('../bot/spec/params.js')).default.DEFAULTS.equilibrium.updateMult;
+    const f5 = a => a.map(x => (100 * x).toFixed(0).padStart(3) + '%').join(' ');
+    res.betRead = [];
+    for (const band of BANDS) {
+      const g = betsMb.filter(x => x.to / x.pot >= band[0] && x.to / x.pot < band[1]); if (!g.length) continue;
+      const act = [0, 0, 0, 0, 0], pre = [0, 0, 0, 0, 0], read = [0, 0, 0, 0, 0];
+      let th = 0;
+      for (const x of g) {
+        const sz = x.to / x.pot, m = RG.betMult(um, sz); act[x.b - 1]++; th += sz / (1 + 2 * sz);
+        const r = x.mb.map((p, b) => p * m[b]), t = r.reduce((a, y) => a + y, 0) || 1;
+        for (let b = 0; b < 5; b++) { pre[b] += x.mb[b]; read[b] += r[b] / t; }
+      }
+      const n = g.length, row = { band: bandName(band), n, actual: act.map(y => y / n), prior: pre.map(y => y / n), read: read.map(y => y / n), theory: th / n };
+      res.betRead.push(row);
+      console.log(`      bets ${row.band.padEnd(8)} n=${String(n).padStart(5)}  by bucket B1..B5: actual ${f5(row.actual)} | read ${f5(row.read)} | range before ${f5(row.prior)}` + (st === 3 ? `  | read air ${pct(row.read[4])} (theory ${pct(row.theory)})` : ''));
     }
   }
   // §3's multipliers against the bot's own play: how often each bucket takes the action (the multipliers are relative: compare the shape)

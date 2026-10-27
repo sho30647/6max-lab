@@ -18,9 +18,18 @@
         checkAggr: B(0.3, 0.6, 1.0, 0.6, 0.7),     // the aggressor checks
         checkBackIP: B(0.3, 0.6, 1.0, 0.6, 0.7),   // the caller in position checks back (its own copy, §3)
         checkOOPCaller: B(1, 1, 1, 1, 1),          // the caller out of position checks: no narrowing (§3)
-        betSmall: B(0.6, 1.0, 0.6, 0.7, 0.5),
-        betBig: B(1.0, 0.7, 0.1, 0.6, 0.4),
-        bigBet: 0.75                               // a bet of this share of the pot or more is "big"
+        // a bet, by its size (s = the bet / the pot before it): the row of each size in `at`, joined in a straight line between them (ranges.js betMult);
+        // under 33% the 33% row, over 200% the 200% row. Was two rows split at 75%: betSmall (0.6, 1.0, 0.6, 0.7, 0.5), betBig (1.0, 0.7, 0.1, 0.6, 0.4),
+        // whose read held fewer bluffs as the bet grew. The shape (the owner's decision 2026-10-27, docs/decisions.md): the bigger the bet, the
+        // fewer middle hands (B2-B3) and the more of the strongest (B1) and of the bluffs, the read's bluff share rising toward s / (1 + 2s).
+        // The rows are a quarter of the way from the old two rows to the theory's rows (B1-B3: the share of each bucket still value at that size,
+        // a hand being value when it beats half the range that calls 1 / (1 + s); B5: the read holds s / (1 + 2s) bluffs on a typical river
+        // betting range; B4 1.4 x B5): the whole way over-corrects (the others call every bluff catcher against a big bet), and a quarter had the
+        // smallest gap between the fold rate and B / (P + B) over the bet sizes (tests/spec-theory.mjs, docs/decisions.md 2026-10-27)
+        betSize: {
+          at: [0.33, 0.75, 1.25, 2.0],
+          mult: [B(0.6, 1.0, 0.6, 0.64, 0.45), B(1.0, 0.7, 0.1, 0.63, 0.43), B(1.0, 0.58, 0.08, 0.63, 0.43), B(1.0, 0.54, 0.08, 0.65, 0.44)]
+        }
       },
       // §4 Step2
       staticDynamicTurn: [0.24, 0.39],             // the turn's own bounds: set so the turn splits as the flop does (the flop's bounds sit at its 15% / 74% points of the bot's decisions; the turn's same points), docs/decisions.md 2026-10-27

@@ -22,7 +22,9 @@
   const SUITW = { rainbow: 'スートはバラバラ（レインボー）', two: '同じスートが2枚（ツートーン）', mono: '同じスートが3枚以上（モノトーン）' };
   const PAIR = { none: 'ペアなし', pair: 'ペアボード', trips: '同じランクが3枚' };
   const NEWCARD = { blank: 'どちらのレンジもほぼ強くならないカード（ブランク）', over: 'それまでの最高位より上のカード（オーバーカード）', flush: '同じスートの3枚目（フラッシュが完成しうる）', straight: 'ストレートが完成しうるカード', pair: 'ボードにペアができるカード' };
-  const KIND = { callBet: 'ベットへのコール', raiseBet: 'レイズ', checkAggr: 'アグレッサーのチェック', checkBackIP: 'IPのチェックバック', checkOOPCaller: 'OOP側のチェック（アグレッサーではない側。ドンクをほぼ打たないので絞らない）', betSmall: '小さいベット（ポットの75%未満）', betBig: '大きいベット（ポットの75%以上）' };
+  const KIND = { callBet: 'ベットへのコール', raiseBet: 'レイズ', checkAggr: 'アグレッサーのチェック', checkBackIP: 'IPのチェックバック', checkOOPCaller: 'OOP側のチェック（アグレッサーではない側。ドンクをほぼ打たないので絞らない）', betSmall: '小さいベット（ポットの75%未満）', betBig: '大きいベット（ポットの75%以上）' };   // betSmall / betBig: the traces of an older params set (two rows)
+  // a bet (§3, docs/decisions.md 2026-10-27): its row is read by its size, so the words say the size and what it means
+  const kindOf = u => u.kind === 'bet' ? `ポットの${Math.round((u.size || 0) * 100)}%のベット（大きいベットほど、強い手とブラフに分かれ、中くらいの手は少ないと読む）` : KIND[u.kind] || u.kind;
   const NODE = {
     cbet: ['自分がアグレッサー（前のストリートで最後に打った側）', 'CB・バレル（アグレッサーが続けて打つ）を打つかどうかの局面'],
     donk: ['相手がアグレッサーで、ボットが先に行動する', 'ドンク（アグレッサーより先に打つベット）の局面。原則はチェック'],
@@ -67,7 +69,7 @@
     else {
       const sh = a => `ナッツ級${pct(a[0])}・バリュー${pct(a[1])}・マージナル${pct(a[2])}・ドロー${pct(a[3])}・エア${pct(a[4])}`;
       const opps = s1.applied.filter(u => u.seat !== tr.seat && u.act !== 'fold' && u.before);
-      const facts = opps.map(u => `${u.pos || '相手'}の${KIND[u.kind] || u.kind}で、レンジの各バケットに倍率（${u.mult.map(m => m).join('／')}）を掛けた`);
+      const facts = opps.map(u => `${u.pos || '相手'}の${kindOf(u)}で、レンジの各バケットに倍率（${u.mult.map(m => m).join('／')}）を掛けた`);
       const o = s1.opp[0];
       L.push('② これまでの行動とレンジ',
         `  事実：${facts.length ? facts.join('。') + '。' : '前の判断のあと、相手のレンジを絞る行動はなかった。'}${o ? `${oppName}の今のレンジ：${sh(o.now)}。` : ''}`);

@@ -83,5 +83,19 @@
       return { before, after: this.bucketShares(seat), mult: mult.slice() };
     }
   }
-  return { classify, bucketOf, HandRanges };
+  /* §3: the multipliers [B1..B5] of a bet of s x the pot. um: the params' updateMult. betSize = {at: [sizes], mult: [a row per size]}: the row of
+     the nearest size at or under s and the one over it, joined in a straight line (under the first size: the first row; over the last: the last).
+     The index.js narrowing of a bet and strategy.js's "how the others see the bot's bet" both use it (docs/decisions.md 2026-10-27).
+     A params set without betSize (an older one, tests/spec-harness.mjs SPEC_ALT) reads the two rows betSmall / betBig, split at bigBet */
+  function betMult(um, s) {
+    const T = um.betSize;
+    if (!T) return s >= um.bigBet ? um.betBig : um.betSmall;
+    const at = T.at, M = T.mult, n = at.length;
+    if (!(s > at[0])) return M[0];
+    if (s >= at[n - 1]) return M[n - 1];
+    let k = 0; while (s >= at[k + 1]) k++;
+    const t = (s - at[k]) / (at[k + 1] - at[k]);
+    return M[k].map((x, b) => Math.round((x + t * (M[k + 1][b] - x)) * 1000) / 1000);
+  }
+  return { classify, bucketOf, betMult, HandRanges };
 });
