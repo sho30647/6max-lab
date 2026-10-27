@@ -50,6 +50,8 @@
     let acc = 0, k = 0;
     while (k < o.length) { let j = k, w = 0; while (j < o.length && Math.abs(val[o[j]] - val[o[k]]) < 1e-9) { w += W[o[j]]; j++; } for (let q = k; q < j; q++) out[o[q]] = (acc + w / 2) / tot; acc += w; k = j; }
   }
+  /* the static / dynamic bounds of the street: the turn has its own (a range narrowed by the flop turns its top over more; docs/decisions.md 2026-10-27) */
+  const dynBounds = ctx => ctx.street === 2 && ctx.prm.equilibrium.staticDynamicTurn ? ctx.prm.equilibrium.staticDynamicTurn : ctx.prm.equilibrium.staticDynamic;
   /* Step2 (§4): the texture, with the static / dynamic axis from the bot's range: for each next card, the share (by weight) of the range's
      top dynTop (by equity now) that is out of the top dynTop after the card, averaged over the next cards (the owner's decision, 2026-10-26) */
   function step2(ctx) {
@@ -72,7 +74,7 @@
       }
       dynScore = n ? sum / n : 0;
     }
-    const ax = TX.axes(ctx.board, dynScore, eq.staticDynamic);
+    const ax = TX.axes(ctx.board, dynScore, dynBounds(ctx));
     const s2 = Object.assign({}, ax, { newCard: ctx.street > 1 ? TX.newCardClass(ctx.board) : null });
     ctx.tr.step2 = s2; return s2;
   }
@@ -107,7 +109,7 @@
     const eq = ctx.prm.equilibrium, g = eq.nodeGrid, th = eq.raNaThresh;
     const x = clamp(s3.raEff / th, -1, 1), y = clamp(s3.na / th, -1, 1);   // -1 .. +1 = -5pt .. +5pt
     // the RA+/NA+ point's size: static 29% .. dynamic 63% along the dynamic score, in a line between the static / dynamic bounds (docs/decisions.md)
-    const ds = s2.dynScore == null ? 0 : s2.dynScore, lo = eq.staticDynamic[0], hi = eq.staticDynamic[1];
+    const ds = s2.dynScore == null ? 0 : s2.dynScore, [lo, hi] = dynBounds(ctx);
     const topSize = g.sizeTopStatic + (g.sizeTopDynamic - g.sizeTopStatic) * clamp((ds - lo) / (hi - lo), 0, 1);
     const val = (grid, i, j) => grid[i][j] == null ? topSize : grid[i][j];
     const interp = grid => {

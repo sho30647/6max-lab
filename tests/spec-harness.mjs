@@ -24,6 +24,7 @@ export async function openGame(opts = {}) {
   await page.waitForFunction(() => typeof playHand === 'function' && window.PFRanges && PFRanges.spot && typeof Store !== 'undefined' && Store.mode && window.SpecBot, null, { timeout: 30000 });
   await page.waitForTimeout(1500);
   await page.evaluate(allinEV);
+  if (process.env.SPEC_ALT) await loadAlt(page, process.env.SPEC_ALT);
   await page.evaluate(() => {
     window.__seed = a => { Math.random = function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
     crypto.getRandomValues = a => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 4294967296); return a; };
@@ -31,6 +32,7 @@ export async function openGame(opts = {}) {
     S.autoHero = true; S.players.forEach(p => { p.style = { loose: 1, aggr: 1, three: 1 }; });
     // a version as tests/ring-bench.mjs reads it: 'spec' (the new bot), 13 (an old version), "13+riverBluff=3" (v13 with a tweak changed)
     window.__setVer = (p, ver) => { const [v, ...tw] = String(ver).split('+'); p.ver = v === 'spec' ? 'spec' : +v;
+      p.specAlt = v === 'specalt'; if (v === 'specalt') { if (!window.__specAlt) throw new Error('specalt: SPEC_ALT is not set'); p.ver = 'spec'; p.tw = null; p.specParams = tw.reduce((P, t) => { const [k, x] = t.split('='); return __setPath(P, k.split('.'), +x); }, __specAlt.SpecParams.DEFAULTS); return; }
       if (v === 'spec') { p.tw = null; p.specParams = tw.length ? tw.reduce((P, t) => { const [k, x] = t.split('='); return __setPath(P, k.split('.'), +x); }, SpecParams.DEFAULTS) : null; return; }
       p.tw = tw.length ? Object.assign({}, BOT_TWEAKS[v], ...tw.map(t => { const [k, x] = t.split('='); return { [k]: x === undefined ? true : +x }; })) : null; };
     // "spec+equilibrium.bucket.b1=0.75+equilibrium.nodeGrid.freq.1.1=0.6": a copy of the spec bot's params with those numbers changed (path by dots)
@@ -40,6 +42,24 @@ export async function openGame(opts = {}) {
   });
   if (opts.allinEV) await page.evaluate(() => { window.__allinEV = true; });
   return { browser, page, errors };
+}
+// SPEC_ALT=<a checkout of the repository, e.g. a git worktree of an older commit>: the version "specalt" (with tweaks: "specalt+a.b=x") plays
+// the spec bot with that checkout's strategy.js (with its own cards / equity / preflop / ranges / texture) and its params.js. The rest of the bot
+// (index.js: the ranges kept, the trace, the bet amounts) is this checkout's, so this compares a change of strategy.js / params.js / texture.js
+// (docs/decisions.md 2026-10-26: the static / dynamic measure, before against after). Each exported function of SpecStrategy goes to the
+// alt copy when its first argument is the context of a "specalt" player.
+async function loadAlt(page, dir) {
+  const fs = await import('fs');
+  const src = ['cards', 'equity', 'params', 'preflop', 'ranges', 'texture', 'strategy'].map(n => fs.readFileSync(path.join(dir, 'bot/spec', n + '.js'), 'utf8'));
+  await page.evaluate(src => {
+    const alt = window.__specAlt = {};
+    for (const code of src) new Function('self', code).call(alt, alt);   // the UMD wrapper puts each module on `self` (the alt object), and finds its deps there
+    const ST = window.SpecStrategy;
+    for (const k of Object.keys(ST)) {
+      const base = ST[k], other = alt.SpecStrategy[k]; if (typeof base !== 'function' || typeof other !== 'function') continue;
+      ST[k] = function (ctx) { const p = ctx && ctx.prm && ctx.seat != null && S.players[ctx.seat]; return (p && p.specAlt ? other : base).apply(this, arguments); };
+    }
+  }, src);
 }
 // in the page, before it loads: setTimeout without the wait (and without the browser's 4 ms for nested timers)
 export function fastTimers() {

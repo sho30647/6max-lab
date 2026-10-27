@@ -23,6 +23,7 @@
         bigBet: 0.75                               // a bet of this share of the pot or more is "big"
       },
       // §4 Step2
+      staticDynamicTurn: [0.24, 0.39],             // the turn's own bounds: set so the turn splits as the flop does (the flop's bounds sit at its 15% / 74% points of the bot's decisions; the turn's same points), docs/decisions.md 2026-10-27
       staticDynamic: [0.22, 0.35], dynTop: 0.20,  // the share of the range's top dynTop (by equity) that drops out of it after a next card, averaged over the cards (the owner's decision 2026-10-26; was: the share of cards that move the mean equity 5pt)
       // §5 Step3
       raNaThresh: 0.05, oopRaAdj: 0.03, nutEq: 0.80, midBand: [0.40, 0.60],

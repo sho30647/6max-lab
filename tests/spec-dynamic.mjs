@@ -3,10 +3,15 @@
 // averaged over the cards. Ranges: the game's BTN open and BB call (as the game's chart gives them), the BTN side.
 // 1. the fixed flops of the spec's table: A83r, K72r and KK5 static; JT9, 765 and 874 dynamic; AK5 one suit mid or static
 // 2. reported: the split of 100 random flops (both sides), and the time of one step2
+// 3. the turn: the bot's own turn decisions in play (4 x 100 heads-up duels) do not lean to one class (its own bounds, staticDynamicTurn); --no-play skips it
 // Before the change (the mean equity moving 5pt) every flop was static, so check 1 failed on JT9 / 765 / 874.
-// Usage: node tests/spec-dynamic.mjs [random flops=100]
+// Usage: node tests/spec-dynamic.mjs [random flops=100]   [--no-play]
 import { createRequire } from 'module';
 import { openGame } from './spec-harness.mjs';
+import { worker } from './eval-stats.mjs';
+import { LINES } from './spec-duel.mjs';
+import { fileURLToPath } from 'url'; import path from 'path';
+const duel = path.join(path.dirname(fileURLToPath(import.meta.url)), 'spec-duel.mjs');
 const require = createRequire(import.meta.url);
 const C = require('../bot/spec/cards.js'), E = require('../bot/spec/equity.js'), ST = require('../bot/spec/strategy.js'), P = require('../bot/spec/params.js');
 const N = +process.argv[2] || 100;
@@ -47,6 +52,18 @@ for (let k = 0; k < N; k++) {
   for (const side of ['btn', 'bb']) cnt[side][dynOf(b, side).dyn]++;
 }
 for (const side of ['btn', 'bb']) console.log(`${N} random flops, ${side === 'btn' ? 'BTN (opener)' : 'BB (caller)'}: static ${cnt[side].static}, mid ${cnt[side].mid}, dynamic ${cnt[side].dynamic}`);
+// 3. the turn (docs/decisions.md 2026-10-27): how the bot's own turn decisions split, the new bot against itself on heads-up flops (tests/spec-duel.mjs,
+//    as tests/spec-theory.mjs: 4 x 100 duels, seeds 1-4). The turn has its own bounds (staticDynamicTurn): with the flop's bounds the turn leaned to
+//    dynamic (9 / 47 / 44%). Check: static 10%+, dynamic 10-40%, mid 65% or less (the flop's split in the same play: about 15 / 58 / 26%).
+if (!process.argv.includes('--no-play')) {
+  const D = (await Promise.all([1, 2, 3, 4].map(sd => worker(duel, ['100', String(sd), JSON.stringify(LINES), 'a', 'spec', 'spec', 'ev', 'theory'])))).flatMap(x => x.rows).flatMap(r => r.th || []);
+  for (const st of [1, 2]) {
+    const dd = D.filter(x => x.st === st && x.dy), c = { static: 0, mid: 0, dynamic: 0 }; for (const x of dd) c[x.dy]++;
+    const pc = k => (100 * c[k] / (dd.length || 1)).toFixed(1) + '%';
+    console.log(`${st === 1 ? 'flop' : 'turn'} decisions in play (n=${dd.length}): static ${pc('static')}, mid ${pc('mid')}, dynamic ${pc('dynamic')}`);
+    if (st === 2) { const f = k => c[k] / (dd.length || 1); check(dd.length > 300 && f('static') >= 0.10 && f('dynamic') >= 0.10 && f('dynamic') <= 0.40 && f('mid') <= 0.65, `turn in play: static ${pc('static')} mid ${pc('mid')} dynamic ${pc('dynamic')} (want static 10%+, dynamic 10-40%, mid 65% or less)`); }
+  }
+}
 console.log(`step2: ${(ms / nT).toFixed(1)} ms per call (node)`);
 console.log(fails ? `${fails} failed` : 'spec-dynamic: all passed');
 process.exitCode = fails ? 1 : 0;
