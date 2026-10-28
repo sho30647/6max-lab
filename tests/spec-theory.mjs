@@ -166,8 +166,23 @@ for (let st = 1; st <= 3; st++) {
   const rd = fb.filter(x => x.meNow && x.ob);
   if (rd.length) {
     const m = [0, 0, 0, 0, 0], h = [0, 0, 0, 0, 0]; for (const x of rd) { for (let b = 0; b < 5; b++) m[b] += x.meNow[b] / rd.length; h[x.ob - 1] += 1 / rd.length; }
-    res.readVsHands = { n: rd.length, read: m, hands: h };
-    console.log(`      facing a bet, the range read B1..B5 ${m.map(pct).join(' ')} | the hands ${h.map(pct).join(' ')}  (n=${rd.length})`);
+    const gap = m.reduce((a, x, b) => a + Math.abs(x - h[b]), 0) / 5;
+    res.readVsHands = { n: rd.length, read: m, hands: h, gap };
+    console.log(`      facing a bet, the range read B1..B5 ${m.map(pct).join(' ')} | the hands ${h.map(pct).join(' ')}  (n=${rd.length}; mean gap ${(100 * gap).toFixed(1)}pt)`);
+    // the same by the line: who had the initiative from the last street, and the seat (an out-of-position caller's check is not narrowed, §3)
+    res.readVsHandsByLine = [];
+    for (const ini of ['me', 'opp', 'none']) for (const ip of [true, false]) {
+      const g = rd.filter(x => (x.ini || 'none') === ini && !!x.ip === ip); if (g.length < 30) continue;
+      const r1 = g.reduce((a, x) => a + x.meNow[0], 0) / g.length, h1 = g.filter(x => x.ob === 1).length / g.length;
+      res.readVsHandsByLine.push({ ini, ip, n: g.length, readB1: r1, handsB1: h1 });
+    }
+    console.log('      facing a bet, B1 read / hands by line (initiative, seat): ' + res.readVsHandsByLine.map(x => `${x.ini} ${x.ip ? 'IP' : 'OOP'} n=${x.n} ${pct(x.readB1)} / ${pct(x.handsB1)}`).join(' | '));
+    // how each bucket of the range (the bucket the read uses, not Step5's) answers a bet: the shape §3's callBet row should have (the call share
+    // of each bucket over B2's, docs/decisions.md 2026-10-28)
+    const byOb = [1, 2, 3, 4, 5].map(b => { const o = fb.filter(x => x.ob === b), n = o.length; return { n, call: n ? o.filter(x => x.act === 'call').length / n : null, raise: n ? o.filter(x => x.act === 'raise').length / n : null }; });
+    const c2 = byOb[1].call || 1;
+    res.callByRangeBucket = byOb.map(x => Object.assign(x, { rel: x.call == null ? null : x.call / c2 }));
+    console.log(`      facing a bet, by the range's bucket B1..B5: call ${byOb.map(x => x.call == null ? '  -  ' : pct(x.call)).join(' ')} | raise ${byOb.map(x => x.raise == null ? '  -  ' : pct(x.raise)).join(' ')} | call / B2's ${byOb.map(x => x.rel == null ? ' - ' : x.rel.toFixed(2)).join(' ')}  (n ${byOb.map(x => x.n).join(' ')})`);
   }
   // §3's multipliers against the bot's own play: how often each bucket takes the action (the multipliers are relative: compare the shape)
   if (open.length) {

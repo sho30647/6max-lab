@@ -13,7 +13,11 @@
     equilibrium: {
       // §3 Step1: the multiplier of each bucket when a player takes the action
       updateMult: {
-        callBet: B(0.5, 1.0, 0.9, 0.9, 0.1),
+        // a call, by street: each bucket's share of calls (not raises or folds) over B2's, as the bot itself answers a bet (tests/spec-theory.mjs
+        // "by the range's bucket", seeds 1 / 5, the mean after one round of setting the rows and measuring again). Was one row for all streets
+        // (0.5, 1.0, 0.9, 0.9, 0.1): the bot's B1 raises about 84% of the bets it faces on the flop and 49% on the river, so the read held too many B1
+        // after a call (docs/decisions.md 2026-10-28). The river's B4 (no draws on the river) is kept
+        callBet: { flop: B(0.15, 1.0, 0.9, 0.97, 0.28), turn: B(0.38, 1.0, 0.75, 0.55, 0.17), river: B(0.6, 1.0, 0.57, 0.9, 0.12) },
         raiseBet: B(1.0, 0.1, 0.02, 0.2, 0.05),    // was (1.0, 0.4, 0.05, 0.4, 0.1): set to how the bot itself raises (2026-10-26 night, docs/decisions.md)
         checkAggr: B(0.3, 0.6, 1.0, 0.6, 0.7),     // the aggressor checks
         checkBackIP: B(0.3, 0.6, 1.0, 0.6, 0.7),   // the caller in position checks back (its own copy, §3)

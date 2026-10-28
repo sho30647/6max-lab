@@ -47,7 +47,9 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
   const VA = args[5] || 'spec', VB = args[6] || '13';
   const { browser, page, errors } = await openGame({ allinEV: args[7] !== 'raw' });
   const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB, THEORY]) => {
-    if (THEORY) SpecBot.diag = true;
+    // --theory: the equity mode fixed to the exact one (the mode is picked once per page by a timing probe, so a busy machine could make one
+    // process measure with the split mode and the runs differ; docs/decisions.md 2026-10-28)
+    if (THEORY) { SpecBot.diag = true; SpecBot.setEquityMode('exact'); }
     const POSN = ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'];
     const toSpot = T => { const r = new Map(), c = new Map(), j = new Map(); for (const k in T.h) { const x = T.h[k]; if (+x.r > 0) r.set(k, +x.r); if (+x.c > 0) c.set(k, +x.c); if (+x.j > 0) j.set(k, +x.j); } return { r, c, j, size: T.size }; };
     const spots = {};   // the chart spots of each line (what the game's bots read)

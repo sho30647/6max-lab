@@ -128,7 +128,9 @@
       let kind = updateKind(seat, info), size = null;
       // a bet: the row by its size, on a line between the sizes of the table (§3, docs/decisions.md 2026-10-27); an older params set: betSmall / betBig
       if (info.act === 'bet') { size = info.potBefore > 0 ? info.to / info.potBefore : 1; kind = eq.updateMult.betSize ? 'bet' : size >= eq.updateMult.bigBet ? 'betBig' : 'betSmall'; }
-      const mult = prm.hooks.updateMult({ seat, kind, street: info.street, size }, info.act === 'bet' ? RG.betMult(eq.updateMult, size) : eq.updateMult[kind]);
+      // a row may be one per street ({flop, turn, river}, e.g. callBet: docs/decisions.md 2026-10-28) or one for all streets
+      const row = eq.updateMult[kind], byStreet = row && !Array.isArray(row) ? row[['', 'flop', 'turn', 'river'][info.street]] : row;
+      const mult = prm.hooks.updateMult({ seat, kind, street: info.street, size }, info.act === 'bet' ? RG.betMult(eq.updateMult, size) : byStreet);
       const r = H.apply(seat, mult);
       if (r) v.updates.push(Object.assign({ n: nAct, seat, act: info.act, kind, size }, r));
     }
