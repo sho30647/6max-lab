@@ -15,8 +15,9 @@ export function options(argv) {
 // one worker process: node <script> --worker ...args; resolves with the JSON after "RESULT "
 export function worker(script, args) {
   return new Promise((res, rej) => {
-    const c = spawn('node', [script, '--worker', ...args]); let out = ''; c.stdout.on('data', d => out += d); c.stderr.on('data', d => out += d);
-    c.on('close', () => { const l = out.split('\n').find(x => x.startsWith('RESULT ')); l ? res(JSON.parse(l.slice(7))) : rej(new Error(out.slice(-600))); });
+    // stdout and stderr apart: a line on stderr could land inside the long RESULT line (seen once: a JSON parse error mid-line)
+    const c = spawn('node', [script, '--worker', ...args]); let out = '', err = ''; c.stdout.on('data', d => out += d); c.stderr.on('data', d => err += d);
+    c.on('close', () => { const l = out.split('\n').find(x => x.startsWith('RESULT ')); l ? res(JSON.parse(l.slice(7))) : rej(new Error((out + err).slice(-600))); });
   });
 }
 

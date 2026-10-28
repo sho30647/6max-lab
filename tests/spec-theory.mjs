@@ -160,6 +160,18 @@ for (let st = 1; st <= 3; st++) {
       res.estFold.push(row);
       console.log(`      estimate vs answer, bet ${row.band.padEnd(8)} ${part.padEnd(9)} n=${String(n).padStart(5)}  estimated fold ${pct(est)}${rule == null ? '' : ` (by their own rule ${pct(rule)})`}  answered fold ${pct(fold)} ± ${(196 * row.se).toFixed(1)}  gap ${(100 * (est - fold)).toFixed(1)}pt  (B / (P + B) ${pct(alpha)})`);
     }
+    // the river's bets of 1x pot or more, by the bettor's node (the receiver's last checks are read by §3's check rows: cbet = the receiver
+    // checked as the other player, stab = the receiver was the aggressor and checked, delayed / probe = the last street went check-check)
+    if (st === 3) {
+      res.estFoldByNode = [];
+      for (const k of ['cbet', 'stab', 'delayed', 'probe', 'donk']) {
+        const g = ans.map(x => [x, x.ps.find(p => Math.abs(p.s - x.cs) < 1e-3) || x.ps[0]]).filter(([x, p]) => x.k === k && x.resp.s >= 1.0 && p.FE != null);
+        if (g.length < 10) continue;
+        const n = g.length, est = g.reduce((a, [, p]) => a + p.FE, 0) / n, rule = g.reduce((a, [, p]) => a + (p.recvFold || 0), 0) / n, fold = g.filter(([x]) => x.resp.act === 'fold').length / n;
+        res.estFoldByNode.push({ k, ip: g.filter(([x]) => x.ip).length / n, n, est, rule, fold });
+        console.log(`      estimate vs answer, river bet 1x+ by the bettor's node ${k.padEnd(7)} n=${String(n).padStart(4)}  estimated ${pct(est)}  by their own rule ${pct(rule)}  answered ${pct(fold)} ± ${(196 * Math.sqrt(fold * (1 - fold) / n)).toFixed(1)}`);
+      }
+    }
   }
   // §3's read against the hands: the bucket shares a player's range says (the read everyone uses) against the bucket its own hand is in, over
   // the decisions facing a bet (what the bettor's estimate reads)
@@ -183,6 +195,20 @@ for (let st = 1; st <= 3; st++) {
     const c2 = byOb[1].call || 1;
     res.callByRangeBucket = byOb.map(x => Object.assign(x, { rel: x.call == null ? null : x.call / c2 }));
     console.log(`      facing a bet, by the range's bucket B1..B5: call ${byOb.map(x => x.call == null ? '  -  ' : pct(x.call)).join(' ')} | raise ${byOb.map(x => x.raise == null ? '  -  ' : pct(x.raise)).join(' ')} | call / B2's ${byOb.map(x => x.rel == null ? ' - ' : x.rel.toFixed(2)).join(' ')}  (n ${byOb.map(x => x.n).join(' ')})`);
+  }
+  // how each bucket of the range (the read's bucket) checks, by §3's check row (index.js updateKind): the aggressor of the last street
+  // (checkAggr), the other in position (checkBackIP), the other out of position (checkOOPCaller). rel: the check share over B3's, the shape
+  // the row should have (docs/decisions.md 2026-10-28, the checks)
+  if (open.length) {
+    res.checkByRangeBucket = {};
+    const KINDS = { checkAggr: x => x.ini === 'me', checkBackIP: x => x.ini !== 'me' && x.ip, checkOOPCaller: x => x.ini !== 'me' && !x.ip };
+    for (const [kind, f] of Object.entries(KINDS)) {
+      const g = open.filter(x => x.ob && f(x)); if (!g.length) continue;
+      const byOb = [1, 2, 3, 4, 5].map(b => { const o = g.filter(x => x.ob === b), n = o.length; return { n, check: n ? o.filter(x => x.act === 'check').length / n : null }; });
+      const c3 = byOb[2].check || 1;
+      res.checkByRangeBucket[kind] = byOb.map(x => Object.assign(x, { rel: x.check == null ? null : x.check / c3 }));
+      console.log(`      ${kind.padEnd(14)} by the range's bucket B1..B5: check ${byOb.map(x => x.check == null ? '  -  ' : pct(x.check)).join(' ')} | check / B3's ${byOb.map(x => x.rel == null ? ' - ' : x.rel.toFixed(2)).join(' ')}  (n ${byOb.map(x => x.n).join(' ')})`);
+    }
   }
   // §3's multipliers against the bot's own play: how often each bucket takes the action (the multipliers are relative: compare the shape)
   if (open.length) {

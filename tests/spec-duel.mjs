@@ -163,8 +163,10 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
     }
     return rows;
   }, [N, SEED, LW, MODE, VA, VB, args[8] === 'theory']);
-  console.log('RESULT ' + JSON.stringify({ rows: out, errors: errors.slice(0, 3), allin: await page.evaluate(() => __allinCount) }));
+  const result = 'RESULT ' + JSON.stringify({ rows: out, errors: errors.slice(0, 3), allin: await page.evaluate(() => __allinCount) }) + '\n';
   await browser.close();
+  // the theory rows run to tens of MB: exit only once the line is written out (an exit right after it cut one off once, mid-line)
+  await new Promise(r => process.stdout.write(result, r));
   process.exit(0);
 }
 
