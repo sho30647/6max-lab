@@ -176,7 +176,7 @@
     if (opps.length === 1) { preOpp = PF.rangeOf(preActs[opps[0]] || []); preMe = PF.rangeOf(preActs[seat] || []); }
     return { prm, seat, street: S.street, board: S.board.slice(), hole: p.hole.slice(), own: C.comboOf(p.hole[0], p.hole[1]), P: s0.pot, toCall: s0.toCall,
       stack: p.stack, myBet: p.bet, currentBet: S.currentBet, effStack: s0.effStack, ip: s0.ip, nodeKind: s0.nodeKind, initiative: s0.initiative, sprClass: s0.sprClass,
-      nOpp: opps.length, H, Wme, Wop, WopRaw: opps.length === 1 ? H.W[opps[0]] : null, rng, tr, bb: G.BB(), isPfAggr: S.pfAggr === seat, preOpp, preMe };
+      nOpp: opps.length, H, Wme, Wop, WopRaw: opps.length === 1 ? H.W[opps[0]] : null, rng, tr, diag: !!api.diag, bb: G.BB(), isPfAggr: S.pfAggr === seat, preOpp, preMe };
   }
   /* the chips of a bet of B for the game: at least a big blind; all-in when what would be left is less than the pot after the bet (§9, docs/decisions.md) */
   function betTo(p, B, P) {
@@ -199,6 +199,8 @@
       try {
         ensureStreet();
         tr.step1 = step1(seat, prm); tr.other.equityMode = tr.step1 && tr.step1.equityMode;
+        // measurement only (tests/spec-theory.mjs): the bucket of the player's own hand in the street's table, against what its range says (§3's read)
+        if (api.diag) { const c = views.get(prm).ranges.cache[seat]; tr.other.ownBucket = c ? c.bucket[C.comboOf(p.hole[0], p.hole[1])] : null; }
         const ctx = context(seat, prm, tr.step0, tr);
         if (!(ctx.Wme && ctx.Wop.some(w => w > 0))) throw new Error('empty range');
         ST.prepare(ctx);
@@ -252,7 +254,7 @@
     return all.slice(-(n || 1)).map(h => h.records.map(tr => explain(tr).text).join('\n\n')).join('\n\n' + '='.repeat(40) + '\n\n');
   }
 
-  const api = { attach, explain, explainHand, explainSaved, savedHand, lastHand: null, passThrough: false, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
+  const api = { diag: false, attach, explain, explainHand, explainSaved, savedHand, lastHand: null, passThrough: false, newHand, onAction, decide, endHand, counts, preflopLine, step0, get hand() { return hand; }, get views() { return views; }, get preActs() { return preActs; },
     setEquityMode(m) { equityMode = m; } };
   return api;
 });

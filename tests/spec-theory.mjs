@@ -2,6 +2,7 @@
 //   facing a bet: the fold rate against the bet's price B / (P + B) (what makes a pure bluff break even; much more = folding too much)
 //   the river: the share of bluffs among the bets (equity under 50% against the calling range) against B / (P + 2B) (what makes a call break even)
 //   flop and turn: how often it bets, and the share of air (B5) and draws (B4) in the bets
+//   every bet: the bettor's estimate of the fold share (strategy.js reaction) against what the other then did, by size band (docs/decisions.md 2026-10-28)
 // Checks (the default version only): the river's bets of 0.8x pot or more hold 15%+ bluffs, and the river's fold rate against a bet is within
 // 10pt of its theoretical bound (before 2026-10-26: 2% bluffs, 15pt over; docs/decisions.md); the planned river range bets 18%+ bluffs at
 // sizes of 1x pot or more (before 2026-10-27: 14%)
@@ -140,6 +141,33 @@ for (let st = 1; st <= 3; st++) {
       res.betRead.push(row);
       console.log(`      bets ${row.band.padEnd(8)} n=${String(n).padStart(5)}  by bucket B1..B5: actual ${f5(row.actual)} | read ${f5(row.read)} | range before ${f5(row.prior)}` + (st === 3 ? `  | read air ${pct(row.read[4])} (theory ${pct(row.theory)})` : ''));
     }
+  }
+  // the bot's estimate of the others' fold share (strategy.js reaction, at the size it bet) against what the other then did (docs/decisions.md
+  // 2026-10-28). Each bet's answer is one fold or not, so a band's mean is the real fold share at those nodes. "own rule": the same range read,
+  // each combo answering by facing()'s rule (strategy.js recvFold): estimate - own rule = the rule's part of the gap (marginReact, no MDF guard),
+  // own rule - answered = the range read's part. River: also split by whether the bet's size was at its bluff cap at that node
+  const ans = bets.filter(x => x.resp && x.ps && x.ps.some(p => p.FE != null));
+  if (ans.length) {
+    res.estFold = [];
+    const bandsE = st === 3 ? BANDS.concat([[1.0, 99]]) : BANDS;
+    for (const band of bandsE) for (const part of st === 3 ? ['all', 'capped', 'under cap'] : ['all']) {
+      const g = ans.map(x => [x, x.ps.find(p => Math.abs(p.s - x.cs) < 1e-3) || x.ps[0]])
+        .filter(([x, p]) => x.resp.s >= band[0] && x.resp.s < band[1] && p.FE != null && (part === 'all' || (part === 'capped') === (p.bluffShare >= p.cap - 0.01)));
+      if (g.length < 10) continue;
+      const n = g.length, est = g.reduce((a, [, p]) => a + p.FE, 0) / n, rule = g.some(([, p]) => p.recvFold != null) ? g.reduce((a, [, p]) => a + (p.recvFold || 0), 0) / n : null;
+      const fold = g.filter(([x]) => x.resp.act === 'fold').length / n, alpha = g.reduce((a, [x]) => a + x.resp.s / (1 + x.resp.s), 0) / n;
+      const row = { band: bandName(band), part, n, est, rule, fold, se: Math.sqrt(fold * (1 - fold) / n), alpha };
+      res.estFold.push(row);
+      console.log(`      estimate vs answer, bet ${row.band.padEnd(8)} ${part.padEnd(9)} n=${String(n).padStart(5)}  estimated fold ${pct(est)}${rule == null ? '' : ` (by their own rule ${pct(rule)})`}  answered fold ${pct(fold)} ± ${(196 * row.se).toFixed(1)}  gap ${(100 * (est - fold)).toFixed(1)}pt  (B / (P + B) ${pct(alpha)})`);
+    }
+  }
+  // §3's read against the hands: the bucket shares a player's range says (the read everyone uses) against the bucket its own hand is in, over
+  // the decisions facing a bet (what the bettor's estimate reads)
+  const rd = fb.filter(x => x.meNow && x.ob);
+  if (rd.length) {
+    const m = [0, 0, 0, 0, 0], h = [0, 0, 0, 0, 0]; for (const x of rd) { for (let b = 0; b < 5; b++) m[b] += x.meNow[b] / rd.length; h[x.ob - 1] += 1 / rd.length; }
+    res.readVsHands = { n: rd.length, read: m, hands: h };
+    console.log(`      facing a bet, the range read B1..B5 ${m.map(pct).join(' ')} | the hands ${h.map(pct).join(' ')}  (n=${rd.length})`);
   }
   // §3's multipliers against the bot's own play: how often each bucket takes the action (the multipliers are relative: compare the shape)
   if (open.length) {

@@ -169,7 +169,30 @@
     const f = ctx.street === 1 ? eq.raiseF.flop : ctx.street === 2 ? eq.raiseF.turn : eq.raiseF.river;
     react.RT = Math.min(B + f * (P + 2 * B), ctx.effStack);
     react.callShare = tot ? (tot - wf - acc) / tot : 0; react.foldShare = tot ? wf / tot : 0; react.raiseShare = tot ? acc / tot : 0;
+    if (ctx.diag) react.recvFold = recvFold(ctx, s, eo);
     return react;
+  }
+  /* measurement only (ctx.diag, tests/spec-theory.mjs; docs/decisions.md 2026-10-28): the others' fold share at a bet of s x pot if each of
+     their combos answered by facing()'s own rule (§9 B: R x E against the price + the margin, the SPR shrink, the MDF guard down to mdfBorder
+     under it, B1 always on) instead of reaction()'s "E over B / (P + 2B) + marginReact". Heads-up; the bluff raise (a coin flip) is left out.
+     reaction() minus this = the part of the estimate's error that is the rule; this minus the real answers = the part that is the range read */
+  function recvFold(ctx, s, eo) {
+    const eq = ctx.prm.equilibrium, P = ctx.P, B = s * P, Wo = ctx.Wop, river = ctx.street === 3;
+    const R0 = river ? eq.realize.river : !ctx.ip ? eq.realize.ip : eq.realize.oop;   // heads-up: the other is in position when the bot is not
+    const need = B / (P + 2 * B), margin0 = river ? eq.marginCall.river : ctx.street === 2 && eq.marginCall.turn != null ? eq.marginCall.turn : eq.marginCall.flopTurn;
+    const sprAfter = Math.max(0, ctx.effStack - B) / (P + 2 * B), w = eq.facingSprFull > 0 ? Math.min(1, sprAfter / eq.facingSprFull) : 1;
+    const R = river ? R0 : 1 - (1 - R0) * w, margin = river ? margin0 : margin0 * w, mdf = 1 - B / (P + B);
+    let tw = 0, dw = 0; const list = [];
+    for (let i = 0; i < NC; i++) { if (!(Wo[i] > 0) || !(eo[i] >= 0)) continue; tw += Wo[i]; const v = R * eo[i]; list.push([v, Wo[i], eo[i]]); if (v >= need + margin || eo[i] >= eq.bucket.b1) dw += Wo[i]; }
+    if (!tw) return 0;
+    let cut = need + margin;
+    if (dw / tw < mdf - eq.mdfSlack) {
+      list.sort((x, y) => y[0] - x[0]); let acc = 0; const want = (mdf - eq.mdfSlack) * tw;
+      for (const [v, x] of list) { acc += x; if (acc >= want) { cut = Math.min(cut, v); break; } }
+      cut = Math.max(cut, need + margin - eq.mdfBorder);
+    }
+    let f = 0; for (const [v, x, e] of list) if (!(v >= cut || e >= eq.bucket.b1)) f += x;
+    return f / tw;
   }
   /* the others' equity against the bot's range as they see it after a bet of s x pot: narrowed by §3's multiplier of that size, as index.js
      narrows it when the bet is made (docs/decisions.md 2026-10-26 night). Before, it was the range before the bet, so a big bet looked far
@@ -351,7 +374,7 @@
       const tot = w[0] + w[1];
       if (tot > 0) for (let k = 0; k < 2; k++) if (w[k] / tot < eq.minSizeShare) { merged = { from: s4.sizes[k], to: s4.sizes[1 - k] }; for (const c of combos) { c.p[2 - k] += c.p[k + 1]; c.p[k + 1] = 0; } break; }
     }
-    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (isBluffAt(c, k + 1)) bl += x; } return { s: rc.s, weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
+    const perSize = reacts.map((rc, k) => { let bw = 0, bl = 0; for (const c of combos) { const x = c.w * c.p[k + 1]; bw += x; if (isBluffAt(c, k + 1)) bl += x; } return { s: rc.s, FE: r3(rc.FE), recvFold: rc.recvFold == null ? undefined : r3(rc.recvFold), weight: r3(bw / Math.max(1e-9, combos.reduce((a, c) => a + c.w, 0))), bluffShare: bw ? r3(bl / bw) : 0, cap: r3(capOf(rc.s)) }; });
 
     // the bot's own hand
     const me = combos.find(c => c.i === ctx.own);
@@ -434,5 +457,5 @@
     return act === 'raise' ? { act: 'raise', to: Math.round(to) } : { act };
   }
 
-  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, evalCombo, probs, capBluffs, betNode, facing };
+  return { prepare, attrs, bucketOf, step2, step3, step4, reaction, recvFold, evalCombo, probs, capBluffs, betNode, facing };
 });

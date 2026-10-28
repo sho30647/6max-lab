@@ -47,6 +47,7 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
   const VA = args[5] || 'spec', VB = args[6] || '13';
   const { browser, page, errors } = await openGame({ allinEV: args[7] !== 'raw' });
   const out = await page.evaluate(async ([N, SEED, LINES, MODE, VA, VB, THEORY]) => {
+    if (THEORY) SpecBot.diag = true;
     const POSN = ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'];
     const toSpot = T => { const r = new Map(), c = new Map(), j = new Map(); for (const k in T.h) { const x = T.h[k]; if (+x.r > 0) r.set(k, +x.r); if (+x.c > 0) c.set(k, +x.c); if (+x.j > 0) j.set(k, +x.j); } return { r, c, j, size: T.size }; };
     const spots = {};   // the chart spots of each line (what the game's bots read)
@@ -110,8 +111,11 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       S.cursor = (S.button + 1) % 6;
       await playHand(true);
       const lh = SpecBot.lastHand;   // the new bot's decisions of this play (when a spec bot is in it)
-      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs: lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
-        th: THEORY && !r.other.fallback ? theoryOf(r) : undefined, flip: flipOf(r) })) : [] };
+      const recs = lh ? lh.records.map(r => ({ pt: r.step0.potType, k: r.step0.nodeKind, fb: r.other.fallback, st: r.street,
+        th: THEORY && !r.other.fallback ? theoryOf(r) : undefined, flip: flipOf(r) })) : [];
+      // --theory: a bet's answer (the next decision on the street, facing it): the bettor's estimate against what the other did (docs/decisions.md 2026-10-28)
+      if (THEORY) recs.forEach((r, i) => { const t = r.th; if (!t || t.toCall !== 0 || t.act !== 'raise') return; const n = recs.slice(i + 1).find(q => q.st === r.st && q.th); if (n && n.th.k === 'facingBet') t.resp = { act: n.th.act, g: n.th.g, s: n.th.toCall / Math.max(1e-9, n.th.pot - n.th.toCall) }; });
+      return { log: S.log.map(x => x.join(' ')).join(' / ') + ' | ' + S.board.map(c => c).join(','), net: S.players.map(p => (p.stack - START) / BB), recs };
     }
     // a call that the R and margin before the shallow-SPR shrink (R0, margin0, docs/hand_reviews.md #1) would have folded (outside the MDF guard)
     function flipOf(r) {
@@ -123,7 +127,9 @@ if (args[0] === '--worker' || args[0] === '--selftest-worker') {
       const c = r.step6 && r.step6.cands && r.step6.chosen ? r.step6.cands.find(x => x.act === r.step6.chosen.act && (x.size || 0) === (r.step6.chosen.size || 0)) : null;
       return { st: r.street, k: r.step0.nodeKind, ip: r.step0.ip, ini: r.step0.initiative, pot: r.step0.pot, toCall: r.step0.toCall, eff: r.step0.effStack, act: r.decision.act, to: r.decision.to,
         E: r.step5 && r.step5.E, b: r.step5 && r.step5.bucket, tgt: r.step6 && r.step6.target, rf: r.step6 && r.step6.rangeFreq, sh: r.step6 && r.step6.shift, ev: c && r.step6.cands[0] ? r.step6.cands.map(x => x.EV) : null, Ec: c && c.Ec, na: r.step3 && r.step3.na, dy: r.step2 && r.step2.dyn, ds: r.step2 && r.step2.dynScore, ts: r.step4 && r.step4.topSize,
-        ps: r.step6 && r.step6.perSize, mb: r.decision.act === 'raise' && r.step0.toCall === 0 && r.step1 && r.step1.me ? r.step1.me.now : undefined };   // the bettor's range as the other sees it, by bucket, before the bet (spec-theory: the read against the bets)
+        ps: r.step6 && r.step6.perSize,   // perSize: FE = the bot's estimate of the fold share at each size, recvFold = the same by the others' own rule (strategy.js recvFold)
+        cs: r.step6 && r.step6.chosen && r.step6.chosen.size, ob: r.other.ownBucket, meNow:   // the own hand's bucket, and the range's bucket shares (the read of it): spec-theory's check of §3's read
+           r.step1 && r.step1.me ? r.step1.me.now : undefined, g: r.step7 && r.step7.mdfGuard, mb: r.decision.act === 'raise' && r.step0.toCall === 0 && r.step1 && r.step1.me ? r.step1.me.now : undefined };   // the bettor's range as the other sees it, by bucket, before the bet (spec-theory: the read against the bets)
     }
     const rows = [];
     for (let k = 0; k < N; k++) {
