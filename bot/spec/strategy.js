@@ -219,6 +219,10 @@
       // or air with no draw, a bluff (only these count toward the bluff caps); any other hand a semi-bluff
       if (!reason && ev > evCheck && !(ctx.nOpp > 1 && b.draw && !(a.nutty >= 0.5)))
         reason = ctx.street === 3 || (t === 5 && !b.draw) ? 'bluff' : 'semibluff';
+      // heads-up on the river, a bet that is not value and not better than the check, but near it (within tau plus the largest frequency
+      // shift): a candidate of the river fill (capBluffs, the owner's decision 2026-10-28). It is not an option of probs; it bets only
+      // when capBluffs puts it in to fill a size's bluff share
+      if (!reason && ctx.street === 3 && ctx.nOpp === 1 && ev >= evCheck - (eq.tau + eq.deltaMax) * P) reason = 'bluffFill';
       out.push({ s: rc.s, B, FE: rc.FE, rho: rc.rho, Ec, Er, needR, vRaised, EV: ev, reason });
     }
     return { evCheck, bets: out };
@@ -227,7 +231,7 @@
   function probs(ctx, ev, delta) {
     const tau = ctx.prm.equilibrium.tau * ctx.P;
     const opts = [{ k: -1, v: ev.evCheck }];
-    ev.bets.forEach((x, k) => { if (x.reason) opts.push({ k, v: x.EV + delta }); });
+    ev.bets.forEach((x, k) => { if (x.reason && x.reason !== 'bluffFill') opts.push({ k, v: x.EV + delta }); });
     for (const o of opts) if (!(o.v === o.v)) o.v = -Infinity;   // (a NaN EV never wins)
     opts.sort((a, b) => b.v - a.v);
     const p = new Array(ev.bets.length + 1).fill(0);   // [check, size 0, size 1]
@@ -248,8 +252,14 @@
   /* the bet of combo c at size k (1, 2) is a bluff: its reason there is 'bluff' (evalCombo). Flop and turn: air with no draw flag. River: every
      bet that is not value (§10: on the river a bet is value only when it beats half the calling range), so a hand with some showdown value that
      bets is counted too (before 2026-10-27 only the air counted, and the river's small bets held 44% hands behind the callers, theory 28%) */
-  const isBluffAt = (c, k) => { const e = c.ev.bets[k - 1]; return !!e && e.reason === 'bluff'; };
-  function capBluffs(combos, caps, score, delta) {
+  /* The river fill (the owner's decision 2026-10-28, §8; fill = {street, nOpp, tau in chips}, heads-up river only): at equilibrium a bluff
+     breaks even and its amount is set by B / (P + 2B), the share that leaves the caller indifferent. Betting only the bluffs that beat the
+     check left the river's air at about break-even and under the cap (21% of the big bets against 36-39%). So after the cut and the move,
+     a bluff ('bluff' or 'bluffFill') whose bet is within tau of the check, above it or below (D = EV + delta - the check >= -tau), is not
+     mixed 0.5 + 0.5 D / tau but put in until the size's bluff share reaches its cap: the smallest loss first (D to 0.1% of the pot), then
+     the better blocker. A hand goes first to the size where its D is best */
+  const isBluffAt = (c, k) => { const e = c.ev.bets[k - 1]; return !!e && (e.reason === 'bluff' || e.reason === 'bluffFill'); };
+  function capBluffs(combos, caps, score, delta, fill) {
     const nS = caps.length, room = new Array(nS + 1).fill(0), over = [];
     for (let k = 1; k <= nS; k++) {
       let val = 0, bl = 0; const bluffs = [];
@@ -270,11 +280,24 @@
       const c = o.c; let p = o.p;
       // the other sizes this hand would bet: a reason, and the bet (with delta) better than the check; the best EV first
       const alt = [];
-      for (let j = 1; j <= nS; j++) { if (j === o.from || !(room[j] > 0)) continue; const e = c.ev.bets[j - 1]; if (e && e.reason && e.EV + delta > c.ev.evCheck) alt.push(j); }
+      for (let j = 1; j <= nS; j++) { if (j === o.from || !(room[j] > 0)) continue; const e = c.ev.bets[j - 1]; if (e && e.reason && e.reason !== 'bluffFill' && e.EV + delta > c.ev.evCheck) alt.push(j); }
       alt.sort((x, y) => c.ev.bets[y - 1].EV - c.ev.bets[x - 1].EV);
       for (const j of alt) { if (!(p > 0) || !(c.w > 0)) break; const m = Math.min(p, room[j] / c.w); c.p[j] += m; room[j] -= m * c.w; p -= m; }
       c.p[0] += p;
     }
+    if (!(fill && fill.street === 3 && fill.nOpp === 1 && fill.tau > 0)) return;
+    const tau = fill.tau, q = tau / 20, cand = [];   // q: D is compared to 0.1% of the pot (tau = 2%)
+    for (const c of combos) {
+      if (!(c.w > 0) || !(c.p[0] > 0)) continue;
+      for (let k = 1; k <= nS; k++) {
+        if (!(room[k] > 0)) continue; const e = c.ev.bets[k - 1];
+        if (!e || !(e.reason === 'bluff' || e.reason === 'bluffFill')) continue;
+        const d = e.EV + delta - c.ev.evCheck; if (!(d >= -tau)) continue;
+        cand.push({ c, k, d: Math.round(d / q) });
+      }
+    }
+    cand.sort((x, y) => y.d - x.d || score(y.c) - score(x.c));
+    for (const { c, k } of cand) { if (!(room[k] > 0) || !(c.p[0] > 0)) continue; const m = Math.min(c.p[0], room[k] / c.w); c.p[k] += m; c.p[0] -= m; room[k] -= m * c.w; }
   }
 
   /* Step5 + Step6 + Step7 A: the bot's whole range is played through the node (to hold the frequency and the bluff shares), then its own hand */
@@ -308,7 +331,7 @@
       }
       // bluff caps per size, the bluffs with the best blockers kept first; a bluff over one size's cap moves to the other size when that bet
       // also beats the check and has room under its own cap (§8, §10, docs/decisions.md 2026-10-27)
-      capBluffs(combos, reacts.map(rc => capOf(rc.s)), c => { if (!bluffBlk) bluffBlk = new Map(); if (!bluffBlk.has(c.i)) { const z = blk(c); bluffBlk.set(c.i, z.call - z.fold); } return bluffBlk.get(c.i); }, delta);
+      capBluffs(combos, reacts.map(rc => capOf(rc.s)), c => { if (!bluffBlk) bluffBlk = new Map(); if (!bluffBlk.has(c.i)) { const z = blk(c); bluffBlk.set(c.i, z.call - z.fold); } return bluffBlk.get(c.i); }, delta, { street: ctx.street, nOpp: ctx.nOpp, tau: eq.tau * P });
       let tw = 0, bw = 0; for (const c of combos) { tw += c.w; for (let k = 1; k <= nS; k++) bw += c.w * c.p[k]; }
       return tw ? bw / tw : 0;
     };

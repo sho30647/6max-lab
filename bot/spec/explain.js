@@ -153,7 +153,7 @@
         `  判断：${s7.mdfGuard ? `目安を10pt以上下回るので、境界の手（必要な勝率より最大10pt低い手まで）をコールに戻した（基準を${pct(s7.cut)}まで下げた）` : '目安を大きくは下回らないので、基準はそのまま'}。`);
     } else {
       const bets = s6.cands.filter(c => c.act === 'bet');
-      const REASON = { value: 'コールしてくる手にも勝っているので、ベットがバリューとして機能する', denial: '降りる手が持っている勝率を消せるので、エクイティ否定の小さいベットが成り立つ', semibluff: '降りてもらう分と、コールされた後に強くなる見込みを合わせると、チェックより得', bluff: '降りてもらう分と、コールされても勝つ分（ガットショットやバックドアの見込みを含む）を合わせると、チェックより得なので、ブラフとして打てる' };
+      const REASON = { value: 'コールしてくる手にも勝っているので、ベットがバリューとして機能する', denial: '降りる手が持っている勝率を消せるので、エクイティ否定の小さいベットが成り立つ', semibluff: '降りてもらう分と、コールされた後に強くなる見込みを合わせると、チェックより得', bluff: '降りてもらう分と、コールされても勝つ分（ガットショットやバックドアの見込みを含む）を合わせると、チェックより得なので、ブラフとして打てる', bluffFill: 'チェックとの期待値の差が（頻度合わせの上乗せを含めて）ポットの2%以内で、ほぼ損得なし。リバーでは、このサイズのベットに含まれるブラフが、相手がコールしてもフォールドしても同じになる量（ベット÷(ポット＋ベット×2)）に届くまで、こうした手をブラフとして混ぜる' };
       const facts = bets.map(c => `ポットの${pct(c.size)}ベットでは、${oppName}のレンジの${pct(c.FE)}が降り、${pct(c.raise)}がレイズし、コールしてくる手に対する勝率は${pct(c.Ec)}`).join('。');
       const evs = [`チェック${s6.cands[0].EV}bb`].concat(bets.map(c => `${pct(c.size)}ベット${c.EV}bb`)).join('、');
       L.push('⑦ アクションの比較', `  事実：${facts}。期待値は${evs}。${s6.shift ? `レンジ全体のベット頻度を目標（${pct(s6.target)}）に近づけるため、ベットの期待値に一律でポットの${pct(s6.shift)}を足して比べた（調整後の頻度${pct(s6.rangeFreq)}）。` : ''}${s6.deltaPot != null ? `${s6.shift ? '調整後の' : ''}1番目と2番目の差はポットの約${pct(s6.deltaPot)}。` : ''}${s6.merged ? `ポットの${pct(s6.merged.from)}のサイズを使う手がベット全体の10%未満なので、${pct(s6.merged.to)}にまとめた。` : ''}`);
@@ -162,7 +162,7 @@
       if (best) { j.push(best.reason === 'value' ? pick(W.Ec, best.Ec) : (REASON[best.reason] || missing('Step6', 'reason:' + best.reason))); if (best.reason !== 'value') j.push(pick(W.Ec, best.Ec)); }
       else { const why = bets.every(c => !c.reason) ? 'どのサイズでも、ベットする理由（バリュー・エクイティ否定・セミブラフ・ブラフ）が成り立たないのでチェック' : 'チェックの期待値のほうが高い（または確率でチェックを選んだ）'; j.push(why); }
       const mixed = s6.probs && s6.probs.filter(x => x > 0).length > 1;
-      if (s6.betWorse) j.push('期待値だけならチェックが上だが、レンジ全体の頻度合わせ（上の一律の上乗せ）でベットを選んだ');
+      if (s6.betWorse && !(best && best.reason === 'bluffFill')) j.push('期待値だけならチェックが上だが、レンジ全体の頻度合わせ（上の一律の上乗せ）でベットを選んだ');
       j.push(mixed ? `${W.delta.mixed}（チェック${pct(s6.probs[0])}・ベット${pct(1 - s6.probs[0])}）。乱数${s6.rnd}で${ch.act === 'bet' ? 'ベット' : 'チェック'}を選んだ` : W.delta.pure);
       L.push(`  判断：${j.join('。')}。`);
       if (!s7) L.push('⑧ レイズされた場合', '  ' + missing('Step7', 'none'));

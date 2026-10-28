@@ -8,6 +8,9 @@
 // 4. no cut, no change (one size, or bluffs under the cap)
 // 5. what counts: a bet whose reason at that size is 'bluff' (evalCombo). On the river that is every bet that is not value, so a marginal hand
 //    (B3) that bets behind the callers takes room under the cap too (before: only the air, B5, was counted)
+// 6. the river fill (the owner's decision 2026-10-28, docs/decisions.md, §8): heads-up on the river, a bluff whose bet is within tau (2% of
+//    the pot) of the check, below it too ('bluffFill'), is not mixed 0.5 + 0.5 x delta / tau but put in until the size's bluff share reaches
+//    B / (P + 2B): the smallest loss first, then the better blocker. -3% of the pot stays checked; several opponents: no fill; the cap holds
 // Usage: node tests/spec-bluffcap.mjs
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -78,6 +81,41 @@ const caps = [1 / 3, 0.375];   // river: 100% and 150% of the pot
   ST.capBluffs(cs, [1 / 3, 0.375], c => c.id === 'm' ? 1 : 0, 0);
   check(near(share(cs, 1), 1 / 3), `the B3 bluff counts: size 1 at its cap; got ${share(cs, 1).toFixed(3)}`);
   check(near(M.p[1], 0.5) && near(A.p[1], 0), `room 0.5 to the better blocker (the B3), the air checks; got m ${M.p.map(x => x.toFixed(3))} a ${A.p.map(x => x.toFixed(3))}`);
+}
+// 6.
+{
+  const P = 100, fill = (nOpp = 1, street = 3) => ({ street, nOpp, tau: 0.02 * P });
+  const bShare = (cs, k) => { let bw = 0, bl = 0; for (const c of cs) { const x = c.w * c.p[k]; bw += x; if (c.ev.bets[k - 1].reason === 'bluff' || c.ev.bets[k - 1].reason === 'bluffFill') bl += x; } return bw ? bl / bw : 0; };
+  // the value at size 1 (room 0.5 there), the air's size-1 bet 1% of the pot under the check: fills size 1 to its cap
+  const mk = () => [combo('v', 1, 1, [0, 1, 0], 5, 20, 18, 'value', 'value'), combo('a', 1, 5, [1, 0, 0], 0, -1, -1.5, 'bluffFill', 'bluffFill')];
+  let cs = mk(); ST.capBluffs(cs, caps, () => 0, 0, fill());
+  check(near(cs[1].p[1], 0.5) && near(cs[1].p[0], 0.5), `river, -1%P: fills size 1 up to its cap; got ${cs[1].p.map(x => x.toFixed(3))}`);
+  check(near(bShare(cs, 1), caps[0]), `river, -1%P: size 1 at its cap 1/3; got ${bShare(cs, 1).toFixed(3)}`);
+  // -3% of the pot: outside tau, stays checked
+  cs = [combo('v', 1, 1, [0, 1, 0], 5, 20, 18, 'value', 'value'), combo('a', 1, 5, [1, 0, 0], 0, -3, -3.5, 'bluffFill', 'bluffFill')];
+  ST.capBluffs(cs, caps, () => 0, 0, fill());
+  check(near(cs[1].p[0], 1), `river, -3%P: stays checked; got ${cs[1].p.map(x => x.toFixed(3))}`);
+  // several opponents, or the turn: no fill
+  cs = mk(); ST.capBluffs(cs, caps, () => 0, 0, fill(2));
+  check(near(cs[1].p[0], 1), `multiway river: no fill; got ${cs[1].p.map(x => x.toFixed(3))}`);
+  cs = mk(); ST.capBluffs(cs, caps, () => 0, 0, fill(1, 2));
+  check(near(cs[1].p[0], 1), `turn: no fill; got ${cs[1].p.map(x => x.toFixed(3))}`);
+  // the cap holds with many candidates; the smallest loss first (a mixed bluff above the check before those below it), then the better blocker
+  const V = combo('v', 3, 1, [0, 1, 0], 5, 20, 18, 'value', 'value');                 // a cap of 1.5 at size 1, 0.75 left
+  const M = combo('m', 1, 5, [0.25, 0.75, 0], 0, 1, -5, 'bluff', null);               // +1%P: mixed 75% by the old rule
+  const X = combo('x', 1, 5, [1, 0, 0], 0, -0.5, -5, 'bluffFill', null);              // -0.5%P
+  const Y1 = combo('y1', 1, 5, [1, 0, 0], 0, -1.5, -5, 'bluffFill', null), Y2 = combo('y2', 1, 5, [1, 0, 0], 0, -1.5, -5, 'bluffFill', null);
+  cs = [V, M, X, Y1, Y2]; ST.capBluffs(cs, caps, c => c.id === 'y2' ? 5 : 0, 0, fill());
+  check(bShare(cs, 1) <= caps[0] + 1e-9 && near(bShare(cs, 1), caps[0]), `the cap holds and is reached; got ${bShare(cs, 1).toFixed(3)}`);
+  check(near(M.p[1], 1), `+1%P bluff: put in fully, not mixed; got ${M.p.map(x => x.toFixed(3))}`);
+  check(near(X.p[1], 0.5), `-0.5%P before -1.5%P: x gets the room left (0.5); got ${X.p.map(x => x.toFixed(3))}`);
+  check(near(Y1.p[1], 0) && near(Y2.p[1], 0), `-1.5%P: no room left; got y1 ${Y1.p[1].toFixed(3)} y2 ${Y2.p[1].toFixed(3)}`);
+  // the same loss: the better blocker first
+  const V2 = combo('v', 1, 1, [0, 1, 0], 5, 20, 18, 'value', 'value');
+  const Z1 = combo('z1', 1, 5, [1, 0, 0], 0, -1, -5, 'bluffFill', null), Z2 = combo('z2', 1, 5, [1, 0, 0], 0, -1, -5, 'bluffFill', null);
+  cs = [V2, Z1, Z2]; ST.capBluffs(cs, caps, c => c.id === 'z2' ? 5 : 0, 0, fill());
+  check(near(Z2.p[1], 0.5) && near(Z1.p[1], 0), `same loss: the better blocker (z2) first; got z1 ${Z1.p[1].toFixed(3)} z2 ${Z2.p[1].toFixed(3)}`);
+  for (const c of [V, M, X, Y1, Y2, V2, Z1, Z2]) check(near(c.p.reduce((a, x) => a + x, 0), 1), `probabilities of ${c.id} sum to 1`);
 }
 console.log(fails ? `${fails} FAIL` : 'spec-bluffcap: all passed');
 process.exitCode = fails ? 1 : 0;
