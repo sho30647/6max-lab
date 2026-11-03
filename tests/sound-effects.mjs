@@ -30,7 +30,7 @@ const r = await page.evaluate(async () => {
   heroChoose({ act: S.currentBet > S.players[0].bet ? 'fold' : 'check' }); await p;
   // hands played out: deal / actions / board / result
   S.autoHero = true; const seen = new Set();
-  for (let k = 0; k < 12; k++) { Sfx.log.length = 0; await playHand(); Sfx.log.forEach(n => seen.add(n)); }
+  for (let k = 0; k < 150 && !(['win', 'lose', 'split'].some(n => seen.has(n)) && ['board', 'check'].every(n => seen.has(n)) && k >= 12); k++) { Sfx.log.length = 0; await playHand(); Sfx.log.forEach(n => seen.add(n)); }   // until the hero has stayed to the end of a hand
   o.seen = [...seen];
   // off: nothing
   const box = document.getElementById('optSound'); box.checked = false; box.dispatchEvent(new Event('change'));
@@ -52,9 +52,9 @@ check(r.has, 'no Sfx module');
 if (r.has) {
   check(r.settingDefault, 'the 効果音 setting is off by default');
   check(r.turn.includes('deal') && r.turn.includes('turn'), `no deal / turn sound before the hero acts: ${r.turn}`);
-  for (const n of ['deal', 'fold', 'board']) check(r.seen.includes(n), `never played "${n}" in 12 hands: ${r.seen}`);
-  check(r.seen.some(n => ['call', 'bet', 'raise', 'allin'].includes(n)), `no chip sound in 12 hands: ${r.seen}`);
-  check(r.seen.some(n => ['win', 'lose', 'split'].includes(n)), `no result sound in 12 hands: ${r.seen}`);
+  for (const n of ['deal', 'fold', 'board']) check(r.seen.includes(n), `never played "${n}" in up to 150 hands: ${r.seen}`);
+  check(r.seen.some(n => ['call', 'bet', 'raise', 'allin'].includes(n)), `no chip sound in up to 150 hands: ${r.seen}`);
+  check(r.seen.some(n => ['win', 'lose', 'split'].includes(n)), `no result sound in up to 150 hands: ${r.seen}`);
   check(r.stored === '0' && r.offLog.length === 0, `sound off still played: ${r.offLog} (stored ${r.stored})`);
   check(!r.pfBtn || r.pfLog.some(n => ['ok', 'mix', 'ng'].includes(n)), `the preflop trainer played no verdict sound: ${r.pfLog}`);
   check(r.pfBtn, 'the preflop trainer fold button was not found');
