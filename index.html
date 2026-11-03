@@ -246,6 +246,7 @@ svg.chart{width:100%;height:auto;display:block}
 .srEmpty{color:var(--muted);font-size:13px;margin:8px 0}
 .srOpen{margin-top:8px}
 .optnote{flex-basis:100%;font-size:12px;color:var(--muted);padding-left:22px}
+.sndrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding-left:22px}.sndrow input{flex:1;max-width:220px}
 .opts label.optwrap{flex-wrap:wrap;row-gap:2px}
 .wrap.inrp label:has(#optSpec),.wrap.inmtt label:has(#optSpec){display:none!important}   /* the new bot plays the ring game only */
 .userChip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto}
@@ -361,6 +362,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .setBody{max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 14px}
 .setBody .opts{flex-direction:column;gap:0;font-size:15px;color:var(--ink);margin-top:0}
 .setBody .opts label{padding:13px 0;border-bottom:1px solid var(--line)}
+.setBody .opts label:has(#optSound){border-bottom:0;padding-bottom:4px}.setBody .opts .sndrow{flex-basis:100%;padding:0 0 13px 22px;border-bottom:1px solid var(--line)}
 .setBody .opts label:last-child{border-bottom:0}
 .setBody .begnote{margin-top:10px}
 /* ===== phone layout (fits an iPhone 14 screen: header, table and controls without scrolling) ===== */
@@ -726,6 +728,8 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <label><input type="checkbox" id="optAutoFold" checked> 弱いハンドは自動でフォールド</label>
         <label><input type="checkbox" id="optBeginner"> 初心者モード</label>
         <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
+        <label class="optwrap"><input type="checkbox" id="optSound" checked> 効果音<span class="optnote">カードを配る音・チップの音・手番の合図・勝ち負けの音。プリフロップ練習の正解／不正解にも鳴ります</span></label>
+        <div class="sndrow">音量 <input type="range" id="optSoundVol" min="0" max="100" step="5" value="60" aria-label="効果音の音量"></div>
         <label class="optwrap"><input type="checkbox" id="optSpec"> 新しいボット（試験中）を使う<span class="optnote">リングゲームだけで使います（練習テーブル・トーナメントでは使いません）。ハンドが終わると「ボットの判断を見る」から判断の理由を読めます</span></label>
       </div>
       <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
@@ -1139,8 +1143,75 @@ const FirebaseGate=(()=>{
    Options themselves still live in localStorage (the rest of the code reads them there); this module mirrors
    them to the cloud on every change, and on load lets the cloud copy win (one reload when it differs).
    ========================================================= */
+/* =========================================================
+   Sound effects (Sfx). Every sound is made on the spot with Web Audio (no sound files).
+   Off / volume: 設定 → 効果音 (localStorage sixmaxlab_sound = '0'|'1', sixmaxlab_soundvol = 0..1).
+   Browsers only allow sound after the first tap: the audio is unlocked by the first pointer / key press.
+   Sfx.log keeps the names of the last sounds played (the tests read it).
+   ========================================================= */
+const Sfx=(()=>{
+  let ctx=null, master=null, noiseBuf=null, lastAt={}, seed=12345;
+  const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return seed/4294967296; };   // its own random numbers: the game's Math.random stream (seeded in the tests) is left untouched
+  const api={log:[]};
+  const get=(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:v; }catch(e){ return d; } };
+  api.on=()=>get('sixmaxlab_sound','1')!=='0';
+  api.vol=()=>{ const v=parseFloat(get('sixmaxlab_soundvol','0.6')); return isFinite(v)?Math.max(0,Math.min(1,v)):0.6; };
+  function ensure(){
+    if(ctx) return ctx;
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+    try{ ctx=new AC(); }catch(e){ return null; }
+    master=ctx.createGain(); master.gain.value=api.vol(); master.connect(ctx.destination);
+    const n=ctx.sampleRate*0.5|0; noiseBuf=ctx.createBuffer(1,n,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<n;i++) d[i]=rnd()*2-1;
+    return ctx;
+  }
+  const unlock=()=>{ if(!api.on()) return; const c=ensure(); if(c&&c.state==='suspended') c.resume().catch(()=>{}); };
+  ['pointerdown','keydown','touchend'].forEach(t=>document.addEventListener(t,unlock,{capture:true,passive:true}));
+  api.setVol=v=>{ if(master) master.gain.value=v; };
+  /* building blocks: a tone with a quick attack and an exponential fade; a burst of filtered noise */
+  function tone(t,f,dur,g,type='sine',f2){
+    const o=ctx.createOscillator(), a=ctx.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+dur);
+    a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(g,t+0.005); a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(a); a.connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  function noise(t,dur,g,ftype,f,q=1,f2){
+    const s=ctx.createBufferSource(), fl=ctx.createBiquadFilter(), a=ctx.createGain(); s.buffer=noiseBuf;
+    fl.type=ftype; fl.frequency.setValueAtTime(f,t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2,t+dur); fl.Q.value=q;
+    a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(g,t+0.004); a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(fl); fl.connect(a); a.connect(master); s.start(t,rnd()*0.3); s.stop(t+dur+0.02);
+  }
+  const chip=(t,g)=>{ const f=3200+rnd()*1400; tone(t,f,0.045,g*0.5,'triangle'); tone(t,f*1.47,0.03,g*0.25,'sine'); noise(t,0.025,g*0.35,'highpass',5000); };
+  const S={
+    card:(t,g)=>noise(t,0.07,g*0.55,'bandpass',2600,0.8,5200),                                     // a card slid on the felt
+    deal:(t,g)=>{ S.card(t,g); S.card(t+0.09,g); },                                                // the two hole cards
+    board:(t,g)=>S.card(t,g*1.1),
+    fold:(t,g)=>noise(t,0.16,g*0.35,'lowpass',1800,0.7,500),                                        // cards pushed away
+    check:(t,g)=>{ tone(t,190,0.07,g*0.9,'sine',110); tone(t+0.11,190,0.07,g*0.8,'sine',110); },     // two knocks on the table
+    call:(t,g)=>{ chip(t,g); chip(t+0.06,g*0.8); },
+    bet:(t,g)=>{ chip(t,g); chip(t+0.055,g*0.85); chip(t+0.11,g*0.7); },
+    raise:(t,g)=>{ for(let i=0;i<4;i++) chip(t+i*0.05,g*(1-i*0.12)); },
+    allin:(t,g)=>{ tone(t,120,0.35,g*0.9,'sine',60); for(let i=0;i<8;i++) chip(t+0.04+i*0.04+rnd()*0.015,g*(0.95-i*0.08)); },
+    turn:(t,g)=>{ tone(t,880,0.18,g*0.35); tone(t+0.09,1318.5,0.28,g*0.35); },                      // your turn: a soft two-note chime
+    win:(t,g)=>{ [523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(t+i*0.08,f,0.32,g*0.32,'triangle')); for(let i=0;i<5;i++) chip(t+0.35+i*0.045,g*0.6); },
+    split:(t,g)=>{ tone(t,659.25,0.22,g*0.3,'triangle'); tone(t+0.1,783.99,0.3,g*0.3,'triangle'); },
+    lose:(t,g)=>{ tone(t,392,0.22,g*0.22,'triangle'); tone(t+0.14,311.13,0.38,g*0.22,'triangle'); },
+    ok:(t,g)=>{ tone(t,1046.5,0.12,g*0.35,'triangle'); tone(t+0.07,1568,0.25,g*0.35,'triangle'); },    // preflop trainer: right
+    mix:(t,g)=>tone(t,784,0.2,g*0.3,'triangle'),                                                    //                   acceptable
+    ng:(t,g)=>{ tone(t,180,0.22,g*0.35,'square',140); tone(t+0.13,150,0.26,g*0.3,'square',120); },  //                   wrong
+  };
+  /* play(name, gain): gain scales this one sound (bots acting after the hero folded are quieter) */
+  api.play=(name,g=1)=>{
+    if(!api.on()||!S[name]) return;
+    const now=performance.now(); if(lastAt[name]&&now-lastAt[name]<35) return; lastAt[name]=now;   // one sound per kind at a time (instant play-outs)
+    api.log.push(name); if(api.log.length>50) api.log.shift();
+    const c=ensure(); if(!c) return; if(c.state==='suspended'){ c.resume().catch(()=>{}); if(c.state==='suspended') return; }
+    master.gain.value=api.vol();
+    try{ S[name](c.currentTime+0.01,g); }catch(e){}
+  };
+  return api;
+})();
+window.Sfx=Sfx;
 const Prefs=(()=>{
-  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto|range)$/.test(k);
+  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto|range|sound|soundvol)$/.test(k);
   const snapshot=()=>{ const o={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(isPref(k)) o[k]=localStorage.getItem(k); } }catch(e){} return o; };
   const same=(a,b)=>{ const ka=Object.keys(a).sort(), kb=Object.keys(b).sort(); return ka.length===kb.length&&ka.every((k,i)=>k===kb[i]&&a[k]===b[k]); };
   const rawSet=Storage.prototype.setItem, rawDel=Storage.prototype.removeItem;
@@ -1706,12 +1777,12 @@ async function playHandBody(resume){
   if(!resume&&MT.on&&MT.popups.length){ S.running=true; render(); await MT.flushPopups(); }
   if(!resume&&MT.on) MT.persist();
   if(resume) S.running=true; else { S.running=true; S.autoFolded=false; S.fastFold=false; setupHand(); }
-  render(); if(!RP.on) renderControls();   // at once: the button turns into 「相手の手番…」 instead of looking dead while the other players act
+  render(); if(!RP.on) renderControls(); if(!resume) Sfx.play('deal');   // at once: the button turns into 「相手の手番…」 instead of looking dead while the other players act
   if(!resume) setMsg(S.rebuys.length?S.rebuys.join('・')+'は持ち点がなくなったので'+(isBeginner()?'200点':'100bb')+'で再スタート':'');
   for(let st=resume?S.street:0;st<4;st++){
     if(st>0&&!(resume&&st===S.street)){
       if(active().length<=1) break;
-      newStreet(st); render();
+      newStreet(st); render(); if(!sfxQuiet()) Sfx.play('board',sfxGain());
       await sleep(delay()*0.8);
     }
     await bettingRound();
@@ -1723,7 +1794,7 @@ async function playHandBody(resume){
   }
   collectBets();
   if(active().length>1){
-    while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
+    while(S.board.length<5){ dealBoard(); S.log[Math.min(S.board.length-2,3)].push(''); render(); if(!sfxQuiet()) Sfx.play('board',sfxGain()); await sleep(S.autoFolded||S.fastFold?0:isBeginner()?1300:700); }
     S.showdown=true;
   }
   settle(); S.done=true; specHook('endHand'); const rec=buildRecord(); if(window.SpecBot&&SpecBot.lastHand&&SpecBot.lastHand.records.length) rec.spt=SpecBot.lastHand.id; /* rec.spt: the new bot's saved decision traces of this hand (bot/spec, the last 50 hands in this browser) */ if(MT.on) MT.afterHand(rec); else if(!RP.on) await Store.add(rec);
@@ -1733,6 +1804,7 @@ async function playHandBody(resume){
   if(!RP.on&&!MT.on) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
+  if(!S.autoFolded&&!h.folded){ if(S.shared.has(0)) Sfx.play('split'); else if(S.winners.includes(0)) Sfx.play('win'); else if(S.showdown) Sfx.play('lose'); }   // a hand the hero folded makes no end sound
   const txt=netTxt(rec.net);
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜あなた '+txt):('あなた '+txt));
   if(RP.on){ RP.handEnd(); return; }
@@ -1812,6 +1884,8 @@ function pfReviewShow(rv){
     S.reviewRes=done; document.getElementById('rvNext').onclick=done;
   });
 }
+const sfxQuiet=()=>S.autoFolded||S.fastFold;   // instant play-outs (auto-fold, beginner after a fold) make no sound
+const sfxGain=()=>S.players[0]&&S.players[0].folded?0.45:1;   // the hero is out of the hand: the others' actions are quieter
 function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; if(MT.on&&S.players[0].allIn) return 620; return document.getElementById('optFast').checked?160:620;}   // tournament: a hand the hero is all-in in always runs at the normal pace, whatever 「高速に」 says
 
 function sanitize(seat,dec){
@@ -1860,6 +1934,7 @@ function applyAction(seat,dec){
   if(p.allIn&&dec.act!=='fold'){p.la.ai=true; code+='(AI)';}
   if(isBeginner()&&!S.fastFold) setMsg(posOf(seat)+' '+(p.isHero?'あなた':p.name)+'：'+actText(p));
   p.acted=true; p.la.st=st; S.lastActor=seat;
+  if(!sfxQuiet()) Sfx.play(p.allIn&&dec.act!=='fold'?'allin':dec.act==='raise'?(wasBet?'bet':'raise'):dec.act,sfxGain());
   if(RP.on&&RP.rec) RP.rec.acts.push({s:seat,st,a:dec.act,to:dec.act==='raise'?dec.to:0,c:dec.act==='call'?p.bet-(S.currentBet-toCall):0,pct:dec.pct||0,bt:wasBet&&dec.act==='raise'?1:0,ai:p.allIn&&dec.act!=='fold'?1:0,...(seat===0&&RP.mode==='teach'?{cm:RP.takeCm()}:{})});
   if(st===0&&sit){ if(dec.act==='call') p.called=true; assignPreRange(seat,dec.act,sit); if(dec.rw){ p.rw=dec.rw; p.rc=null; p.rw2=dec.rw.slice(); p.rc2=null; p.rw3=dec.rw.slice(); p.rc3=null; } }   // tournament shoves carry their own range
   if(st>0&&dec.act!=='fold'&&!p.allIn){ const kind=dec.act==='raise'?(wasBet?'bet':'raise'):dec.act; narrowRange(p,kind,toCall>0?toCall/potBefore:0,kind==='bet'&&st===1?{f:p.bet/potBefore,hu:S.players.filter(q=>!q.folded).length===2,ctx:((()=>{const tx=texture(S.board.slice(0,3)); return tx.s!=='rain'||tx.c==='conn';})()?2:0)+(S.pfAggr===seat?1:0)}:null); }
@@ -2534,7 +2609,7 @@ function renderSession(){
 }
 
 /* ---------- hero controls ---------- */
-function heroDecide(){ return new Promise(res=>{S.heroResolve=res; renderControls();}); }
+function heroDecide(){ return new Promise(res=>{S.heroResolve=res; renderControls(); Sfx.play('turn');}); }
 function heroChoose(dec){ const r=S.heroResolve; S.heroResolve=null; document.getElementById('actArea').innerHTML='<div class="row"><button class="btn grow" disabled>相手の手番…</button></div>'; if(r) r(dec); }
 function renderControls(){
   const area=document.getElementById('actArea');
@@ -4154,6 +4229,11 @@ try{ const f=localStorage.getItem('sixmaxlab_range'); if(f) document.getElementB
 document.getElementById('optRange').onchange=e=>{ try{localStorage.setItem('sixmaxlab_range',e.target.checked?'1':'0');}catch(_){} };
 try{ const f=localStorage.getItem('sixmaxlab_autofold'); if(f) document.getElementById('optAutoFold').checked=f==='1'; }catch(e){}
 document.getElementById('optAutoFold').onchange=e=>{ try{localStorage.setItem('sixmaxlab_autofold',e.target.checked?'1':'0');}catch(_){} };
+document.getElementById('optSound').checked=Sfx.on();
+document.getElementById('optSoundVol').value=Math.round(Sfx.vol()*100);
+document.getElementById('optSound').onchange=e=>{ lsSetSafe('sixmaxlab_sound',e.target.checked?'1':'0'); document.getElementById('optSoundVol').disabled=!e.target.checked; if(e.target.checked) Sfx.play('call'); };
+document.getElementById('optSoundVol').disabled=!Sfx.on();
+document.getElementById('optSoundVol').onchange=e=>{ lsSetSafe('sixmaxlab_soundvol',String(e.target.value/100)); Sfx.setVol(e.target.value/100); Sfx.play('call'); };   // a sample at the new volume
 document.getElementById('optSpec').checked=specBotOn();
 document.getElementById('optSpec').onchange=e=>setSpecBot(e.target.checked);
 document.getElementById('specReviewClose').onclick=closeSpecReview;
@@ -4859,6 +4939,7 @@ function answer(a){
   P.session.n++; if(g!=='na'){ P.session.j++; if((g==='ok'||g==='mix')&&z!==false) P.session.ok++; }
   renderTable(a==='R'&&sized?`レイズ ${P.size}`:a==='R'&&isSpot(P.mode)&&e.has?`${RAISE_NAME[P.mode]} ${e.size}`:a==='J'?'オールイン '+stackBB():ACT_NAME[a]); renderButtons(); renderFeedback(rec,e); renderSession();
   setMsg(GRADE[g][1]+(z===false?'（サイズ違い）':''));
+  if(g!=='na') Sfx.play(z===false?'ng':g);
   // correct / acceptable answers move on by themselves; wrong ones always stop. Optionally also stop on mixed-strategy hands.
   const mixed=e.has&&[e.r,e.c,e.f,e.j||0].filter(v=>v>0).length>1;
   const lastOfMaster=P.special==='master'&&P.master&&P.master.i===P.master.queue.length-1;   // always stop on the last pattern to show the hand's score
