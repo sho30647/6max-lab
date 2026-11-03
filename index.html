@@ -1173,23 +1173,28 @@ const Sfx=(()=>{
     a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(g,t+0.005); a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     o.connect(a); a.connect(master); o.start(t); o.stop(t+dur+0.02);
   }
-  function noise(t,dur,g,ftype,f,q=1,f2){
+  function noise(t,dur,g,ftype,f,q=1,f2,att=0.004){
     const s=ctx.createBufferSource(), fl=ctx.createBiquadFilter(), a=ctx.createGain(); s.buffer=noiseBuf;
     fl.type=ftype; fl.frequency.setValueAtTime(f,t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2,t+dur); fl.Q.value=q;
-    a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(g,t+0.004); a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(g,t+att); a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     s.connect(fl); fl.connect(a); a.connect(master); s.start(t,rnd()*0.3); s.stop(t+dur+0.02);
   }
-  const chip=(t,g)=>{ const f=3200+rnd()*1400; tone(t,f,0.045,g*0.5,'triangle'); tone(t,f*1.47,0.03,g*0.25,'sine'); noise(t,0.025,g*0.35,'highpass',5000); };
+  const chip=(t,g)=>{ const f=2100+rnd()*900; noise(t,0.035,g*1.1,'bandpass',f,4); tone(t,f*1.18,0.028,g*0.3,'triangle'); noise(t,0.012,g*0.35,'highpass',6000); };   // one clay chip clacking on another
+  const chipsIn=(t,g,n)=>{   // chips pushed into the pot: a soft thud on the felt, then the chips clack and settle (gaps get shorter, each a little quieter)
+    noise(t,0.06,g*0.5,'lowpass',500,0.8); tone(t,140,0.06,g*0.35,'sine',90);
+    let dt=0.035; for(let i=0;i<n;i++){ chip(t+0.02+dt*i+rnd()*0.008,g*(0.9-i*(0.5/n))); dt*=0.9; }
+  };
+  const knock=(t,g)=>{ tone(t,210,0.09,g*0.5,'sine',120); tone(t,420,0.035,g*0.15,'sine',260); noise(t,0.02,g*0.3,'bandpass',1100,1.5); };
   const S={
     card:(t,g)=>noise(t,0.07,g*0.55,'bandpass',2600,0.8,5200),                                     // a card slid on the felt
     deal:(t,g)=>{ S.card(t,g); S.card(t+0.09,g); },                                                // the two hole cards
     board:(t,g)=>S.card(t,g*1.1),
-    fold:(t,g)=>noise(t,0.16,g*0.35,'lowpass',1800,0.7,500),                                        // cards pushed away
-    check:(t,g)=>{ tone(t,190,0.07,g*0.9,'sine',110); tone(t+0.11,190,0.07,g*0.8,'sine',110); },     // two knocks on the table
-    call:(t,g)=>{ chip(t,g); chip(t+0.06,g*0.8); },
-    bet:(t,g)=>{ chip(t,g); chip(t+0.055,g*0.85); chip(t+0.11,g*0.7); },
-    raise:(t,g)=>{ for(let i=0;i<4;i++) chip(t+i*0.05,g*(1-i*0.12)); },
-    allin:(t,g)=>{ tone(t,120,0.35,g*0.9,'sine',60); for(let i=0;i<8;i++) chip(t+0.04+i*0.04+rnd()*0.015,g*(0.95-i*0.08)); },
+    fold:(t,g)=>{ noise(t,0.2,g*0.45,'bandpass',3800,0.6,1400,0.05); noise(t+0.12,0.13,g*0.32,'lowpass',2600,0.7,900,0.015); },   // 「ファサッ」: the cards tossed through the air, then sliding onto the felt
+    check:(t,g)=>{ knock(t,g); knock(t+0.15,g*0.85); },                                             // 「トントン」: two finger taps on the table
+    call:(t,g)=>chipsIn(t,g,3),
+    bet:(t,g)=>chipsIn(t,g,4),
+    raise:(t,g)=>chipsIn(t,g,6),
+    allin:(t,g)=>{ tone(t,110,0.4,g*0.35,'sine',55); chipsIn(t,g*1.1,10); chipsIn(t+0.18,g*0.8,6); },   // the whole stack pushed in
     turn:(t,g)=>{ tone(t,880,0.18,g*0.35); tone(t+0.09,1318.5,0.28,g*0.35); },                      // your turn: a soft two-note chime
     win:(t,g)=>{ [523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(t+i*0.08,f,0.32,g*0.32,'triangle')); for(let i=0;i<5;i++) chip(t+0.35+i*0.045,g*0.6); },
     split:(t,g)=>{ tone(t,659.25,0.22,g*0.3,'triangle'); tone(t+0.1,783.99,0.3,g*0.3,'triangle'); },
