@@ -1,4 +1,5 @@
 // Sound effects: the table plays a sound for the deal, each action, the board cards, the hero's turn and the result; the preflop trainer plays one for its verdict; 設定 → 効果音 off makes no sound.
+// BGM (設定 → BGM): off by default; turning it on starts the loop, off stops it, and the choice is kept.
 // Sfx.log records the names of the sounds played (the audio itself is not checked).
 import { createRequire } from 'module';
 import path from 'path'; import { fileURLToPath } from 'url';
@@ -20,6 +21,13 @@ const r = await page.evaluate(async () => {
   o.has = typeof window.Sfx === 'object';
   if (!o.has) return o;
   o.settingDefault = document.getElementById('optSound').checked;
+  o.bgmHas = typeof window.Bgm === 'object';
+  if (o.bgmHas) {
+    o.bgmDefault = document.getElementById('optBgm').checked; o.bgmIdle = Bgm.playing();
+    const bb = document.getElementById('optBgm'); bb.checked = true; bb.dispatchEvent(new Event('change')); await wait(400);
+    o.bgmOn = Bgm.playing(); o.bgmStored = localStorage.getItem('sixmaxlab_bgm');
+    bb.checked = false; bb.dispatchEvent(new Event('change')); o.bgmOff = Bgm.playing(); o.bgmStored0 = localStorage.getItem('sixmaxlab_bgm');
+  }
   Nav.setScreen('ring');
   ['optAuto', 'optAutoFold', 'optBeginner'].forEach(id => document.getElementById(id).checked = false);
   document.getElementById('optFast').checked = true;
@@ -51,6 +59,10 @@ console.log(JSON.stringify(r));
 check(r.has, 'no Sfx module');
 if (r.has) {
   check(r.settingDefault, 'the 効果音 setting is off by default');
+  check(r.bgmHas, 'no Bgm module');
+  check(r.bgmDefault === false && r.bgmIdle === false, 'BGM is on / playing by default');
+  check(r.bgmOn === true && r.bgmStored === '1', `turning BGM on did not start it (playing ${r.bgmOn}, stored ${r.bgmStored})`);
+  check(r.bgmOff === false && r.bgmStored0 === '0', `turning BGM off did not stop it (playing ${r.bgmOff}, stored ${r.bgmStored0})`);
   check(r.turn.includes('deal') && r.turn.includes('turn'), `no deal / turn sound before the hero acts: ${r.turn}`);
   for (const n of ['deal', 'fold', 'board']) check(r.seen.includes(n), `never played "${n}" in up to 150 hands: ${r.seen}`);
   check(r.seen.some(n => ['call', 'bet', 'raise', 'allin'].includes(n)), `no chip sound in up to 150 hands: ${r.seen}`);

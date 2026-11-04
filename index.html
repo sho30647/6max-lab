@@ -362,7 +362,7 @@ textarea.imp{width:100%;min-height:130px;font-family:ui-monospace,Menlo,monospac
 .setBody{max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 14px}
 .setBody .opts{flex-direction:column;gap:0;font-size:15px;color:var(--ink);margin-top:0}
 .setBody .opts label{padding:13px 0;border-bottom:1px solid var(--line)}
-.setBody .opts label:has(#optSound){border-bottom:0;padding-bottom:4px}.setBody .opts .sndrow{flex-basis:100%;padding:0 0 13px 22px;border-bottom:1px solid var(--line)}
+.setBody .opts label:has(#optSound),.setBody .opts label:has(#optBgm){border-bottom:0;padding-bottom:4px}.setBody .opts .sndrow{flex-basis:100%;padding:0 0 13px 22px;border-bottom:1px solid var(--line)}
 .setBody .opts label:last-child{border-bottom:0}
 .setBody .begnote{margin-top:10px}
 /* ===== phone layout (fits an iPhone 14 screen: header, table and controls without scrolling) ===== */
@@ -730,6 +730,8 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
         <label><input type="checkbox" id="optRange"> プリフロップの後にレンジ表を表示</label>
         <label class="optwrap"><input type="checkbox" id="optSound" checked> 効果音<span class="optnote">カードを配る音・チップの音・手番の合図・勝ち負けの音。プリフロップ練習の正解／不正解にも鳴ります</span></label>
         <div class="sndrow">音量 <input type="range" id="optSoundVol" min="0" max="100" step="5" value="60" aria-label="効果音の音量"></div>
+        <label class="optwrap"><input type="checkbox" id="optBgm"> BGM<span class="optnote">ゆったりしたLo-fiの曲を流します。アプリを閉じたり別の画面に切り替えたりすると止まります</span></label>
+        <div class="sndrow">音量 <input type="range" id="optBgmVol" min="0" max="100" step="5" value="50" aria-label="BGMの音量"></div>
         <label class="optwrap"><input type="checkbox" id="optSpec"> 新しいボット（試験中）を使う<span class="optnote">リングゲームだけで使います（練習テーブル・トーナメントでは使いません）。ハンドが終わると「ボットの判断を見る」から判断の理由を読めます</span></label>
       </div>
       <div class="begnote hidden" id="begNote">初心者モード：SB 1点・BB 2点・持ち点 200点で始め、ゆっくり進め、オープン／フォールドの明らかなミスはアドバイスを表示します（分析・履歴はbb表示のままです。1bb＝2点）</div>
@@ -1215,8 +1217,88 @@ const Sfx=(()=>{
   return api;
 })();
 window.Sfx=Sfx;
+/* =========================================================
+   BGM (Bgm): a lo-fi loop (slow swung beat, muffled electric piano, record crackle), made on the spot with Web Audio like Sfx (no music files).
+   設定 → BGM (localStorage sixmaxlab_bgm = '1'|'0', off by default; sixmaxlab_bgmvol = 0..1).
+   It starts with the first tap after it is turned on (browsers allow sound only after a tap) and pauses while the app is in the background.
+   ========================================================= */
+const Bgm=(()=>{
+  let ac=null, master=null, bus=null, noiseBuf=null, timer=null, nextT=0, step=0, stops=[], seed=987654;
+  const rnd=()=>{ seed=(seed*1103515245+12345)>>>0; return seed/4294967296; };   // its own random numbers (the game's Math.random is left untouched)
+  const pick=a=>a[Math.floor(rnd()*a.length)], m2f=m=>440*Math.pow(2,(m-69)/12);
+  const get=(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:v; }catch(e){ return d; } };
+  const api={};
+  api.on=()=>get('sixmaxlab_bgm','0')==='1';
+  api.vol=()=>{ const v=parseFloat(get('sixmaxlab_bgmvol','0.5')); return isFinite(v)?Math.max(0,Math.min(1,v)):0.5; };
+  api.playing=()=>!!timer;
+  const level=()=>api.vol()*0.5;
+  function audio(){
+    if(ac) return ac;
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+    try{ ac=new AC(); }catch(e){ return null; }
+    master=ac.createGain(); master.gain.value=level(); master.connect(ac.destination);
+    const n=ac.sampleRate*2|0; noiseBuf=ac.createBuffer(1,n,ac.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<n;i++) d[i]=rnd()*2-1;
+    return ac;
+  }
+  function env(t,g,att,dur){ const a=ac.createGain(); a.gain.setValueAtTime(0.0001,t); a.gain.exponentialRampToValueAtTime(Math.max(g,0.0002),t+att); a.gain.exponentialRampToValueAtTime(0.0001,t+dur); a.connect(bus); return a; }
+  function osc(t,f,dur,g,type,o={}){
+    const a=env(t,g,o.att||0.01,dur); let node=a;
+    if(o.cut){ const fl=ac.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=o.cut; fl.Q.value=0.7; fl.connect(a); node=fl; }
+    const s=ac.createOscillator(); s.type=type||'sine'; s.frequency.setValueAtTime(f,t); if(o.f2) s.frequency.exponentialRampToValueAtTime(o.f2,t+(o.glide||dur)); if(o.det) s.detune.value=o.det;
+    s.connect(node); s.start(t); s.stop(t+dur+0.05);
+  }
+  function nz(t,dur,g,type,f,q){
+    const a=env(t,g,0.003,dur), fl=ac.createBiquadFilter(), s=ac.createBufferSource();
+    fl.type=type; fl.frequency.value=f; fl.Q.value=q; s.buffer=noiseBuf; s.connect(fl); fl.connect(a); s.start(t,rnd()*1.5); s.stop(t+dur+0.05);
+  }
+  function loopNoise(type,f,q,g){
+    const s=ac.createBufferSource(); s.buffer=noiseBuf; s.loop=true; const fl=ac.createBiquadFilter(); fl.type=type; fl.frequency.value=f; fl.Q.value=q;
+    const a=ac.createGain(); a.gain.value=g; s.connect(fl); fl.connect(a); a.connect(bus); s.start();
+    return ()=>{ try{ s.stop(); }catch(e){} };
+  }
+  const kick=(t,g)=>osc(t,130,0.32,g,'sine',{f2:45,glide:0.12,att:0.003});
+  const snare=(t,g)=>{ nz(t,0.16,g*0.6,'bandpass',1900,0.9); osc(t,190,0.08,g*0.35,'triangle',{att:0.002}); };
+  const hat=g=>t=>nz(t,0.04,g,'highpass',7500,0.8);
+  const ep=(t,f,dur,g)=>{ osc(t,f,dur,g,'sine',{att:0.012,cut:2200}); osc(t,f*2,dur*0.35,g*0.18,'sine',{att:0.005}); osc(t,f,dur,g*0.3,'triangle',{att:0.02,cut:900,det:6}); };
+  const bass=(t,f,dur,g)=>{ osc(t,f,dur,g,'sine',{att:0.015}); osc(t,f*2,dur*0.6,g*0.25,'triangle',{att:0.01,cut:700}); };
+  const BPM=74, SWING=0.17, CHORDS=[[55,58,62,65,69],[52,58,62,67],[53,57,60,64,67],[50,53,57,60,64]], ROOTS=[43,48,41,50];   // Gm9 – C9 – Fmaj9 – Dm9
+  function place(s,t,u){
+    const bar=Math.floor(s/16)%4, i=s%16, ch=CHORDS[bar], r=ROOTS[bar];
+    if(i===0){ ch.forEach(m=>ep(t+rnd()*0.02,m2f(m),u*13,0.07)); bass(t,m2f(r),u*6,0.32); }
+    if(i===10){ ch.slice(1).forEach(m=>ep(t+rnd()*0.015,m2f(m),u*5,0.04)); bass(t,m2f(r),u*4,0.26); }
+    if(i===0||i===10||(i===7&&rnd()<0.4)) kick(t,0.55);
+    if(i===4||i===12) snare(t,0.32);
+    if(i%2===0) hat(i%4===0?0.07:0.04)(t); else if(rnd()<0.25) hat(0.025)(t);
+    if((i===6||i===14)&&rnd()<0.45) ep(t,m2f(pick([72,74,77,79,81])),u*4,0.05);
+    if(rnd()<0.18) nz(t+rnd()*u,0.004,0.06,'highpass',2500,0.5);   // record crackle
+  }
+  function tick(){
+    const u=60/BPM/4;
+    while(nextT<ac.currentTime+0.15){ place(step,nextT,u); nextT+=u*(step%2===0?1+SWING:1-SWING); step++; }
+  }
+  function start(){
+    if(timer||!api.on()||document.hidden) return;
+    const c=audio(); if(!c) return;
+    if(c.state==='suspended'){ c.resume().then(()=>{ if(c.state==='running') start(); }).catch(()=>{}); return; }   // not allowed yet: starts at the next tap
+    bus=ac.createGain(); bus.gain.value=1; bus.connect(master);
+    stops=[loopNoise('lowpass',3500,0.5,0.012),loopNoise('bandpass',900,0.6,0.01)];
+    master.gain.setTargetAtTime(level(),ac.currentTime,0.05);
+    step=0; nextT=ac.currentTime+0.08; tick(); timer=setInterval(tick,25);
+  }
+  function stop(){
+    clearInterval(timer); timer=null; stops.forEach(f=>f()); stops=[];
+    if(bus){ const b=bus; bus=null; b.gain.setTargetAtTime(0,ac.currentTime,0.2); setTimeout(()=>b.disconnect(),1500); }
+  }
+  api.start=start; api.stop=stop;
+  api.set=on=>{ try{ localStorage.setItem('sixmaxlab_bgm',on?'1':'0'); }catch(e){} on?start():stop(); };
+  api.setVol=v=>{ try{ localStorage.setItem('sixmaxlab_bgmvol',String(v)); }catch(e){} if(master) master.gain.setTargetAtTime(level(),ac.currentTime,0.05); };
+  ['pointerdown','keydown','touchend'].forEach(t=>document.addEventListener(t,()=>{ if(api.on()&&!timer) start(); },{capture:true,passive:true}));
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) stop(); else start(); });
+  return api;
+})();
+window.Bgm=Bgm;
 const Prefs=(()=>{
-  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto|range|sound|soundvol)$/.test(k);
+  const isPref=k=>/^pflab_/.test(k)?!/^pflab_(ranges|recs|shared_ranges)/.test(k):/^sixmaxlab_(beginner|autofold|fast|auto|range|sound|soundvol|bgm|bgmvol)$/.test(k);
   const snapshot=()=>{ const o={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(isPref(k)) o[k]=localStorage.getItem(k); } }catch(e){} return o; };
   const same=(a,b)=>{ const ka=Object.keys(a).sort(), kb=Object.keys(b).sort(); return ka.length===kb.length&&ka.every((k,i)=>k===kb[i]&&a[k]===b[k]); };
   const rawSet=Storage.prototype.setItem, rawDel=Storage.prototype.removeItem;
@@ -4239,6 +4321,11 @@ document.getElementById('optSoundVol').value=Math.round(Sfx.vol()*100);
 document.getElementById('optSound').onchange=e=>{ lsSetSafe('sixmaxlab_sound',e.target.checked?'1':'0'); document.getElementById('optSoundVol').disabled=!e.target.checked; if(e.target.checked) Sfx.play('call'); };
 document.getElementById('optSoundVol').disabled=!Sfx.on();
 document.getElementById('optSoundVol').onchange=e=>{ lsSetSafe('sixmaxlab_soundvol',String(e.target.value/100)); Sfx.setVol(e.target.value/100); Sfx.play('call'); };   // a sample at the new volume
+document.getElementById('optBgm').checked=Bgm.on();
+document.getElementById('optBgmVol').value=Math.round(Bgm.vol()*100);
+document.getElementById('optBgmVol').disabled=!Bgm.on();
+document.getElementById('optBgm').onchange=e=>{ Bgm.set(e.target.checked); document.getElementById('optBgmVol').disabled=!e.target.checked; };
+document.getElementById('optBgmVol').oninput=e=>Bgm.setVol(e.target.value/100);
 document.getElementById('optSpec').checked=specBotOn();
 document.getElementById('optSpec').onchange=e=>setSpecBot(e.target.checked);
 document.getElementById('specReviewClose').onclick=closeSpecReview;
