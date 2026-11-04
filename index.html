@@ -1891,7 +1891,7 @@ async function playHandBody(resume){
   if(!RP.on&&!MT.on) Prefs.saveStacks(S.players.map(p=>p.stack));
   S.acting=-1; S.running=false; render(); renderSession();
   const h=S.players[0];
-  if(!S.autoFolded&&!h.folded){ if(S.shared.has(0)) Sfx.play('split'); else if(S.winners.includes(0)) Sfx.play('win'); else if(S.showdown) Sfx.play('lose'); }   // a hand the hero folded makes no end sound
+  if(!S.autoFolded&&!h.folded){ const r=resultOf(h,0); if(r) Sfx.play(r.cls==='draw'?'split':r.cls); else if(S.showdown) Sfx.play('lose'); }   // the same verdict as the table shows (by the chips: a side pot won while ending down is a loss); a hand the hero folded makes no end sound
   const txt=netTxt(rec.net);
   setMsg(S.autoFolded?('自動フォールド（'+classKey(h.hole[0],h.hole[1])+'）'):S.showdown?('ショーダウン｜あなた '+txt):('あなた '+txt));
   if(RP.on){ RP.handEnd(); return; }
@@ -1971,7 +1971,7 @@ function pfReviewShow(rv){
     S.reviewRes=done; document.getElementById('rvNext').onclick=done;
   });
 }
-const sfxQuiet=()=>S.autoFolded||S.fastFold;   // instant play-outs (auto-fold, beginner after a fold) make no sound
+const sfxQuiet=()=>S.autoFolded||S.fastFold||S.abort;   // no sound: instant play-outs (auto-fold, beginner after a fold) and leaving the table (S.abort folds the hero's hand)
 const sfxGain=()=>S.players[0]&&S.players[0].folded?0.45:1;   // the hero is out of the hand: the others' actions are quieter
 function delay(){if(S.autoFolded||S.fastFold) return 0; if(RP.on&&RP.mode==='teach') return S.players[0].folded?110:450; if(isBeginner()) return S.players[0].folded?700:1200; if(S.players[0].folded) return 110; if(MT.on&&S.players[0].allIn) return 620; return document.getElementById('optFast').checked?160:620;}   // tournament: a hand the hero is all-in in always runs at the normal pace, whatever 「高速に」 says
 
