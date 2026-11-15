@@ -532,6 +532,9 @@ header .tabs,#tab-pf>.subtabs,#pf-modes,#pf-modes2{display:none}
 .nv-cards{display:grid;gap:10px}
 .nv-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:14px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px}
 .nv-card:hover,.nv-tile:hover{border-color:var(--brass)}
+.nv-card.busy,.nv-tile.busy{opacity:.6;pointer-events:none}
+.nv-card.busy .t::after{content:'　読み込み中…';font-size:13px;font-weight:500;color:var(--muted)}
+.nv-tile.busy small::after{content:'（読み込み中…）'}
 .nv-card .t{display:block;font-family:var(--num);font-size:24px;font-weight:700;line-height:1.1}
 .nv-card .d{display:block;font-size:12.5px;color:var(--muted)}
 .nv-card .s{display:block;margin-top:3px;font-family:var(--num);font-size:15px;font-weight:600;letter-spacing:.01em}
@@ -4227,7 +4230,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   ['ring','pf','admin'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==topTab));
   applyRingTab();
   if(topTab==='admin') renderAdmin();
-  if(topTab==='pf'){ if(!pfBooted){ pfBooted=true; pfBootP=window.PF.boot(); pfBootP.then(()=>Nav.apply()); } else { window.PF.onShow(); } }
+  if(topTab==='pf'){ if(!pfBooted){ pfBooted=true; pfBootP=window.PF.boot().catch(e=>console.warn('preflop boot',e)); pfBootP.then(()=>Nav.apply()); } else { window.PF.onShow(); } }
   Nav.sync();
 });
 /* Navigation: home -> (ring | preflop menu -> preflop screen | admin). The old tab bars stay in the DOM (other code clicks them)
@@ -4283,14 +4286,22 @@ function lsSetSafe(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 document.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>Nav.setScreen(b.dataset.nv));
 document.getElementById('nvResume').onclick=()=>{ let last=null; try{ last=JSON.parse(localStorage.getItem('sixmaxlab_last')||'null'); }catch(e){} Nav.setScreen(last&&last.s==='pf-menu'?'pf-menu':last&&last.s||'home'); };
 document.getElementById('navBack').onclick=()=>Nav.setScreen(Nav.screen==='pf'?'pf-box':Nav.screen==='pf-box'?(window.PF&&window.PF.ctx().game==='mtt'?'pf-depth':'pf-menu'):Nav.screen==='pf-depth'?'pf-menu':Nav.screen==='rp'?'rp-menu':'home');
-document.getElementById('pf-gate').onclick=async e=>{   // Cash opens its box; MTT asks for the stack depth first
+/* open a preflop box. While the preflop part is still loading (first visit), the tapped card says so and further taps are ignored */
+let pfOpening=false;
+async function pfOpenBox(b,game,depth){
+  if(pfOpening) return; pfOpening=true; b.classList.add('busy');
+  try{ await pfBootP; await window.PF.setCtx(game,depth); Nav.setScreen('pf-box'); }
+  catch(e){ console.warn('open box',e); }
+  finally{ pfOpening=false; b.classList.remove('busy'); }
+}
+document.getElementById('pf-gate').onclick=e=>{   // Cash opens its box; MTT asks for the stack depth first
   const b=e.target.closest('[data-pfgame]'); if(!b) return;
   if(b.dataset.pfgame==='mtt'){ Nav.setScreen('pf-depth'); return; }
-  await pfBootP; await window.PF.setCtx('cash'); Nav.setScreen('pf-box');
+  pfOpenBox(b,'cash');
 };
-document.getElementById('pf-depth').onclick=async e=>{   // an MTT box: one per stack depth
+document.getElementById('pf-depth').onclick=e=>{   // an MTT box: one per stack depth
   const b=e.target.closest('[data-pfmtt]'); if(!b) return;
-  await pfBootP; await window.PF.setCtx('mtt',+b.dataset.pfmtt); Nav.setScreen('pf-box');
+  pfOpenBox(b,'mtt',+b.dataset.pfmtt);
 };
 document.getElementById('navSet').onclick=()=>document.getElementById('setScreen').classList.remove('hidden');
 document.getElementById('setBack').onclick=()=>document.getElementById('setScreen').classList.add('hidden');
@@ -5588,7 +5599,8 @@ async function setCtx(game,depth){
   document.getElementById('pf-tablebox').classList.toggle('t8',POS.length===8);
   const so=document.getElementById('pf-optSize'), sw=so&&so.closest('.checks')&&so.closest('.checks').parentNode; if(sw) sw.classList.toggle('hidden',CTX.game!=='cash');   // the open-size option is Cash only
   const lbl=document.getElementById('pfCtxLbl'); if(lbl) lbl.textContent=CTX.game==='mtt'?`MTT ${CTX.depth}bb（8人テーブル・BBアンティ）`:'リングゲーム（6人テーブル・100bb）';
-  const ch=await SharedRanges.fetch(); if(ch&&CTX.key===(game==='mtt'?'mtt'+depth:'cash')) Ranges.load();
+  // the newest shared chart comes from the cloud in the background: the box opens at once with the cached chart (a slow phone connection used to hold the tap for seconds)
+  const key=CTX.key; SharedRanges.fetch().then(ch=>{ if(!ch||CTX.key!==key) return; Ranges.load(); renderPosChecks(); renderFarInfo(); applyMode(); if(!P.cur&&(P.special?anyRanges():modeReady(P.mode))) deal(); applyTab(); }).catch(e=>console.warn('shared ranges',e));
   const fm=document.getElementById('pf-fMode'); fm.value=MODE_POS[lsGet('pflab_fmode')]?lsGet('pflab_fmode'):'open'; fillStatPos();
   document.getElementById('pf-fPos').value=MODE_POS[fm.value].includes(lsGet(K('pflab_fpos')))?lsGet(K('pflab_fpos')):'';
   fillPosSelect('pf-rPos',document.getElementById('pf-rMode').value,'pflab_rpos'); fillPosSelect('pf-ePos',document.getElementById('pf-eMode').value,'pflab_epos');
